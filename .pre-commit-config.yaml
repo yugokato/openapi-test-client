@@ -1,0 +1,27 @@
+default_language_version:
+  python: python3.11
+repos:
+- repo: https://github.com/PyCQA/autoflake
+  rev: v2.3.0
+  hooks:
+    - id: autoflake
+      args:
+        - --recursive
+        - --check-diff
+        - --remove-all-unused-imports
+        - --ignore-init-module-imports
+        - --ignore-pass-statements
+        - --quiet
+- repo: https://github.com/PyCQA/isort
+  rev: 5.12.0
+  hooks:
+    - id: isort
+      args:
+        - --check
+- repo: https://github.com/psf/black
+  rev: 23.12.1
+  hooks:
+    - id: black
+      args:
+        - --check
+      types: [python]
