@@ -104,7 +104,14 @@ def generate_pydantic_model_fields(
         # Adjust field value based on the param constraints
         if constraint := filter_annotated_metadata(annotated_type, Constraint):
             if param_type_util.is_type_of(field_type, str):
-                field_value = Field(default_value, min_length=constraint.min_len, max_length=constraint.max_len)
+                const = {}
+                if constraint.min_len:
+                    const.update(min_length=constraint.min_len)
+                if constraint.max_len:
+                    const.update(max_length=constraint.max_len)
+                if constraint.pattern:
+                    const.update(pattern=constraint.pattern)
+                field_value = Field(default_value, **const)
             elif param_type_util.is_type_of(field_type, int):
                 const = {}
                 # TODO: Update the logic around exclusive_minimum/exclusive_maximum once Pydantic starts treating them

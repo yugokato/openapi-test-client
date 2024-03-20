@@ -41,6 +41,7 @@ class ParamDef(HashableDict):
                 min_len=self.get("minLength"),
                 max_len=self.get("maxLength"),
                 nullable=self.get("nullable"),
+                pattern=self.get("pattern"),
             )
 
     @property
@@ -439,6 +440,7 @@ class Constraint(ParamAnnotationType):
     min_items: int = None
     max_items: int = None
     nullable: bool = None
+    pattern: str = None
 
     # NOTE: exclusive_minimum/exclusive_maximum are supposed to be a boolean in the OAS 3.x specifications,
     #       but Pydantic currently treats them as an integer
