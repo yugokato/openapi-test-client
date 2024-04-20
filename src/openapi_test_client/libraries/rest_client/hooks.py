@@ -33,7 +33,7 @@ def _log_request(request: PreparedRequestExt, quiet: bool, **kwargs):
         "request": f"{request.method.upper()} {request.url}",
         "method": request.method,
         "path": request.path_url,
-        "payload": process_request_body(request.body),
+        "payload": process_request_body(request),
         "request_headers": request.headers,
     }
     if not quiet:
@@ -101,7 +101,7 @@ def _print_api_summary(response: ResponseExt, prettify: bool, log_headers: bool,
         # request payload and query parameters
         if query_strings := parse_query_strings(request.url):
             summary += color(f"{bullet} query params: {query_strings}\n", color_code=ColorCodes.CYAN)
-        request_body = process_request_body(request.body, truncate_bytes=True)
+        request_body = process_request_body(request, truncate_bytes=True)
         if request_body:
             try:
                 payload = json.dumps(request_body)

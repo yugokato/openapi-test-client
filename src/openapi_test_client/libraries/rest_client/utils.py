@@ -46,8 +46,11 @@ def generate_query_string(query_params: dict[str, Any]):
     return query_string
 
 
-def process_request_body(body: Optional[bytes], hide_sensitive_values: bool = True, truncate_bytes: bool = False):
+def process_request_body(
+    request: "PreparedRequestExt", hide_sensitive_values: bool = True, truncate_bytes: bool = False
+):
     """Process request body (PreparedRequest.body)"""
+    body = request.body
     if body:
         body = _decode_utf8(body)
         if isinstance(body, bytes):
@@ -60,14 +63,14 @@ def process_request_body(body: Optional[bytes], hide_sensitive_values: bool = Tr
                 JSONDecodeError,
                 UnicodeDecodeError,
             ):
-                pass
-            else:
-                if hide_sensitive_values:
-                    body = mask_sensitive_value(body)
+                if not isinstance(body, str):
+                    return body
+            if hide_sensitive_values:
+                body = mask_sensitive_value(body, request.headers["Content-Type"])
     return body
 
 
-def mask_sensitive_value(body: Any):
+def mask_sensitive_value(body: Any, content_type: str):
     """Mask a field value when a field name of the request body contains specific word"""
     if isinstance(body, dict):
         part_field_names_to_mask_value = [
@@ -76,12 +79,18 @@ def mask_sensitive_value(body: Any):
         ]
         for k, v in body.items():
             if isinstance(v, dict):
-                mask_sensitive_value(v)
+                mask_sensitive_value(v, content_type)
             elif isinstance(v, list):
                 for nested_obj in v:
-                    mask_sensitive_value(nested_obj)
+                    mask_sensitive_value(nested_obj, content_type)
             elif isinstance(v, str) and any(part in k for part in part_field_names_to_mask_value):
                 body[k] = "*" * len(v)
+    elif isinstance(body, str) and content_type == "application/x-www-form-urlencoded" and "=" in body:
+        # Convert application/x-www-form-urlencoded data to a dictionary and mask sensitive values
+        parsed_body = {k: v for k, v in [p.split("=") for p in body.split("&") if p]}
+        masked_body = mask_sensitive_value(parsed_body, content_type)
+        return "&".join(f"{k}={v}" for k, v in masked_body.items())
+
     return body
 
 
