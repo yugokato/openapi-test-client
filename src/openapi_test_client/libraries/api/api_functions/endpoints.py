@@ -275,7 +275,7 @@ class endpoint:
         return obj
 
     @staticmethod
-    def is_public(endpoint_handler: "EndpointHandler") -> "EndpointHandler":
+    def is_public(endpoint_handler: "EndpointHandler") -> Union["EndpointHandler", "APIClassType"]:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
         """
