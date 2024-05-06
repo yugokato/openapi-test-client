@@ -109,13 +109,22 @@ class OpenAPISpec:
         """Resolve '$ref' and overwrite the spec data"""
         ref_pattern = re.compile(r"#?/([^/]+)")
 
-        def resolve_recursive(reference):
+        def resolve_recursive(reference, schemas_seen: list[str] = None):
+            if not schemas_seen:
+                schemas_seen = []
             if isinstance(reference, dict):
                 for k, v in copy.deepcopy(reference).items():
                     new_reference = reference[k]
                     if k == "$ref":
                         ref_keys = re.findall(ref_pattern, new_reference)
                         assert ref_keys
+                        schema = "/".join(ref_keys)
+                        if schema in schemas_seen:
+                            logger.warning(
+                                f"WARNING: Detected recursive schema definition. This is not supported: {schema}"
+                            )
+                        else:
+                            schemas_seen.append(schema)
                         try:
                             resolved_value = reduce(lambda d, k: d[k], ref_keys, api_spec)
                             del reference[k]
@@ -123,16 +132,16 @@ class OpenAPISpec:
                             logger.warning(f"SKIPPED: Unable to resolve '$ref' for '{new_reference}' (KeyError: {e})")
                         else:
                             if self._has_reference(resolved_value):
-                                resolved_value = resolve_recursive(resolved_value)
+                                resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
                             if isinstance(resolved_value, dict):
                                 reference.update(resolved_value)
                             else:
                                 reference = resolved_value
                     else:
-                        resolve_recursive(new_reference)
+                        resolve_recursive(new_reference, schemas_seen=schemas_seen)
             elif isinstance(reference, list):
                 for item in reference:
-                    resolve_recursive(item)
+                    resolve_recursive(item, schemas_seen=schemas_seen)
             return reference
 
         paths = api_spec["paths"]
@@ -198,7 +207,16 @@ class OpenAPISpec:
         paths = api_spec["paths"]
         for _, path_obj in paths.items():
             adjust_path_params(path_obj)
-            adjust_recursive(path_obj)
+            try:
+                adjust_recursive(path_obj)
+            except RecursionError:
+                logger.warning(f"SKIPPED: Unable to process the path object with recursive object(s):\n{path_obj}")
+            except Exception as e:
+                logger.warning(
+                    f"SKIPPED: Encountered an error while processing the path object:\n"
+                    f"{path_obj}\n({type(e).__name__}: {e})"
+                )
+                logger.exception(e)
         return api_spec
 
     def _adjust_path_parameters(self, api_spec: dict[str, Any]):
