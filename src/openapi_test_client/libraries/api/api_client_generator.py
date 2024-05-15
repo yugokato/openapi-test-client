@@ -506,7 +506,7 @@ def update_endpoint_functions(
     except Exception as e:
         # This should not happen
         tb = traceback.format_exc()
-        err = f"{TAB}Failed to update {api_cls_file_path}:"
+        err = f"Failed to update {api_cls_file_path}:"
         if all([endpoint_func_name, method, path]):
             err += f" {endpoint_func_name} ({method} {path})"
         err += f"\n{tb})\n"

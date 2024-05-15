@@ -136,57 +136,69 @@ def _parse_parameter_objects(
     """
     for param_obj in deepcopy(parameter_objects):
         param_name = param_obj["name"]
-        param_location = param_obj["in"]
-        param_def = ParamDef.from_param_obj(param_obj)
-        # In case path parameters are incorrectly documented as required: false, we force make them required as path
-        # parameters will always be required for our client
-        is_required = True if param_location == "path" else None
-        param_type_annotation = param_type_util.resolve_type_annotation(param_name, param_def, _is_required=is_required)
+        try:
+            param_location = param_obj["in"]
+            param_def = ParamDef.from_param_obj(param_obj)
+            # In case path parameters are incorrectly documented as required: false, we force make them required as path
+            # parameters will always be required for our client
+            is_required = True if param_location == "path" else None
+            param_type_annotation = param_type_util.resolve_type_annotation(
+                param_name, param_def, _is_required=is_required
+            )
 
-        if param_location in ["header", "cookies"]:
-            # We currently don't support these
-            continue
-        elif param_location == "path":
-            path_param_fields.append((param_name, param_type_annotation))
-        elif param_location == "query":
-            if method.upper() != "GET":
-                # Annotate query params for non GET endpoints
-                param_type_annotation = param_type_util.generate_annotated_type(param_type_annotation, "query")
+            if param_location in ["header", "cookies"]:
+                # We currently don't support these
+                continue
+            elif param_location == "path":
+                path_param_fields.append((param_name, param_type_annotation))
+            elif param_location == "query":
+                if method.upper() != "GET":
+                    # Annotate query params for non GET endpoints
+                    param_type_annotation = param_type_util.generate_annotated_type(param_type_annotation, "query")
 
-            if "schema" in param_obj:
-                # defined as model. We unpack the model details
-                schema_obj = param_obj["schema"]
-                if "items" in schema_obj:
-                    schema_obj = schema_obj["items"]
+                if "schema" in param_obj:
+                    # defined as model. We unpack the model details
+                    schema_obj = param_obj["schema"]
+                    if "items" in schema_obj:
+                        schema_obj = schema_obj["items"]
 
-                if "properties" in schema_obj:
-                    properties = schema_obj["properties"]
+                    if "properties" in schema_obj:
+                        properties = schema_obj["properties"]
 
-                    for k, v in properties.items():
-                        if "name" not in properties[k]:
-                            properties[k]["name"] = k
-                        properties[k]["in"] = param_location
+                        for k, v in properties.items():
+                            if "name" not in properties[k]:
+                                properties[k]["name"] = k
+                            properties[k]["in"] = param_location
 
-                    # Replace the param objects and parse it again
-                    parameter_objects.clear()
-                    parameter_objects.extend(properties.values())
-                    _parse_parameter_objects(method, parameter_objects, path_param_fields, body_or_query_param_fields)
+                        # Replace the param objects and parse it again
+                        parameter_objects.clear()
+                        parameter_objects.extend(properties.values())
+                        _parse_parameter_objects(
+                            method, parameter_objects, path_param_fields, body_or_query_param_fields
+                        )
+                    else:
+                        if param_name not in [x[0] for x in body_or_query_param_fields]:
+                            body_or_query_param_fields.append(
+                                (
+                                    param_name,
+                                    param_type_annotation,
+                                    field(default=None, metadata=param_obj),
+                                )
+                            )
                 else:
                     if param_name not in [x[0] for x in body_or_query_param_fields]:
                         body_or_query_param_fields.append(
-                            (
-                                param_name,
-                                param_type_annotation,
-                                field(default=None, metadata=param_obj),
-                            )
+                            (param_name, param_type_annotation, field(default=None, metadata=param_obj))
                         )
             else:
-                if param_name not in [x[0] for x in body_or_query_param_fields]:
-                    body_or_query_param_fields.append(
-                        (param_name, param_type_annotation, field(default=None, metadata=param_obj))
-                    )
-        else:
-            raise NotImplementedError(f"Unsupported param 'in': {param_location}")
+                raise NotImplementedError(f"Unsupported param 'in': {param_location}")
+        except Exception:
+            logger.error(
+                "Encountered an error while processing a param object in 'parameters':\n"
+                f"- param name: {param_name}\n"
+                f"- param object: {param_obj}"
+            )
+            raise
 
 
 def _parse_request_body_object(
@@ -229,30 +241,38 @@ def _parse_request_body_object(
 
         for param_name in properties:
             param_obj = properties[param_name]
-            param_def = ParamDef.from_param_obj(param_obj)
-            if _is_file_param(content_type, param_def):
-                param_type = File
-                if not param_def.is_required:
-                    param_type = Optional[param_type]
-                body_or_query_param_fields.append((param_name, param_type, field(default=None)))
-            else:
-                existing_param_names = [x[0] for x in body_or_query_param_fields]
-                if param_name in existing_param_names:
-                    duplicated_param_fields = [x for x in body_or_query_param_fields if x[0] == param_name]
-                    param_type_annotations = []
-                    for _, t, m in duplicated_param_fields:
-                        param_type_annotations.append(t)
-                    param_type_annotation = param_type_util.generate_union_type(param_type_annotations)
-                    merged_param_field = (
-                        param_name,
-                        param_type_annotation,
-                        field(default=None, metadata=param_obj),
-                    )
-                    body_or_query_param_fields[existing_param_names.index(param_name)] = merged_param_field
+            try:
+                param_def = ParamDef.from_param_obj(param_obj)
+                if _is_file_param(content_type, param_def):
+                    param_type = File
+                    if not param_def.is_required:
+                        param_type = Optional[param_type]
+                    body_or_query_param_fields.append((param_name, param_type, field(default=None)))
                 else:
-                    param_type_annotation = param_type_util.resolve_type_annotation(param_name, param_def)
-                    param_field = (param_name, param_type_annotation, field(default=None, metadata=param_obj))
-                    body_or_query_param_fields.append(param_field)
+                    existing_param_names = [x[0] for x in body_or_query_param_fields]
+                    if param_name in existing_param_names:
+                        duplicated_param_fields = [x for x in body_or_query_param_fields if x[0] == param_name]
+                        param_type_annotations = []
+                        for _, t, m in duplicated_param_fields:
+                            param_type_annotations.append(t)
+                        param_type_annotation = param_type_util.generate_union_type(param_type_annotations)
+                        merged_param_field = (
+                            param_name,
+                            param_type_annotation,
+                            field(default=None, metadata=param_obj),
+                        )
+                        body_or_query_param_fields[existing_param_names.index(param_name)] = merged_param_field
+                    else:
+                        param_type_annotation = param_type_util.resolve_type_annotation(param_name, param_def)
+                        param_field = (param_name, param_type_annotation, field(default=None, metadata=param_obj))
+                        body_or_query_param_fields.append(param_field)
+            except Exception:
+                logger.error(
+                    "Encountered an error while processing the param object in 'requestBody':\n"
+                    f"- param name: {param_name}\n"
+                    f"- param object: {param_obj}"
+                )
+                raise
 
     schema_obj = request_body_obj["content"][content_type]["schema"]
     parse_schema_obj(schema_obj)
