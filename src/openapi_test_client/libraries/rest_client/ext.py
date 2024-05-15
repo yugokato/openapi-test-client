@@ -126,7 +126,7 @@ class SessionExt(Session):
             )
             raise
 
-    @retry_on(503, retry_after=15)
+    @retry_on(503, retry_after=15, safe_methods_only=True)
     def _send(self, request: PreparedRequestExt, **kwargs) -> Union[Response, ResponseExt]:
         """Send a request"""
         request.start_time = datetime.now(tz=timezone.utc)

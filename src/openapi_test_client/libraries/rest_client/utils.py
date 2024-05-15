@@ -6,7 +6,7 @@ from copy import deepcopy
 from functools import lru_cache, wraps
 from http import HTTPStatus
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, Union
 from urllib.parse import parse_qs, urlparse
 
 from requests import Session
@@ -154,23 +154,50 @@ def manage_content_type(f: Callable[P, RT]) -> Callable[P, RT]:
     return wrapper
 
 
-def retry_on(*status_code_to_retry: int, num_retry: int = 1, retry_after: float = 5, safe_methods_only: bool = True):
+def retry_on(
+    condition: int | Sequence[int] | Callable[["RestResponse"], bool],
+    num_retry: int = 1,
+    retry_after: float = 5,
+    safe_methods_only: bool = False,
+):
+    """Retry the request if the given condition matches
+
+    :param condition: Either status code(s) or a function that takes response object as the argument
+    :param num_retry: Max number of retries
+    :param retry_after: Wait time before retrying in seconds
+    :param safe_methods_only: Retry will happen only for safe methods
+    """
+
     def decorator_with_args(f: Callable[P, RT]) -> Callable[P, RT]:
-        """Retry the request if any of specified status code is returned"""
+        def matches_condition(r: "RestResponse") -> bool:
+            if isinstance(condition, int):
+                return r.status_code == condition
+            elif isinstance(condition, (tuple, list)) and all(isinstance(x, int) for x in condition):
+                return r.status_code in condition
+            elif callable(condition):
+                return condition(r)
+            else:
+                raise ValueError(f"Invalid condition: {condition}")
 
         @wraps(f)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> RT:
             resp: ResponseExt | RestResponse = f(*args, **kwargs)
-            if safe_methods_only and resp.request.method.upper() not in ["GET", "HEAD", "OPTION"]:
-                return resp
-
             num_retried = 0
             while num_retried < num_retry:
-                if resp.status_code in status_code_to_retry:
+                if matches_condition(resp):
+                    if safe_methods_only and resp.request.method.upper() not in ["GET", "HEAD", "OPTION"]:
+                        logger.warning("Retry condition matched but will be skipped (safe_methods_only=True was given)")
+                        return resp
+
                     original_request: PreparedRequestExt = resp.request
                     copied_request = deepcopy(original_request)
+                    if callable(condition):
+                        msg = "Retry condition matched."
+                    else:
+                        msg = f"Received status code {resp.status_code}."
+                    msg += f" Retrying in {retry_after} seconds..."
                     logger.warning(
-                        f"Received status code {resp.status_code}. Retrying in {retry_after} seconds...",
+                        msg,
                         extra={
                             "status_code": resp.status_code,
                             "response": process_response(resp, prettify=True),
@@ -183,9 +210,15 @@ def retry_on(*status_code_to_retry: int, num_retry: int = 1, retry_after: float 
                     num_retried += 1
                 else:
                     break
-            if (status_code := resp.status_code) in status_code_to_retry:
+
+            if matches_condition(resp):
                 text = f"{num_retry} times" if num_retry > 1 else "once"
-                logger.warning(f"Retried {text} but the request still received status code {status_code}")
+                msg = f"Retried {text} but the request still"
+                if callable(condition):
+                    msg += " matches the condition"
+                else:
+                    msg += f" received status code {resp.status_code}"
+                logger.warning(msg)
             return resp
 
         return wrapper

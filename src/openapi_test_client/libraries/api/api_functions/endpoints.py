@@ -1,7 +1,7 @@
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, Union, cast
 
 from pydantic import ValidationError
 from requests.exceptions import RequestException
@@ -617,7 +617,7 @@ class EndpointFunc:
     def with_retry(
         self,
         *args,
-        status_code_to_retry: int | tuple[int, ...] = (),
+        condition: int | Sequence[int] | Callable[[RestResponse], bool] = lambda r: not r.ok,
         num_retry: int = 1,
         retry_after: float = 5,
         **kwargs,
@@ -625,17 +625,12 @@ class EndpointFunc:
         """Make an API call with retry conditions
 
         :param args: Positional arguments passed to __call__()
-        :param status_code_to_retry: Status code(s) to trigger a retry
+        :param condition: Either status code(s) or a function that takes response object as the argument
         :param num_retry: The max number of retries
         :param retry_after: A short wait time in seconds before a retry
         :param kwargs: Keyword arguments passed to __call__()
         """
-        if not status_code_to_retry:
-            raise ValueError(f"Please specify at least one status code to retry on")
-        if isinstance(status_code_to_retry, int):
-            status_code_to_retry = (status_code_to_retry,)
-
-        f = retry_on(*status_code_to_retry, num_retry=num_retry, retry_after=retry_after)(self)
+        f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
         return f(*args, **kwargs)
 
     def get_usage(self) -> Optional[str]:
