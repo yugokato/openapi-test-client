@@ -5,13 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from openapi_test_client.libraries.common.logging import get_logger
-
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
-
-
-logger = get_logger(__name__)
 
 
 def run_command(args: str) -> tuple[str, str]:

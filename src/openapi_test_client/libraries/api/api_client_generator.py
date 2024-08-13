@@ -7,6 +7,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from common_libs.ansi_colors import ColorCodes, color
+from common_libs.clients.rest_client.ext import RestResponse
+from common_libs.logging import get_logger
+
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_model as endpoint_model_util
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 from openapi_test_client import (
@@ -22,17 +26,14 @@ from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.libraries.api import APIBase
 from openapi_test_client.libraries.api.api_classes import get_api_classes, init_api_classes
 from openapi_test_client.libraries.api.types import ParamModel
-from openapi_test_client.libraries.common.ansi_colors import ColorCodes, color
 from openapi_test_client.libraries.common.code import diff_code, format_code
 from openapi_test_client.libraries.common.constants import TAB, VALID_METHODS
-from openapi_test_client.libraries.common.logging import get_logger
 from openapi_test_client.libraries.common.misc import (
     camel_to_snake,
     generate_class_name,
     import_module_from_file_path,
     import_module_with_new_code,
 )
-from openapi_test_client.libraries.rest_client.ext import RestResponse
 
 if TYPE_CHECKING:
     from openapi_test_client.clients import APIClientType
@@ -229,9 +230,10 @@ def update_endpoint_functions(
     :param show_diff: Show diff when update is required
 
     The API class file would look like this:
+        >>> from common_libs.clients.rest_client import RestResponse
+        >>>
         >>> from openapi_test_client.clients.sample_app.api.base import SampleAppBaseAPI
         >>> from openapi_test_client.libraries.api.api_functions import endpoint
-        >>> from openapi_test_client.libraries.rest_client import RestResponse
         >>>
         >>>
         >>> class SomeAPI(SampleAppBaseAPI):

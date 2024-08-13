@@ -3,17 +3,19 @@ import re
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Annotated, Any, Optional, get_args, get_origin
 
+from common_libs.clients.rest_client.utils import get_supported_request_parameters
+from common_libs.logging import get_logger
+from common_libs.utils import list_items
+
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 from openapi_test_client.libraries.api.multipart_form_data import MultipartFormData
 from openapi_test_client.libraries.api.types import Alias, File
 from openapi_test_client.libraries.common.json_encoder import CustomJsonEncoder
-from openapi_test_client.libraries.common.logging import get_logger
-from openapi_test_client.libraries.common.misc import list_items
-from openapi_test_client.libraries.rest_client.utils import get_supported_request_parameters
 
 if TYPE_CHECKING:
+    from common_libs.clients.rest_client.ext import JSONType
+
     from openapi_test_client.libraries.api import Endpoint
-    from openapi_test_client.libraries.rest_client.ext import JSONType
 
 logger = get_logger(__name__)
 

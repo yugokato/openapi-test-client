@@ -1,10 +1,7 @@
 import pytest
 
 from openapi_test_client.clients.sample_app import SampleAppAPIClient
-from openapi_test_client.libraries.common.logging import get_logger
 from tests import helper
-
-logger = get_logger(__name__)
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])

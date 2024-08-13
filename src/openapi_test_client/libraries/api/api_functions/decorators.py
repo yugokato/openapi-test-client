@@ -1,9 +1,10 @@
 from functools import wraps
 from typing import Callable, ParamSpec
 
+from common_libs.clients.rest_client import RestResponse
+from common_libs.logging import get_logger
+
 from openapi_test_client.libraries.api import endpoint
-from openapi_test_client.libraries.common.logging import get_logger
-from openapi_test_client.libraries.rest_client import RestResponse
 
 P = ParamSpec("P")
 

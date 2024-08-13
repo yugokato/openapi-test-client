@@ -12,15 +12,12 @@ import pytest
 from _pytest.fixtures import SubRequest
 from pytest import Config, Item
 
-from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, ENV_VAR_PACKAGE_DIR
+from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, ENV_VAR_PACKAGE_DIR, logger
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.sample_app import SampleAppAPIClient
 from openapi_test_client.libraries.api.api_client_generator import get_client_dir
 from openapi_test_client.libraries.api.types import ParamModel
-from openapi_test_client.libraries.common.logging import get_logger
 from tests import helper
-
-logger = get_logger(__name__)
 
 
 def pytest_make_parametrize_id(config: Config, val, argname):

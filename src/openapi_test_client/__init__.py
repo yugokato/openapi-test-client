@@ -3,8 +3,8 @@ import os
 import sys
 from pathlib import Path
 
-from openapi_test_client.libraries.common.logging import setup_logging
-from openapi_test_client.libraries.common.misc import list_items
+from common_libs.logging import get_logger, setup_logging
+from common_libs.utils import list_items
 
 # For internal use only
 _PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
@@ -91,3 +91,4 @@ def get_config_dir() -> Path:
 
 
 setup_logging(get_config_dir() / "logging.yaml")
+logger = get_logger(__name__)

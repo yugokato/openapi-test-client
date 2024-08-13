@@ -2,17 +2,15 @@ import inspect
 from pathlib import Path
 
 import pytest
+from common_libs.utils import list_items
 
+from openapi_test_client import logger
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.sample_app import SampleAppAPIClient
 from openapi_test_client.clients.sample_app.api import API_CLASSES
 from openapi_test_client.clients.sample_app.api.users import UsersAPI
 from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME, update_endpoint_functions
-from openapi_test_client.libraries.common.logging import get_logger
-from openapi_test_client.libraries.common.misc import list_items
 from tests import helper
-
-logger = get_logger(__name__)
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

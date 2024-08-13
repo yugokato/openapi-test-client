@@ -1,10 +1,9 @@
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Optional
 
+from common_libs.clients.rest_client import RestResponse
+from common_libs.logging import get_logger
 from requests.exceptions import RequestException
-
-from openapi_test_client.libraries.common.logging import get_logger
-from openapi_test_client.libraries.rest_client import RestResponse
 
 if TYPE_CHECKING:
     from openapi_test_client.clients import APIClientType

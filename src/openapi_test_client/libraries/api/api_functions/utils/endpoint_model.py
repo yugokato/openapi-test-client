@@ -5,10 +5,11 @@ from copy import deepcopy
 from dataclasses import MISSING, Field, field, make_dataclass
 from typing import TYPE_CHECKING, Any, Optional, cast
 
+from common_libs.logging import get_logger
+
 from openapi_test_client.libraries.api.api_functions.utils import param_model as param_model_util
 from openapi_test_client.libraries.api.api_functions.utils import param_type as param_type_util
 from openapi_test_client.libraries.api.types import EndpointModel, File, ParamDef
-from openapi_test_client.libraries.common.logging import get_logger
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc

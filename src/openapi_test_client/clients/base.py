@@ -3,11 +3,12 @@ import inspect
 import json
 from typing import TYPE_CHECKING
 
+from common_libs.clients.rest_client import RestClient
+from common_libs.logging import get_logger
+
 from openapi_test_client import DEFAULT_ENV, get_config_dir
 from openapi_test_client.libraries.api.api_spec import OpenAPISpec
-from openapi_test_client.libraries.common.logging import get_logger
 from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
-from openapi_test_client.libraries.rest_client import RestClient
 
 if TYPE_CHECKING:
     from openapi_test_client.clients import APIClientType

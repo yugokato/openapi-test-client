@@ -6,9 +6,10 @@ from types import NoneType, UnionType
 from typing import _AnnotatedAlias  # noqa
 from typing import Annotated, Any, Literal, Optional, Sequence, Union, get_args, get_origin
 
+from common_libs.logging import get_logger
+
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamDef
-from openapi_test_client.libraries.common.logging import get_logger
 
 logger = get_logger(__name__)
 

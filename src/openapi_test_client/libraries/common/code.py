@@ -4,9 +4,9 @@ import difflib
 import autoflake
 import black
 import isort
+from common_libs.ansi_colors import ColorCodes, color
 
 from openapi_test_client import _PROJECT_ROOT_DIR
-from openapi_test_client.libraries.common.ansi_colors import ColorCodes, color
 
 TAB = " " * 4
 

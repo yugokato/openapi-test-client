@@ -8,65 +8,7 @@ from functools import wraps
 from importlib.abc import InspectLoader
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Iterable
-
-
-def list_items(obj: Iterable[Any], style: str = "-", indent: int = 0) -> str:
-    """List items as string value
-
-    :param obj: Objects to list
-    :param style: Style of the bullet
-    :param indent: indentation level
-    """
-    space = " "
-
-    def handle_newlines(lines):
-        if "\n" in lines:
-            inner_style = (indent + len(style)) * space
-            offset = indent + len(style) + len(space)
-            return list_items(lines.splitlines(), style=inner_style)[offset:]
-        else:
-            return lines
-
-    return "\n".join(f"{' ' * indent}{style}{space}{handle_newlines(str(x))}" for x in obj)
-
-
-class HashableDict(dict):
-    def __hash__(self):
-        return hash(frozenset(self.items()))
-
-
-def freeze_args(f):
-    """A decorator to freeze function arguments
-
-    This is useful for making lru_cache to work on a function that takes mutable arguments (eg. dictionary)
-
-    Usage:
-        @frozenargs
-        @lru_cache
-        def do_something(*args, **kwargs):
-            ...
-    """
-
-    def freeze(arg: Any):
-        if isinstance(arg, HashableDict):
-            return type(arg)({k: freeze(v) for k, v in arg.items()})
-        elif isinstance(arg, tuple):
-            return type(arg)(freeze(x) for x in arg)
-        elif isinstance(arg, Mapping):
-            return HashableDict({k: freeze(v) for k, v in arg.items()})
-        elif isinstance(arg, Collection) and not isinstance(arg, (str, bytes)):
-            return tuple(freeze(x) for x in arg)
-        else:
-            return arg
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        args = freeze(args)
-        kwargs = {k: freeze(v) for k, v in kwargs.items()}
-        return f(*args, **kwargs)
-
-    return wrapper
+from typing import Any
 
 
 def clean_obj_name(name: str) -> str:

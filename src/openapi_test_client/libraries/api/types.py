@@ -4,10 +4,11 @@ from dataclasses import MISSING, Field, asdict, astuple, dataclass, field, is_da
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Optional, Sequence, Union, cast
 
+from common_libs.decorators import freeze_args
+from common_libs.hash import HashableDict
 from pydantic import BaseModel, ConfigDict, create_model
 
 from openapi_test_client.libraries.common.json_encoder import CustomJsonEncoder
-from openapi_test_client.libraries.common.misc import HashableDict, freeze_args
 
 if TYPE_CHECKING:
     from typing import Protocol

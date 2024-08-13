@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
 from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, Union, cast
 
+from common_libs.ansi_colors import ColorCodes, color
+from common_libs.clients.rest_client import RestResponse
+from common_libs.clients.rest_client.utils import retry_on
+from common_libs.logging import get_logger
 from pydantic import ValidationError
 from requests.exceptions import RequestException
 
@@ -11,16 +15,13 @@ import openapi_test_client.libraries.api.api_functions.utils.endpoint_model as e
 import openapi_test_client.libraries.api.api_functions.utils.pydantic_model as pydantic_model_util
 from openapi_test_client.libraries.api import APIBase
 from openapi_test_client.libraries.api.types import EndpointModel
-from openapi_test_client.libraries.common.ansi_colors import ColorCodes, color
-from openapi_test_client.libraries.common.logging import get_logger
 from openapi_test_client.libraries.common.misc import generate_class_name
-from openapi_test_client.libraries.rest_client import RestResponse
-from openapi_test_client.libraries.rest_client.utils import retry_on
 
 if TYPE_CHECKING:
+    from common_libs.clients.rest_client import RestClient
+
     from openapi_test_client.clients import APIClientType
     from openapi_test_client.libraries.api.api_classes import APIClassType
-    from openapi_test_client.libraries.rest_client import RestClient
 
 
 __all__ = ["Endpoint", "EndpointFunc", "endpoint"]

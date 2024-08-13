@@ -1,7 +1,7 @@
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, ParamSpec
 
-from openapi_test_client.libraries.rest_client import RestResponse
+from common_libs.clients.rest_client import RestResponse
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc

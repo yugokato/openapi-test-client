@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import requests
 import yaml
+from common_libs.logging import get_logger
 
 from openapi_test_client.libraries.common.constants import VALID_METHODS
-from openapi_test_client.libraries.common.logging import get_logger
 
 if TYPE_CHECKING:
     from openapi_test_client.clients import APIClientType

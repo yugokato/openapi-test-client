@@ -1,12 +1,12 @@
 version: 1
 handlers:
   console:
-    class: openapi_test_client.libraries.common.logging.ColoredStreamHandler
+    class: common_libs.logging.ColoredStreamHandler
     formatter: default
     stream: ext://sys.stdout
 formatters:
   default:
-    class: openapi_test_client.libraries.common.logging.LogFormatter
+    class: common_libs.logging.LogFormatter
     format: "%(asctime)s - %(message)s"
     datefmt: "%Y-%m-%dT%H:%M:%S.%f%z"
 loggers:

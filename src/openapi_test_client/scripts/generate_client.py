@@ -72,6 +72,10 @@ from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from common_libs.clients.rest_client import RestClient
+from common_libs.logging import get_logger
+from common_libs.utils import list_items
+
 from openapi_test_client import (
     _PACKAGE_DIR,
     _PROJECT_ROOT_DIR,
@@ -83,9 +87,7 @@ from openapi_test_client import (
 )
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.libraries.api import api_client_generator as generator
-from openapi_test_client.libraries.common.logging import get_logger
-from openapi_test_client.libraries.common.misc import clean_obj_name, get_module_name_by_file_path, list_items
-from openapi_test_client.libraries.rest_client import RestClient
+from openapi_test_client.libraries.common.misc import clean_obj_name, get_module_name_by_file_path
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api.api_classes import APIClassType

@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from common_libs.clients.rest_client import RestResponse
+
     from openapi_test_client.clients.sample_app import SampleAppAPIClient
     from openapi_test_client.libraries.api import Endpoint
-    from openapi_test_client.libraries.rest_client import RestResponse
 
 
 def do_something_after_request(

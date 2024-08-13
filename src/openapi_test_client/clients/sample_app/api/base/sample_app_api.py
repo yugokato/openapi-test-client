@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
+from common_libs.clients.rest_client import RestResponse
 from requests.exceptions import RequestException
 
 from openapi_test_client.libraries.api.api_classes.base import APIBase
-from openapi_test_client.libraries.rest_client import RestResponse
 
 from ..request_hooks.post_request import manage_auth_session
 
