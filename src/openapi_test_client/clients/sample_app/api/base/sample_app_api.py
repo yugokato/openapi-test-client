@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional
 
 from common_libs.clients.rest_client import RestResponse
@@ -15,11 +17,11 @@ class SampleAppBaseAPI(APIBase):
     """Base class for sample_app API classes"""
 
     app_name = "sample_app"
-    endpoints: Optional[list["Endpoint"]] = None
+    endpoints: Optional[list[Endpoint]] = None
 
     def post_request_hook(
         self,
-        endpoint: "Endpoint",
+        endpoint: Endpoint,
         response: Optional[RestResponse],
         request_exception: Optional[RequestException],
         *path_params,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import itertools
 from pathlib import Path
@@ -11,7 +13,7 @@ if TYPE_CHECKING:
     APIClassType = TypeVar("APIClassType", bound=APIBase)
 
 
-def init_api_classes(base_api_class: type["APIClassType"]) -> list[type["APIClassType"]]:
+def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassType]]:
     """Initialize API classes and return a list of API classes.
 
     - A list of Endpoint objects for an API class is available via its `endpoints` attribute
@@ -62,7 +64,7 @@ def init_api_classes(base_api_class: type["APIClassType"]) -> list[type["APIClas
     return sorted(api_classes, key=lambda x: x.TAGs)
 
 
-def get_api_classes(api_class_dir: Path, base_api_class: type["APIClassType"]) -> list[type["APIClassType"]]:
+def get_api_classes(api_class_dir: Path, base_api_class: type[APIClassType]) -> list[type[APIClassType]]:
     """Get all API classes defined under the given API class directory"""
     assert api_class_dir.is_dir()
 

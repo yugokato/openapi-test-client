@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import json
 import re
@@ -61,7 +63,7 @@ Do NOT manually update the content.
 
 
 @lru_cache
-def generate_base_api_class(temp_api_client: OpenAPIClient) -> type["APIClassType"]:
+def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIClassType]:
     """Generate new base API class file for the given temporary API client"""
     from openapi_test_client.libraries.api import Endpoint
 
@@ -69,6 +71,8 @@ def generate_base_api_class(temp_api_client: OpenAPIClient) -> type["APIClassTyp
     app_name = temp_api_client.app_name
     base_api_class_name = generate_class_name(app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)
     code = f'''\
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional
 
 from {APIBase.__module__} import {APIBase.__name__}
@@ -81,7 +85,7 @@ class {base_api_class_name}({APIBase.__name__}):
     """Base class for {app_name} API classes"""
 
     app_name = "{app_name}"
-    endpoints: Optional[list["{Endpoint.__name__}"]] = None
+    endpoints: Optional[list[{Endpoint.__name__}]] = None
 '''
     app_client_dir = get_client_dir(app_name)
     app_api_class_dir = app_client_dir / API_CLASS_DIR_NAME
@@ -110,7 +114,7 @@ class {base_api_class_name}({APIBase.__name__}):
 
 
 def generate_api_class(
-    api_client: "APIClientType",
+    api_client: APIClientType,
     tag: str,
     class_name: str = None,
     add_endpoint_functions: bool = True,
@@ -201,7 +205,7 @@ def generate_api_class(
 
 
 def update_endpoint_functions(
-    api_class: type["APIClassType"],
+    api_class: type[APIClassType],
     api_spec: dict[str, Any],
     is_new_api_class: bool = False,
     target_endpoints: list[str] = None,
@@ -276,7 +280,7 @@ def update_endpoint_functions(
     defined_endpoints = []
     param_models = []
 
-    def update_existing_endpoints(target_api_class: type["APIClassType"] = api_class):
+    def update_existing_endpoints(target_api_class: type[APIClassType] = api_class):
         """Updated existing endpoint functions"""
         nonlocal modified_api_cls_code
         new_code = current_code = modified_api_cls_code
@@ -631,11 +635,11 @@ def setup_external_directory(client_name: str, base_url: str, env: str = DEFAULT
     _recursively_add_init_file(api_client_lib_dir, exclude_dirs=("cfg",))
 
 
-def _is_temp_client(api_client: "APIClientType") -> bool:
+def _is_temp_client(api_client: APIClientType) -> bool:
     return type(api_client) is OpenAPIClient
 
 
-def _get_base_api_class(api_client: "APIClientType") -> type["APIClassType"]:
+def _get_base_api_class(api_client: APIClientType) -> type[APIClassType]:
     client_file_path = Path(inspect.getabsfile(type(api_client)))
     app_client_dir = client_file_path.parent
     base_api_class_name = generate_class_name(api_client.app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)

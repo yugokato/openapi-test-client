@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
@@ -124,7 +126,7 @@ def create_model_from_param_def(
 
 
 def generate_imports_code_from_model(
-    api_class: type["APIClassType"], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
+    api_class: type[APIClassType], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
 ) -> str:
     """Generate imports code from the model
 
@@ -181,7 +183,7 @@ def generate_imports_code_from_model(
     return imports_code
 
 
-def generate_model_code_from_model(api_class: type["APIClassType"], model: type[ParamModel]) -> tuple[str, str]:
+def generate_model_code_from_model(api_class: type[APIClassType], model: type[ParamModel]) -> tuple[str, str]:
     """Generate dataclass code from the model
 
     :param api_class: The API class the model is for

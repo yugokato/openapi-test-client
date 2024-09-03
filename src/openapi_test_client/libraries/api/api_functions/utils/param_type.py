@@ -214,11 +214,7 @@ def get_inner_type(tp: Any, return_if_container_type: bool = False) -> Any | tup
         return tp
 
 
-def replace_inner_type(
-    tp: Any,
-    new_type: Any | Literal["auto"],
-    replace_container_type: bool = False,
-) -> Any:
+def replace_inner_type(tp: Any, new_type: Any, replace_container_type: bool = False) -> Any:
     """Replace an inner type of in the type annotation to something else
 
     :param tp: The original type annotation

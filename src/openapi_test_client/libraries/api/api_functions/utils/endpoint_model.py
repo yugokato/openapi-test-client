@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import json
 import re
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def create_endpoint_model(endpoint_func: "EndpointFunc", api_spec: dict[str, Any] = None) -> type[EndpointModel]:
+def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] = None) -> type[EndpointModel]:
     """Create a model class for the endpoint from either current function signature or Swagger API spec
 
     :param endpoint_func: Endpoint function for the endpoint

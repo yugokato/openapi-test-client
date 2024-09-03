@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, cast
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
@@ -41,7 +43,7 @@ class Endpoint:
     """
 
     tags: list[str]
-    api_class: type["APIClassType"]
+    api_class: type[APIClassType]
     method: str
     path: str
     func_name: str
@@ -60,7 +62,7 @@ class Endpoint:
 
     def __call__(
         self,
-        api_client: "APIClientType",
+        api_client: APIClientType,
         *path_params,
         quiet: bool = False,
         with_hooks: bool = True,
@@ -125,7 +127,7 @@ class endpoint:
     """
 
     @staticmethod
-    def get(path: str, **requests_lib_options) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    def get(path: str, **requests_lib_options) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
@@ -136,7 +138,7 @@ class endpoint:
     @staticmethod
     def post(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
@@ -155,7 +157,7 @@ class endpoint:
     @staticmethod
     def delete(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
         :param path: The endpoint path
@@ -174,7 +176,7 @@ class endpoint:
     @staticmethod
     def put(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
@@ -193,7 +195,7 @@ class endpoint:
     @staticmethod
     def patch(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
         :param path: The endpoint path
@@ -212,7 +214,7 @@ class endpoint:
     @staticmethod
     def options(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
         :param path: The endpoint path
@@ -231,7 +233,7 @@ class endpoint:
     @staticmethod
     def head(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
@@ -250,7 +252,7 @@ class endpoint:
     @staticmethod
     def trace(
         path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
         :param path: The endpoint path
@@ -267,7 +269,7 @@ class endpoint:
         )
 
     @staticmethod
-    def undocumented(obj: Union["EndpointHandler", "APIClassType"]) -> Union["EndpointHandler", "APIClassType"]:
+    def undocumented(obj: EndpointHandler | APIClassType) -> EndpointHandler | APIClassType:
         """Mark an endpoint as undocumented. If an API class is decorated, all endpoints on the class will be
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
@@ -276,7 +278,7 @@ class endpoint:
         return obj
 
     @staticmethod
-    def is_public(endpoint_handler: "EndpointHandler") -> Union["EndpointHandler", "APIClassType"]:
+    def is_public(endpoint_handler: EndpointHandler) -> EndpointHandler | APIClassType:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
         """
@@ -284,7 +286,7 @@ class endpoint:
         return endpoint_handler
 
     @staticmethod
-    def is_deprecated(obj: Union["EndpointHandler", "APIClassType"]) -> Union["EndpointHandler", "APIClassType"]:
+    def is_deprecated(obj: EndpointHandler | APIClassType) -> EndpointHandler | APIClassType:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
         """
@@ -292,19 +294,17 @@ class endpoint:
         return obj
 
     @staticmethod
-    def content_type(content_type: str) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    def content_type(content_type: str) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Explicitly set Content-Type for this endpoint"""
 
-        def decorator_with_arg(
-            obj: Union["EndpointHandler", "APIClassType"]
-        ) -> Union["EndpointHandler", "APIClassType"]:
+        def decorator_with_arg(obj: EndpointHandler | APIClassType) -> EndpointHandler | APIClassType:
             obj.content_type = content_type
             return obj
 
         return decorator_with_arg
 
     @staticmethod
-    def decorator(f: Callable[P, Any]) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    def decorator(f: Callable[P, Any]) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Convert a regular decorator to be usable on API functions. This supports both regular decorators and
         decorators with arugments
 
@@ -327,7 +327,7 @@ class endpoint:
         >>>    ...
         """
 
-        def wrapper(*args, **kwargs) -> Union["EndpointHandler", Callable[P, OriginalFunc | "EndpointHandler"]]:
+        def wrapper(*args, **kwargs) -> EndpointHandler | Callable[P, OriginalFunc | EndpointHandler]:
             if not kwargs and args and len(args) == 1 and isinstance(args[0], EndpointHandler):
                 # This is a regular decorator
                 endpoint_handler: EndpointHandler = args[0]
@@ -335,7 +335,7 @@ class endpoint:
                 return endpoint_handler
             else:
                 # The decorator takes arguments
-                def _wrapper(endpoint_handler: "EndpointHandler") -> "EndpointHandler":
+                def _wrapper(endpoint_handler: EndpointHandler) -> EndpointHandler:
                     endpoint_handler.register_decorator(partial(f, *args, **kwargs))
                     return endpoint_handler
 
@@ -344,9 +344,9 @@ class endpoint:
         return wrapper
 
     @staticmethod
-    def request_wrapper(f: Callable[P, Any]) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    def request_wrapper(f: Callable[P, Any]) -> Callable[P, OriginalFunc | EndpointFunc]:
         @wraps(f)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> OriginalFunc | "EndpointFunc":
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> OriginalFunc | EndpointFunc:
             return f(*args, **kwargs)
 
         return wrapper
@@ -354,7 +354,7 @@ class endpoint:
     @staticmethod
     def _generate(
         method: str, path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | "EndpointFunc"]:
+    ) -> Callable[P, OriginalFunc | EndpointFunc]:
         """Returns a decorator that generates an endpoint handler object, which will return an EndpointFunction object
         when accessing an API class function
         """
@@ -407,7 +407,7 @@ class EndpointHandler:
         self.is_deprecated = False
         self.__decorators = []
 
-    def __get__(self, instance: Optional["APIClassType"], owner: type["APIClassType"]) -> "EndpointFunc":
+    def __get__(self, instance: Optional[APIClassType], owner: type[APIClassType]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
         if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
@@ -439,12 +439,7 @@ class EndpointFunc:
     All parameters passed to the original API class function call will be passed through to the __call__()
     """
 
-    def __init__(
-        self,
-        endpoint_handler: EndpointHandler,
-        instance: Optional["APIClassType"],
-        owner: type["APIClassType"],
-    ):
+    def __init__(self, endpoint_handler: EndpointHandler, instance: Optional[APIClassType], owner: type[APIClassType]):
         """Initialize endpoint function"""
         if not issubclass(owner, APIBase):
             raise NotImplementedError(f"Unsupported API class: {owner}")

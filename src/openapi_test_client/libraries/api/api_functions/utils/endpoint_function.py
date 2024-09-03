@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 from collections import OrderedDict
@@ -20,7 +22,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def check_params(endpoint: "Endpoint", params: dict[str, Any]):
+def check_params(endpoint: Endpoint, params: dict[str, Any]):
     """Check the endpoint parameters
 
      A warning message will be logged if any of the following condition matches:
@@ -48,7 +50,7 @@ def check_params(endpoint: "Endpoint", params: dict[str, Any]):
                 logger.warning(f"DEPRECATED: parameter '{param_name}' is deprecated")
 
 
-def validate_params(endpoint: "Endpoint", params: dict[str, Any]):
+def validate_params(endpoint: Endpoint, params: dict[str, Any]):
     """Perform Pydantic validation in strict mode
 
     Both endpoint parameters and param models (nested ones too) will be validated.
@@ -64,7 +66,7 @@ def validate_params(endpoint: "Endpoint", params: dict[str, Any]):
     PydanticEndpointModel.validate_as_json(params)
 
 
-def complete_endpoint(endpoint: "Endpoint", path_params: tuple[str, ...], as_url: bool = False):
+def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: bool = False):
     """Complete endpoint path with given path variables
 
     :param endpoint: Endpoint obj
@@ -107,7 +109,7 @@ def complete_endpoint(endpoint: "Endpoint", path_params: tuple[str, ...], as_url
 
 
 def is_json_request(
-    endpoint: "Endpoint", params: dict[str, Any], requests_lib_options: dict[str, Any], session_headers: dict[str, str]
+    endpoint: Endpoint, params: dict[str, Any], requests_lib_options: dict[str, Any], session_headers: dict[str, str]
 ) -> bool:
     """Check if the endpoint call requires a JSON request
 
@@ -133,14 +135,14 @@ def is_json_request(
 
 
 def generate_rest_func_params(
-    endpoint: "Endpoint",
-    endpoint_params: dict[str, "JSONType"],
+    endpoint: Endpoint,
+    endpoint_params: dict[str, JSONType],
     session_headers: dict[str, str] = None,
     quiet: bool = False,
     use_query_string: bool = False,
     is_validation_mode: bool = False,
     **requests_lib_options,
-) -> dict[str, "JSONType"]:
+) -> dict[str, JSONType]:
     """Convert params passed to an endpoint function to ones for a low-level rest call function.
     Also set Content-Type header if needed
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -20,7 +22,7 @@ class APIBase(metaclass=ABCMeta):
     is_documented = True
     is_deprecated = False
 
-    def __init__(self, api_client: "APIClientType"):
+    def __init__(self, api_client: APIClientType):
         if self.app_name != api_client.app_name:
             raise ValueError(
                 f"app_name for API class ({self.app_name}) and API client ({api_client.app_name}) must match"
@@ -36,7 +38,7 @@ class APIBase(metaclass=ABCMeta):
         """API Tags defined in the swagger doc. Every API class MUST have this attribute"""
         raise NotImplementedError
 
-    def pre_request_hook(self, endpoint: "Endpoint", *path_params, **params):
+    def pre_request_hook(self, endpoint: Endpoint, *path_params, **params):
         """Hook function called before each request
 
         :param endpoint: Endpoint object associated with an endpoint function called
@@ -47,7 +49,7 @@ class APIBase(metaclass=ABCMeta):
 
     def post_request_hook(
         self,
-        endpoint: "Endpoint",
+        endpoint: Endpoint,
         response: Optional[RestResponse],
         request_exception: Optional[RequestException],
         *path_params,

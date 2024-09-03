@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import shlex
 import subprocess
 from contextlib import nullcontext
@@ -21,7 +23,7 @@ def run_command(args: str) -> tuple[str, str]:
 
 def do_test_invalid_params(
     *,
-    endpoint_func: "EndpointFunc",
+    endpoint_func: EndpointFunc,
     validation_mode: bool,
     invalid_params: dict[str, Any],
     num_expected_errors: int,

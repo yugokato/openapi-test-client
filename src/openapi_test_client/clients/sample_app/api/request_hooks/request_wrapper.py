@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, ParamSpec
 
@@ -24,7 +26,7 @@ def do_something_before_and_after_request(f: Callable[P, RestResponse]) -> Calla
     """
 
     @wraps(f)
-    def wrapper(endpoint_func: "EndpointFunc", *args: P.args, **kwargs: P.kwargs) -> RestResponse:
+    def wrapper(endpoint_func: EndpointFunc, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         # Do something before request
         r = f(endpoint_func, *args, **kwargs)
         # Do something after request

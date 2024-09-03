@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import json
 import re
@@ -21,7 +23,7 @@ logger = get_logger(__name__)
 class OpenAPISpec:
     """Class to handle OpenAPI specs"""
 
-    def __init__(self, api_client: "APIClientType", doc_path: str):
+    def __init__(self, api_client: APIClientType, doc_path: str):
         self.api_client = api_client
         self.doc_path = doc_path
         self._spec = None
@@ -79,7 +81,7 @@ class OpenAPISpec:
         else:
             logger.warning("API spec is not available")
 
-    def get_endpoint_usage(self, endpoint: "Endpoint") -> Optional[str]:
+    def get_endpoint_usage(self, endpoint: Endpoint) -> Optional[str]:
         """Return usage of the endpoint
 
         :param endpoint: Endpoint object

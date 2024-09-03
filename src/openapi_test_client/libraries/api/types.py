@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import json
 from dataclasses import _DataclassParams  # noqa
 from dataclasses import MISSING, Field, asdict, astuple, dataclass, field, is_dataclass, make_dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Optional, Sequence, cast
 
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
@@ -98,7 +100,7 @@ class ParamDef(HashableDict):
     @lru_cache
     def from_param_obj(
         param_obj: Mapping[str, Any] | dict[str, Any] | Sequence[dict[str, Any]]
-    ) -> Union["ParamDef", "ParamDef.ParamGroup", "ParamDef.UnknownType"]:
+    ) -> ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType:
         """Convert the parameter object to a ParamDef"""
 
         def convert(obj: Any):
@@ -146,7 +148,7 @@ class PydanticModel(BaseModel):
     model_config: ClassVar = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
     @classmethod
-    def validate_as_json(cls: "PydanticModel", data: dict[str, Any]) -> "PydanticModel":
+    def validate_as_json(cls: PydanticModel, data: dict[str, Any]) -> PydanticModel:
         """Validate parameters as JSON data
 
         :param data: Dictionary data to validate with this model
@@ -191,7 +193,7 @@ class DataclassModel(Protocol):
 
 class EndpointModel(DataclassModel):
     content_type: Optional[str]
-    endpoint_func: "EndpointFunc"
+    endpoint_func: EndpointFunc
 
 
 class _ParamModelMeta(type):
@@ -362,8 +364,8 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
 
     @classmethod
     def recreate(
-        cls, current_class: type["ParamModel"], new_fields: list[tuple[str, Any, Optional[field]]]
-    ) -> type["ParamModel"]:
+        cls, current_class: type[ParamModel], new_fields: list[tuple[str, Any, Optional[field]]]
+    ) -> type[ParamModel]:
         """Recreate the model with the new fields
 
         :param current_class: Current param model class

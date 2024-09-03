@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib
 import inspect
 import json
@@ -52,7 +54,7 @@ class OpenAPIClient:
         self._base_url = url
 
     @staticmethod
-    def get_client(app_name: str, **init_options) -> "APIClientType":
+    def get_client(app_name: str, **init_options) -> APIClientType:
         """Get API client for the app
 
         :param app_name: App name

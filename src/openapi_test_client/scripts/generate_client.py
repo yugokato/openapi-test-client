@@ -63,6 +63,8 @@ positional arguments:
       -q, --quiet           Do not show diff on the console
 """
 
+from __future__ import annotations
+
 import argparse
 import importlib
 import os
@@ -417,7 +419,7 @@ def update_client(args: argparse.Namespace):
             _log_errors(args.subparser, failed_results)
 
 
-def _get_api_classes(app: str) -> list[type["APIClassType"]]:
+def _get_api_classes(app: str) -> list[type[APIClassType]]:
     mod = importlib.import_module(
         f"{get_module_name_by_file_path(API_CLIENTS_DIR)}.{app}.{generator.API_CLASS_DIR_NAME}"
     )

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def do_something_after_request(
-    api_client: "SampleAppAPIClient", endpoint: "Endpoint", r: "RestResponse", *path_params, **params
+    api_client: SampleAppAPIClient, endpoint: Endpoint, r: RestResponse, *path_params, **params
 ):
     """This is a template of the post-request hook that will be called right after making a request
 
@@ -19,7 +21,7 @@ def do_something_after_request(
     >>>
     >>> def post_request_hook(
     >>>     self,
-    >>>     endpoint: "Endpoint",
+    >>>     endpoint: Endpoint,
     >>>     response: Optional[RestResponse],
     >>>     request_exception: Optional[RequestException],
     >>>     *path_params,
@@ -32,7 +34,7 @@ def do_something_after_request(
     pass
 
 
-def manage_auth_session(api_client: "SampleAppAPIClient", endpoint: "Endpoint", r: "RestResponse"):
+def manage_auth_session(api_client: SampleAppAPIClient, endpoint: Endpoint, r: RestResponse):
     """Manage auth after successful login/logout
 
     :param api_client: API client
