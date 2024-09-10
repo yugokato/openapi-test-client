@@ -305,9 +305,10 @@ Then the API class and functions will be generated like this:
 ```python
 # openapi_test_client/clients/sample_app/api/auth.py
 
+from common_libs.clients.rest_client import RestResponse
+
 from openapi_test_client.clients.sample_app.api.base import SampleAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
-from openapi_test_client.libraries.rest_client import RestResponse
 
 
 class AuthAPI(SampleAppBaseAPI):
@@ -481,10 +482,11 @@ eg.
 
 from typing import Annotated, Literal, Optional
 
+from common_libs.clients.rest_client import RestResponse
+
 from openapi_test_client.clients.sample_app.api.base import SampleAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
 from openapi_test_client.libraries.api.types import Constraint, Format
-from openapi_test_client.libraries.rest_client import RestResponse
 
 from ..models.users import Metadata
 
@@ -623,6 +625,11 @@ our dataclass models (Endpoint/Param models) will be automatically converted int
 this custom base model class:
 
 ```python
+from typing import ClassVar
+
+from pydantic import BaseModel, ConfigDict
+
+
 class PydanticModel(BaseModel):
     """Base class for Pydantic endpoint/param models"""
 
