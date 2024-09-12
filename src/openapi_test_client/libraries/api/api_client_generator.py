@@ -259,7 +259,7 @@ def update_endpoint_functions(
     regex_tag = re.compile(r'"(?P<tag>[^"]*)"', flags=re.MULTILINE)
     # Regex for each endpoint function block
     regex_ep_func = re.compile(
-        rf"^(?:\s+@{endpoint.__name__}\.\S+)?"  # for any @endpoint.xxxx marks other than the one below
+        rf"^(?:\s+@\S+\n)*?"  # Any decorators other than below
         rf"\s+@{endpoint.__name__}\.(?P<method>{'|'.join(VALID_METHODS)})\((?:\n\s*)?\"(?P<path>[^\"]+?)\"(?P<ep_options>,[^)]+?)?(?:\n\s*)?\)\s*"
         rf"\s+def (?P<endpoint_func_name>[^(]+?)\((?P<signature>.+?)\s*\) -> {RestResponse.__name__}:\s*"
         r"(?P<docstring>\"{3}[\S\s]*?\"{3})?"
