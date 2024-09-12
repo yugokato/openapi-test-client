@@ -17,7 +17,7 @@ def do_something_before_and_after_request(f: Callable[P, RestResponse]) -> Calla
 
     To enable this hook, add this function to the parent class's `request_wrapper` inside the base API class's pre_request_hook():
     >>> from typing import Callable
-    >>> from openapi_test_client.clients.sample_app.api.request_hooks.request_wrapper import do_something_before_and_after_request
+    >>> from openapi_test_client.clients.demo_app.api.request_hooks.request_wrapper import do_something_before_and_after_request
     >>>
     >>> def request_wrapper(self) -> list[Callable]:
     >>>     request_wrappers = super().request_wrapper()    # noqa

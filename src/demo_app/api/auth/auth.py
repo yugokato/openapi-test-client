@@ -4,7 +4,7 @@ from quart import Blueprint, Response, jsonify
 from quart_auth import logout_user
 from quart_schema import tag, validate_request
 
-from sample_app import auth_manager
+from demo_app import auth_manager
 
 from .models import LoginData
 

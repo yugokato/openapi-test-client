@@ -14,7 +14,7 @@ from pytest import Config, Item
 
 from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, ENV_VAR_PACKAGE_DIR, logger
 from openapi_test_client.clients import OpenAPIClient
-from openapi_test_client.clients.sample_app import SampleAppAPIClient
+from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.libraries.api.api_client_generator import get_client_dir
 from openapi_test_client.libraries.api.types import ParamModel
 from tests import helper
@@ -31,8 +31,8 @@ def pytest_runtest_setup(item: Item):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def sample_app_server():
-    script_path = _PACKAGE_DIR.parent / "sample_app" / "main.py"
+def demo_app_server():
+    script_path = _PACKAGE_DIR.parent / "demo_app" / "main.py"
     proc = subprocess.Popen(
         ["python", str(script_path)],
         stdout=subprocess.PIPE,
@@ -50,13 +50,13 @@ def sample_app_server():
 
 
 @pytest.fixture
-def unauthenticated_api_client() -> SampleAppAPIClient:
-    return SampleAppAPIClient()
+def unauthenticated_api_client() -> DemoAppAPIClient:
+    return DemoAppAPIClient()
 
 
 @pytest.fixture(scope="session")
-def api_client(sample_app_server) -> SampleAppAPIClient:
-    client = SampleAppAPIClient()
+def api_client(demo_app_server) -> DemoAppAPIClient:
+    client = DemoAppAPIClient()
     r = client.AUTH.login(username="foo", password="bar")
     assert r.ok
     yield client
@@ -69,7 +69,7 @@ def random_app_name() -> str:
 
 
 @pytest.fixture
-def sample_app_openapi_spec_url(unauthenticated_api_client) -> str:
+def demo_app_openapi_spec_url(unauthenticated_api_client) -> str:
     url_cfg = json.loads((_CONFIG_DIR / "urls.json").read_text())
     base_url = url_cfg[unauthenticated_api_client.env][unauthenticated_api_client.app_name]
     doc_path = unauthenticated_api_client.api_spec.doc_path
@@ -98,12 +98,12 @@ def external_dir(request: SubRequest, random_app_name) -> Optional[Path]:
 
 
 @pytest.fixture
-def temp_app_client(tmp_path_factory, sample_app_openapi_spec_url):
-    """Temporary sample app API client that will be generated for a test"""
-    app_name = f"sample_app_{random.choice(range(1,1000))}"
+def temp_app_client(tmp_path_factory, demo_app_openapi_spec_url):
+    """Temporary demo app API client that will be generated for a test"""
+    app_name = f"demo_app_{random.choice(range(1,1000))}"
     temp_dir = tmp_path_factory.mktemp("MyPackage")
     module_dir = temp_dir / "my_clients"
-    args = f"generate -u {sample_app_openapi_spec_url} -a {app_name} --dir {module_dir} --quiet"
+    args = f"generate -u {demo_app_openapi_spec_url} -a {app_name} --dir {module_dir} --quiet"
     _, stderr = helper.run_command(args)
     if stderr:
         print(stderr)

@@ -22,15 +22,15 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
     Note: This function must be called from the __init__.py of a directory that contains API class files
 
     Example:
-        `AuthAPI.endpoints` or `<SampleAppAPIClient>.AUTH.endpoints` will return the following `Endpoint` objects
+        `AuthAPI.endpoints` or `<DemoAppAPIClient>.AUTH.endpoints` will return the following `Endpoint` objects
 
-        >>> from openapi_test_client.clients.sample_app import SampleAppAPIClient
+        >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
         >>>
-        >>> client = SampleAppAPIClient()
+        >>> client = DemoAppAPIClient()
         >>> client.AUTH.endpoints
         [
-            Endpoint(tag='Auth', api_class=<class 'test_client.clients.sample_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.LoginEndpointModel'>),
-            Endpoint(tag='Auth', api_class=<class 'test_client.clients.sample_app.api.auth.AuthAPI'>, method='get', path='/v1/auth/logout', func_name='logout', model=<class 'types.LogoutEndpointModel'>)
+            Endpoint(tag='Auth', api_class=<class 'test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.LoginEndpointModel'>),
+            Endpoint(tag='Auth', api_class=<class 'test_client.clients.demo_app.api.auth.AuthAPI'>, method='get', path='/v1/auth/logout', func_name='logout', model=<class 'types.LogoutEndpointModel'>)
         ]
 
     """

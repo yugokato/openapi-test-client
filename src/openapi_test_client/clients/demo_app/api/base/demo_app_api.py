@@ -13,10 +13,10 @@ if TYPE_CHECKING:
     from openapi_test_client.libraries.api import Endpoint
 
 
-class SampleAppBaseAPI(APIBase):
-    """Base class for sample_app API classes"""
+class DemoAppBaseAPI(APIBase):
+    """Base class for demo_app API classes"""
 
-    app_name = "sample_app"
+    app_name = "demo_app"
     endpoints: Optional[list[Endpoint]] = None
 
     def post_request_hook(

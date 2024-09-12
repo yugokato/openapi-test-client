@@ -6,16 +6,16 @@ from common_libs.utils import list_items
 
 from openapi_test_client import logger
 from openapi_test_client.clients import OpenAPIClient
-from openapi_test_client.clients.sample_app import SampleAppAPIClient
-from openapi_test_client.clients.sample_app.api import API_CLASSES
-from openapi_test_client.clients.sample_app.api.users import UsersAPI
+from openapi_test_client.clients.demo_app import DemoAppAPIClient
+from openapi_test_client.clients.demo_app.api import API_CLASSES
+from openapi_test_client.clients.demo_app.api.users import UsersAPI
 from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME, update_endpoint_functions
 from tests import helper
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_generate_client(
-    sample_app_openapi_spec_url,
+    demo_app_openapi_spec_url,
     random_app_name,
     dry_run,
     external_dir,
@@ -26,7 +26,7 @@ def test_generate_client(
     - in the same project
     - in an external project
     """
-    args = f"generate -u {sample_app_openapi_spec_url} -a {random_app_name}"
+    args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name}"
     if external_dir:
         args += f" --dir {external_dir}"
     if dry_run:
@@ -36,7 +36,7 @@ def test_generate_client(
 
     if not dry_run:
         # Attempt to generate another client with the same name
-        args = f"generate -u {sample_app_openapi_spec_url} -a {random_app_name}"
+        args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name}"
         if external_dir:
             args += f" --dir {external_dir}"
         _, stderr = helper.run_command(args)
@@ -45,12 +45,12 @@ def test_generate_client(
 
         if external_dir:
             # Generate another client in the same external directory. This is allowed
-            args = f"generate -u {sample_app_openapi_spec_url} -a {random_app_name}_2 --dir {external_dir}"
+            args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name}_2 --dir {external_dir}"
             _, stderr = helper.run_command(args)
             assert not stderr
 
             # Attempt to generate another client in another location. We don't allow this scenario
-            args = f"generate -u {sample_app_openapi_spec_url} -a {random_app_name} --dir {external_dir}_new"
+            args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name} --dir {external_dir}_new"
             _, stderr = helper.run_command(args)
             assert stderr
             assert f"Detected the existing client setup in {external_dir}" in stderr
@@ -78,8 +78,8 @@ def test_generate_client(
 def test_update_client(temp_app_client: OpenAPIClient, dry_run, option):
     """Check that API client can be updated with various options.
 
-    NOTE: temp_app_client is a temporary client generated for this test against the sample_app app.
-          API class and model file code should be identical to SampleAppAPIClient's, except for API function names
+    NOTE: temp_app_client is a temporary client generated for this test against the demo_app app.
+          API class and model file code should be identical to DemoAppAPIClient's, except for API function names
     """
     users_api = getattr(temp_app_client, "USERS")
     assert users_api._unnamed_endpoint_1.endpoint == UsersAPI.create_user.endpoint
@@ -131,8 +131,8 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run, option):
         assert users_model_file.read_text() == original_model_code
 
 
-def test_sample_app_api_client_is_up_to_date(unauthenticated_api_client: SampleAppAPIClient):
-    """Check that SampleAppAPIClient code is up-to-date"""
+def test_demo_app_api_client_is_up_to_date(unauthenticated_api_client: DemoAppAPIClient):
+    """Check that DemoAppAPIClient code is up-to-date"""
     api_spec = unauthenticated_api_client.api_spec.get_api_spec()
     update_required = []
     for api_class in API_CLASSES:

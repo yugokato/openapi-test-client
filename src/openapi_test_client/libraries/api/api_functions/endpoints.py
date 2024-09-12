@@ -76,9 +76,9 @@ class Endpoint:
         :param params: Request body or query parameters
 
         Example:
-            >>> from openapi_test_client.clients.sample_app import SampleAppAPIClient
+            >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
             >>>
-            >>> client = SampleAppAPIClient()
+            >>> client = DemoAppAPIClient()
             >>> r = client.AUTH.login(username="foo", password="bar")
             >>> # Above API call can be also done directly from the endpoint object, if you need to:
             >>> endpoint = client.AUTH.login.endpoint
@@ -96,15 +96,15 @@ class endpoint:
     - <API Class instance>.<API class function>
 
     Example:
-        >>> from openapi_test_client.clients.sample_app import SampleAppAPIClient
-        >>> from openapi_test_client.clients.sample_app.api import SampleAppBaseAPI
+        >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
+        >>> from openapi_test_client.clients.demo_app.api import DemoAppBaseAPI
         >>>
-        >>> class AuthAPI(SampleAppBaseAPI):
+        >>> class AuthAPI(DemoAppBaseAPI):
         >>>     @endpoint.post("/v1/login")
         >>>     def login(self, *, username: str, password: str, **params):
         >>>         ...
         >>>
-        >>> client = SampleAppAPIClient()
+        >>> client = DemoAppAPIClient()
         >>> type(client.AUTH.login)
         <class 'openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc'>
         >>> type(AuthAPI.login)
@@ -112,9 +112,9 @@ class endpoint:
         >>> isinstance(client.AUTH.login, EndpointFunc) and isinstance(AuthAPI.login, EndpointFunc)
         True
         >>> client.AUTH.login.endpoint
-        Endpoint(tags=['Auth'], api_class=<class 'openapi_test_client.clients.sample_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='http://127.0.0.1:5000/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
+        Endpoint(tags=['Auth'], api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='http://127.0.0.1:5000/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> AuthAPI.login.endpoint
-        Endpoint(tags=['Auth'], api_class=<class 'openapi_test_client.clients.sample_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
+        Endpoint(tags=['Auth'], api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> str(client.AUTH.login.endpoint)
         'POST /v1/auth/login'
         >>> str(AuthAPI.login.endpoint)

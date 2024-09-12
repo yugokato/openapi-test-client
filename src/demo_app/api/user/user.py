@@ -14,7 +14,7 @@ USERS = [
             "id": i,
             "first_name": f"first_name_{i}",
             "last_name": f"last_name_{i}",
-            "email": f"user{i}@sample.app.net",
+            "email": f"user{i}@demo.app.net",
             "role": USER_ROLES[i % len(USER_ROLES)].value,
         }
     )
@@ -30,7 +30,7 @@ async def create_user(data: UserRequest) -> tuple[Response, int]:
     """Create a new user"""
     global USERS
     user = User(id=len(USERS) + 1, **data.model_dump(mode="json"))
-    # This is just a sample app. There's no fancy lock here
+    # This is just a demo app. There's no fancy lock here
     USERS.append(user)
     return jsonify(user), 201
 

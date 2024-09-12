@@ -6,18 +6,18 @@ from .api.auth import AuthAPI
 from .api.users import UsersAPI
 
 
-class SampleAppAPIClient(OpenAPIClient):
-    """API client for sample_app
+class DemoAppAPIClient(OpenAPIClient):
+    """API client for demo_app
 
     Usage:
-    >>> client = SampleAppAPIClient()
+    >>> client = DemoAppAPIClient()
     >>> r = client.AUTH.login(username="foo", password="bar")
     >>> assert r.status_code == 200
     >>> token = r.response["token"]
     """
 
     def __init__(self, env: str = "dev"):
-        super().__init__("sample_app", env=env, doc="openapi.json")
+        super().__init__("demo_app", env=env, doc="openapi.json")
 
     @cached_property
     def AUTH(self):

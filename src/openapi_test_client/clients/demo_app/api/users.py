@@ -2,14 +2,14 @@ from typing import Annotated, Literal, Optional
 
 from common_libs.clients.rest_client import RestResponse
 
-from openapi_test_client.clients.sample_app.api.base import SampleAppBaseAPI
+from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
 from openapi_test_client.libraries.api.types import Constraint, File, Format
 
 from ..models.users import Metadata
 
 
-class UsersAPI(SampleAppBaseAPI):
+class UsersAPI(DemoAppBaseAPI):
     TAGs = ["Users"]
 
     @endpoint.post("/v1/users")

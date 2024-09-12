@@ -1,11 +1,11 @@
 import pytest
 
-from openapi_test_client.clients.sample_app import SampleAppAPIClient
+from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from tests import helper
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_user_login_logout(unauthenticated_api_client: SampleAppAPIClient, validation_mode):
+def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validation_mode):
     """Check basic client/server functionality of Auth login/logout APIs"""
     r = unauthenticated_api_client.AUTH.login(username="foo", password="bar", validate=validation_mode)
     assert r.ok
@@ -17,7 +17,7 @@ def test_user_login_logout(unauthenticated_api_client: SampleAppAPIClient, valid
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_user_login_with_invalid_params(unauthenticated_api_client: SampleAppAPIClient, validation_mode):
+def test_user_login_with_invalid_params(unauthenticated_api_client: DemoAppAPIClient, validation_mode):
     """Check validation for login API
 
     The request payload contains the following 2 errors

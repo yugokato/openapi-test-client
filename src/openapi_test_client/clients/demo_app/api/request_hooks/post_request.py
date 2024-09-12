@@ -5,19 +5,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from common_libs.clients.rest_client import RestResponse
 
-    from openapi_test_client.clients.sample_app import SampleAppAPIClient
+    from openapi_test_client.clients.demo_app import DemoAppAPIClient
     from openapi_test_client.libraries.api import Endpoint
 
 
 def do_something_after_request(
-    api_client: SampleAppAPIClient, endpoint: Endpoint, r: RestResponse, *path_params, **params
+    api_client: DemoAppAPIClient, endpoint: Endpoint, r: RestResponse, *path_params, **params
 ):
     """This is a template of the post-request hook that will be called right after making a request
 
     To enable this hook, call this function inside the base API class's post_request_hook():
     >>> from typing import Optional
     >>> from requests.exceptions import RequestException
-    >>> from openapi_test_client.clients.sample_app.api.request_hooks.post_request import do_something_after_request
+    >>> from openapi_test_client.clients.demo_app.api.request_hooks.post_request import do_something_after_request
     >>>
     >>> def post_request_hook(
     >>>     self,
@@ -34,7 +34,7 @@ def do_something_after_request(
     pass
 
 
-def manage_auth_session(api_client: SampleAppAPIClient, endpoint: Endpoint, r: RestResponse):
+def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint, r: RestResponse):
     """Manage auth after successful login/logout
 
     :param api_client: API client

@@ -1,10 +1,10 @@
 from common_libs.clients.rest_client import RestResponse
 
-from openapi_test_client.clients.sample_app.api.base import SampleAppBaseAPI
+from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
 
 
-class AuthAPI(SampleAppBaseAPI):
+class AuthAPI(DemoAppBaseAPI):
     TAGs = ["Auth"]
 
     @endpoint.post("/v1/auth/login")
