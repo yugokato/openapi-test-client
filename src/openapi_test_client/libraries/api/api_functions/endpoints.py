@@ -527,15 +527,6 @@ class EndpointFunc:
         if self.endpoint.is_deprecated:
             logger.warning(f"DEPRECATED: '{self.endpoint}' is deprecated")
 
-        # use the copy since we cache the request function
-        requests_lib_options = deepcopy(self._requests_lib_options)
-        if stream is not None:
-            requests_lib_options.update(stream=stream)
-        if headers is not None:
-            requests_lib_options.update(headers=headers)
-        if requests_lib_options.get("stream"):
-            logger.info("stream=True was specified")
-
         # Fill path variables
         try:
             completed_path = endpoint_func_util.complete_endpoint(self.endpoint, path_params)
@@ -563,20 +554,40 @@ class EndpointFunc:
             self._instance.pre_request_hook(self.endpoint, *path_params, **params)
 
         # Make a request
-        rest_func_params = endpoint_func_util.generate_rest_func_params(
-            self.endpoint,
-            params,
-            self.rest_client.session.headers,
-            quiet=quiet,
-            use_query_string=self._use_query_string,
-            is_validation_mode=validate,
-            **requests_lib_options,
-        )
         r = None
         request_exception = None
         try:
-            rest_func = getattr(self.rest_client, f"_{self.method}")
-            r = rest_func(completed_path, **rest_func_params)
+            # Call the original function first to make sure any custom function logic (if implemented) is executed.
+            # If it returns a RestResponse obj, we will use it. If nothing is returned (the default behavior),
+            # we will automatically make an API call
+            r = self._original_func(self._instance, *path_params, **params)
+            if r is not None:
+                if not isinstance(r, RestResponse):
+                    raise RuntimeError(
+                        f"Detected an unexpected return value from {self._original_func.__name__}(). If you implements "
+                        f"a custom API function logic and return something, the returned value MUST be a "
+                        f"{RestResponse.__name__} object, not {type(r).__name__}"
+                    )
+            else:
+                # use the copy since we cache the request function
+                requests_lib_options = deepcopy(self._requests_lib_options)
+                if stream is not None:
+                    requests_lib_options.update(stream=stream)
+                if headers is not None:
+                    requests_lib_options.update(headers=headers)
+                if requests_lib_options.get("stream"):
+                    logger.info("stream=True was specified")
+                rest_func = getattr(self.rest_client, f"_{self.method}")
+                rest_func_params = endpoint_func_util.generate_rest_func_params(
+                    self.endpoint,
+                    params,
+                    self.rest_client.session.headers,
+                    quiet=quiet,
+                    use_query_string=self._use_query_string,
+                    is_validation_mode=validate,
+                    **requests_lib_options,
+                )
+                r = rest_func(completed_path, **rest_func_params)
             return r
         except RequestException as e:
             request_exception = e

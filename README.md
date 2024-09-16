@@ -56,7 +56,7 @@ Alternatively, you can clone the repo and run `pip install -e .` (or `pip instal
 this project as your base project. 
 
 
-## 2. Generate/Update API client
+## 2. Generate/Update API client code
 
 Once the setup is complete, the `openapi-client` CLI command should be available for generating and updating an API 
 client from an OpenAPI spec file. It will take either `generate` or `update` as the first argument. Available command 
@@ -107,7 +107,7 @@ updated client code won't break your existing test code.
 > - You can limit the scope of the update (eg. specific tag, specific endpoint, etc.) by using various command options. 
 > See more details with `-h`
 
-
+    
 ## 3. Use the API client
 
 Your client should be ready to use by now. For demonstration purposes, the rest of the sections will be explained using 
@@ -206,6 +206,73 @@ datetime.datetime(2024, 1, 1, 0, 0, 0, 86309, tzinfo=datetime.timezone.utc)
 >>> r.request.end_time
 datetime.datetime(2024, 1, 1, 0, 0, 0, 87714, tzinfo=datetime.timezone.utc)
 ```
+
+## 4. Customize API functions (optional)
+
+The test client provides a few ways to customize how an API call via an API function will be processed.
+
+### Implement your custom function logic
+By default, each auto-generated API function will look like a stub function with a placeholder (`...`). For example:
+```python
+@endpoint.post("/v1/auth/login")
+def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
+    """Login"""
+    ...
+```
+
+Even without having actual function logic, API requests made through these functions will just work - The function call will automatically make an HTTP request to the associated endpoint with the provided parameters, parse the response, and return it as a `RestResponse` object. This behavior is managed by the `@endpoint.<method>(path>)` decorator.  
+In most cases, you won’t need to modify the generated function body at all.
+
+However, if you need to implement custom logic for making an API request for specific API functions, you can replace the placeholder with your own code. Just ensure that the function returns a `RestResponse` object, which is what the underlying Rest API client we use will return.
+
+> [!NOTE]
+> The client will raise a `RuntimeError` if anything other than a `RestResponse` object or `None` is returned.
+
+> [!TIP]
+> If you only need to add extra behavior before or after the request, consider using decorators or request hooks instead
+
+### Decorators
+To extend the default API call logic, you can apply decorators on an API function. Note that each decorator MUST be decorated with `@endpoint.decorator` for it to work properly.  
+
+For example:
+- Define a decorator
+```python
+from functools import wraps
+
+from openapi_test_client.libraries.api import endpoint
+
+@endpoint.decorator
+def my_decorator(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        # Do something before request
+        response = f(**args, **kwargs)
+        # Do something after request
+        return response
+    return wrapper
+```
+
+- Apply it
+
+```python
+@my_decorator
+@endpoint.post("/v1/auth/login")
+def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
+    """Login"""
+    ...
+```
+
+### Request Hooks
+
+The test client supports three types of request hooks in API classes:
+- Pre-request Hook: Called before an API request is made
+- Post-request Hook: Called after an API request is completed
+- Request wrapper: Wraps the original API request logic before any decorators are applied, allowing you to apply additional behavior before and after a request
+
+Hooks work similarly to decorators but are more useful for applying general control that affects multiple or all endpoints at the central place.
+
+For examples and usage, see [demo_app client hooks](src/openapi_test_client/clients/demo_app/api/request_hooks)
+
 
 # Deep Dive 
 
@@ -396,14 +463,10 @@ DELETE /v1/users/{user_id}
 
 ## API endpoint function
 
-Each API class function will be decorated with a `@endpoint.<method>(<path>)` decorator, and the function body will 
-always be empty (`...`) as the decorator will handle the actual API call at the central location. 
-One of the unique features of this API client is that the decorator will convert the original function to an instance of 
-`EndpointFunc` class, which will be dynamically created for each endpoint at runtime and will provide various attributes 
-related to the endpoint.  
+Each API class function is decorated with a `@endpoint.<method>(<path>)` endpoint decorator. This decorator converts the original function into an instance of the `EndpointHandler` class at runtime. The `EndpointHandler` object acts as a proxy to a per-endpoint `EndpointFunc` object, which is also created at runtime and is responsible for handling the actual API calls via its base class's `__call__()` method. Additionally, the `EndpointFunc` object provides various capabilities and attributes related to the endpoint.
 
-eg. Login API is accessible via `client.AUTH.login()` API function, which is actually an object of 
-`AuthAPILoginEndpointFunc` class.
+eg. The Login API is accessible via `client.AUTH.login()` API function, which is actually an instance of 
+`AuthAPILoginEndpointFunc` class returned by its associated `EndpointHandler` obj.
 
 ```pycon
 >>> client.AUTH.login
@@ -418,7 +481,6 @@ The endpoint function is also accessible directly from the API class:
 <openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc object at 0x107650b50>
 (mapped to: <function AuthAPI.login at 0x10751c360>)
 ```
-
 
 Various endpoint data is available from the endpoint function via `endpoint` property:
 ```pycon
@@ -465,10 +527,40 @@ Endpoint(tags=['Auth'],
          is_deprecated=False)
 ```
 
+An example of the additional capability the `EndpointFunc` obj provides - Automatic retry:
+```pycon
+# Call the endpiont with the automatic retry (you can specify a retry condition if needed)
+>>> r = client.AUTH.login.with_retry(username='foo', password='bar')
+2024-01-01T00:00:00.153-0000 - request: POST http://127.0.0.1:5000/v1/auth/login
+2024-01-01T00:00:00.158-0000 - response: 429 (Too Many Requests)
+- request_id: 1b028ff7-0880-430c-b5a3-12aa057892cf
+- request: POST http://127.0.0.1:5000/v1/auth/login
+- payload: {"username": "foo", "password": "***"}
+- status_code: 429 (Too Many Requests)
+{
+    "error": "Too many requests"
+}
+- response_time: 0.004804s
+2024-01-01T00:00:00.159-0000 - Retry condition matched. Retrying in 5 seconds...
+2024-01-01T00:00:05.166-0000 - request: POST http://127.0.0.1:5000/v1/auth/login
+2024-01-01T00:00:05.171-0000 - response: 201 (Created)
+- request_id: 1a34195e-5cec-4d4e-abe0-61acbfcdae1a
+- request: POST http://127.0.0.1:5000/v1/auth/login
+- payload: {"username": "foo", "password": "***"}
+- status_code: 201 (Created)
+- response: {
+    "token": "ImJjMjA5YjkxLTEzYmItNDE3Yi1iN2ExLTdhNmFlNWFjYjFiNSI.ZuSs3Q.KD-zA6KxCUEC14YUAuCcuQNGNoulp2POuKq0yMIfkGIS0E--V473kssohnvGoIHo97FwwSeOV94NnwaZdGtSxA"
+}
+- response_time: 0.005143s
+>>> 
+>>> r.request.retried.request_id
+'1b028ff7-0880-430c-b5a3-12aa057892cf'
+```
+
 
 ## API endpoint model
 
-Each endpoint will be represented as an `EndpointModel` dataclass model, which holds various context around each 
+Each endpoint is represented as an `EndpointModel` dataclass model, which holds various context around each 
 parameter (eg. type annotation).
 ```pycon
 >>> client.AUTH.login.endpoint.model

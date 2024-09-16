@@ -258,13 +258,21 @@ def update_endpoint_functions(
     regex_tags = re.compile(r"TAGs = \[[^]]*\]", flags=re.MULTILINE)
     regex_tag = re.compile(r'"(?P<tag>[^"]*)"', flags=re.MULTILINE)
     # Regex for each endpoint function block
+    tab = f"(?:{TAB}|\t)"
     regex_ep_func = re.compile(
-        rf"^(?:\s+@\S+\n)*?"  # Any decorators other than below
-        rf"\s+@{endpoint.__name__}\.(?P<method>{'|'.join(VALID_METHODS)})\((?:\n\s*)?\"(?P<path>[^\"]+?)\"(?P<ep_options>,[^)]+?)?(?:\n\s*)?\)\s*"
-        rf"\s+def (?P<endpoint_func_name>[^(]+?)\((?P<signature>.+?)\s*\) -> {RestResponse.__name__}:\s*"
-        r"(?P<docstring>\"{3}[\S\s]*?\"{3})?"
-        r"\s+\.{3}\s*$",
-        flags=(re.MULTILINE | re.DOTALL),
+        # decorator(s)
+        rf"^(?P<decorators>{tab}@\S+\n)*?"
+        # endpoint decorator
+        rf"{tab}@{endpoint.__name__}\.(?P<method>{'|'.join(VALID_METHODS)})\("
+        # endpoint path and endpoint options
+        rf"(\n{tab}{{2}})?\"(?P<path>.+?)\"(?P<ep_options>,.+?)?(\n{tab})?\)\n"
+        # function def
+        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> {RestResponse.__name__}:\n)"
+        # docstring
+        rf"({tab}{{2}}(?P<docstring>\"{{3}}.*?\"{{3}})\n)?"
+        # function body
+        rf"(?P<func_body>\n*{tab}{{2}}(?:[^@]+|\.{{3}})\n)?$",
+        flags=re.MULTILINE | re.DOTALL,
     )
 
     api_cls_file_path = Path(inspect.getabsfile(api_class))
@@ -276,7 +284,7 @@ def update_endpoint_functions(
         original_model_code = format_code(model_file_path.read_text(), remove_unused_imports=False)
     else:
         original_model_code = ""
-    method = path = endpoint_func_name = None
+    method = path = func_name = None
     defined_endpoints = []
     param_models = []
 
@@ -290,17 +298,32 @@ def update_endpoint_functions(
             matched_api_function_def = matched.string[matched.start() : matched.end()]
             method = matched.group("method")
             path = matched.group("path")
+            func_def = matched.group("func_def")
+            func_name = matched.group("func_name")
+            signature = matched.group("signature")
+            docstring = matched.group("docstring")
+            func_body = matched.group("func_body")
             endpoint_str = f"{method.upper()} {path}"
             defined_endpoints.append((method, path))
+
+            # For troubleshooting
+            # print(
+            #     f"{method.upper()} {path}:\n"
+            #     f" - matched: {repr(matched.group(0))}\n"
+            #     f" - decorators: {repr(func_def)}\n"
+            #     f" - func_def: {repr(matched.group("func_def"))}\n"
+            #     f"   - func_name: {repr(func_name)}\n"
+            #     f"   - signature: {repr(signature)}\n"
+            #     f" - docstring: {repr(docstring)}\n"
+            #     f" - func_body: {repr(func_body)}\n"
+            # )
+
             if (target_endpoints and endpoint_str not in target_endpoints) or (
                 endpoints_to_ignore and endpoint_str in endpoints_to_ignore
             ):
                 continue
 
-            endpoint_func_name = matched.group("endpoint_func_name")
-            signature = matched.group("signature")
-            docstring = matched.group("docstring")
-            endpoint_function: EndpointFunc = getattr(target_api_class, endpoint_func_name)
+            endpoint_function: EndpointFunc = getattr(target_api_class, func_name)
             if verbose:
                 print(f"{TAB}- {method.upper()} {path}")
 
@@ -309,10 +332,10 @@ def update_endpoint_functions(
                 endpoint_spec = api_spec["paths"][path][method]
             except KeyError:
                 if endpoint_function.endpoint.is_documented:
-                    err = f"{TAB}Not found: {method.upper()} {path} ({endpoint_func_name})"
+                    err = f"{TAB}Not found: {method.upper()} {path} ({func_name})"
                     print(color(err, color_code=ColorCodes.RED))
                 else:
-                    msg = f"{TAB}Skipped undocumented endpoint: {method.upper()} {path} ({endpoint_func_name})"
+                    msg = f"{TAB}Skipped undocumented endpoint: {method.upper()} {path} ({func_name})"
                     print(msg)
                 continue
             else:
@@ -335,21 +358,29 @@ def update_endpoint_functions(
             if missing_imports_code := param_model_util.generate_imports_code_from_model(api_class, endpoint_model):
                 new_code = missing_imports_code + new_code
 
-            # Update API function signatures
-            new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model)
-            updated_api_func_code = re.sub(re.escape(signature), new_func_signature, matched_api_function_def)
+            updated_api_func_code = matched_api_function_def
 
             # Update docstrings
+            expected_docstring = f'"""{doc_summary}"""'
             if docstring:
-                updated_api_func_code = updated_api_func_code.replace(docstring, f'"""{doc_summary}"""')
+                if docstring != expected_docstring:
+                    updated_api_func_code = updated_api_func_code.replace(docstring, expected_docstring)
             else:
-                split_code = updated_api_func_code.split("\n")
-                split_code.insert(-2, f'{TAB * 2}"""{doc_summary}"""')
-                updated_api_func_code = "\n".join(split_code)
+                updated_api_func_code = updated_api_func_code.replace(
+                    func_def, func_def + f"{TAB * 2}{expected_docstring}\n"
+                )
+
+            # Update API function signatures
+            new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model)
+            updated_api_func_code = re.sub(re.escape(signature), new_func_signature, updated_api_func_code)
+
+            # Update func body if missing
+            if not func_body:
+                updated_api_func_code += f"{TAB * 2}...\n"
 
             # Update endpoint decorators
-            decorator_content_type = "@endpoint.content_type"
-            decorator_deprecated = "@endpoint.is_deprecated"
+            decorator_content_type = f"@{endpoint.__name__}.content_type"
+            decorator_deprecated = f"@{endpoint.__name__}.is_deprecated"
             if content_type and content_type not in ["*/*", "application/json"]:
                 if (decorator := f'{decorator_content_type}("{content_type}")') not in updated_api_func_code:
                     updated_api_func_code = f"{TAB}{decorator}\n{updated_api_func_code}"
@@ -425,7 +456,7 @@ def update_endpoint_functions(
 
                     undefined_ep_functions += (
                         f"\n"
-                        f'{TAB}@endpoint.{meth}("{path}")\n'
+                        f'{TAB}@{endpoint.__name__}.{meth}("{path}")\n'
                         f"{TAB}def {undefined_func_name_prefix}{idx}(self) -> {RestResponse.__name__}:\n"
                         f"{TAB * 2}...\n"
                     )
@@ -513,8 +544,8 @@ def update_endpoint_functions(
         # This should not happen
         tb = traceback.format_exc()
         err = f"Failed to update {api_cls_file_path}:"
-        if all([endpoint_func_name, method, path]):
-            err += f" {endpoint_func_name} ({method} {path})"
+        if all([func_name, method, path]):
+            err += f" {func_name} ({method} {path})"
         err += f"\n{tb})\n"
         print(color(err, color_code=ColorCodes.RED))
         if api_cls_updated and not dry_run:
