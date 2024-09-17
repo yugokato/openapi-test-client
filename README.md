@@ -214,6 +214,7 @@ The test client provides a few ways to customize how an API call via an API func
 ### Implement your custom function logic
 By default, each auto-generated API function will look like a stub function with a placeholder (`...`). For example:
 ```python
+@endpoint.is_public
 @endpoint.post("/v1/auth/login")
 def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
     """Login"""
@@ -256,6 +257,7 @@ def my_decorator(f):
 
 ```python
 @my_decorator
+@endpoint.is_public
 @endpoint.post("/v1/auth/login")
 def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
     """Login"""
@@ -335,6 +337,7 @@ For example, if the OpenAPI spec defines Auth APIs like this:
         "tags": [
           "Auth"
         ],
+        "security":[],
         "requestBody": {
           "content": {
             "application/json": {
@@ -371,6 +374,7 @@ For example, if the OpenAPI spec defines Auth APIs like this:
         "tags": [
           "Auth"
         ],
+        "security":[],
         "operationId": "get_logout"
       }
     },
@@ -390,11 +394,13 @@ from openapi_test_client.libraries.api.api_functions import endpoint
 class AuthAPI(DemoAppBaseAPI):
     TAGs = ["Auth"]
 
+    @endpoint.is_public
     @endpoint.post("/v1/auth/login")
     def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
         """Login"""
         ...
 
+    @endpoint.is_public
     @endpoint.get("/v1/auth/logout")
     def logout(self, **kwargs) -> RestResponse:
         """Logout"""
@@ -426,7 +432,7 @@ Some attributes available from the API class:
           model=<class 'types.AuthAPILoginEndpointModel'>,
           url=None,
           content_type=None,
-          is_public=False,
+          is_public=True,
           is_documented=True,
           is_deprecated=False),
  Endpoint(tags=['Auth'],
@@ -437,7 +443,7 @@ Some attributes available from the API class:
           model=<class 'types.AuthAPILogoutEndpointModel'>,
           url=None,
           content_type=None,
-          is_public=False,
+          is_public=True,
           is_documented=True,
           is_deprecated=False)]
 ```
@@ -495,7 +501,7 @@ Endpoint(tags=['Auth'],
          model=<class 'types.AuthAPILoginEndpointModel'>,
          url='http://127.0.0.1:5000/v1/auth/login',
          content_type=None,
-         is_public=False,
+         is_public=True,
          is_documented=True,
          is_deprecated=False)
 >>> client.AUTH.login.endpoint.method
@@ -522,7 +528,7 @@ Endpoint(tags=['Auth'],
          model=<class 'types.AuthAPILoginEndpointModel'>,
          url=None,
          content_type=None,
-         is_public=False,
+         is_public=True,
          is_documented=True,
          is_deprecated=False)
 ```

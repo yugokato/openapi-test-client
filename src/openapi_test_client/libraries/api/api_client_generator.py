@@ -348,6 +348,7 @@ def update_endpoint_functions(
                 or "No summary or description is available for this API"
             )
             is_deprecated_api = endpoint_spec.get("deprecated", False)
+            is_public_api = endpoint_spec.get("security") == []
 
             endpoint_model = endpoint_model_util.create_endpoint_model(endpoint_function, api_spec=api_spec)
             content_type = endpoint_model.content_type
@@ -380,7 +381,6 @@ def update_endpoint_functions(
 
             # Update endpoint decorators
             decorator_content_type = f"@{endpoint.__name__}.content_type"
-            decorator_deprecated = f"@{endpoint.__name__}.is_deprecated"
             if content_type and content_type not in ["*/*", "application/json"]:
                 if (decorator := f'{decorator_content_type}("{content_type}")') not in updated_api_func_code:
                     updated_api_func_code = f"{TAB}{decorator}\n{updated_api_func_code}"
@@ -388,11 +388,15 @@ def update_endpoint_functions(
                 updated_api_func_code = re.sub(
                     rf"{re.escape(decorator_content_type)}\([^)]+\)", "", updated_api_func_code
                 )
-            if is_deprecated_api:
-                if decorator_deprecated not in updated_api_func_code:
-                    updated_api_func_code = f"{TAB}{decorator_deprecated}\n{updated_api_func_code}"
-            else:
-                updated_api_func_code = re.sub(re.escape(decorator_deprecated), "", updated_api_func_code)
+            for flag, decorator in [
+                (is_deprecated_api, f"@{endpoint.__name__}.is_deprecated"),
+                (is_public_api, f"@{endpoint.__name__}.is_public"),
+            ]:
+                if flag:
+                    if decorator not in updated_api_func_code:
+                        updated_api_func_code = f"{TAB}{decorator}\n{updated_api_func_code}"
+                else:
+                    updated_api_func_code = re.sub(re.escape(decorator), "", updated_api_func_code)
 
             # Apply above updates to the original API func code
             new_code = new_code.replace(matched_api_function_def, updated_api_func_code)

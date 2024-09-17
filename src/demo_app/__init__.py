@@ -16,6 +16,8 @@ def create_app(version: int = 1) -> Quart:
             {"name": "Auth", "description": "Auth APIs"},
             {"name": "Users", "description": "User APIs"},
         ],
+        security=[{"bearerAuth": []}],
+        security_schemes={"bearerAuth": {"type": "http", "scheme": "bearer"}},
     )
     app.config["QUART_AUTH_MODE"] = "bearer"
     app.secret_key = secrets.token_urlsafe(16)

@@ -2,7 +2,7 @@ import uuid
 
 from quart import Blueprint, Response, jsonify
 from quart_auth import logout_user
-from quart_schema import tag, validate_request
+from quart_schema import security_scheme, tag, validate_request
 
 from demo_app import auth_manager
 
@@ -14,6 +14,7 @@ tag_auth = tag(["Auth"])
 
 @bp_auth.post("/login")
 @tag_auth
+@security_scheme([])
 @validate_request(LoginData)
 async def login(data: LoginData) -> tuple[Response, int]:
     """Login"""
@@ -25,6 +26,7 @@ async def login(data: LoginData) -> tuple[Response, int]:
 
 @bp_auth.get("/logout")
 @tag_auth
+@security_scheme([])
 async def logout() -> tuple[Response, int]:
     """Logout"""
     logout_user()
