@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
+import requests
 from _pytest.fixtures import SubRequest
 from pytest import Config, Item
 
@@ -74,6 +75,17 @@ def demo_app_openapi_spec_url(unauthenticated_api_client) -> str:
     base_url = url_cfg[unauthenticated_api_client.env][unauthenticated_api_client.app_name]
     doc_path = unauthenticated_api_client.api_spec.doc_path
     return f"{base_url}/{doc_path}"
+
+
+@pytest.fixture(scope="session")
+def petstore_openapi_spec_url() -> str:
+    """OpenAPI spec URL for petstore v3
+
+    See https://petstore3.swagger.io/
+    """
+    url = "https://petstore3.swagger.io/api/v3/openapi.json"
+    requests.get(url).raise_for_status()
+    return url
 
 
 @pytest.fixture(params=[False, True])

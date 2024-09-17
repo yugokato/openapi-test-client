@@ -24,6 +24,7 @@ app = [
 test = [
     "openapi-test-client[app]",
     "pytest==8.3.2",
+    "pytest-lazy-fixtures==1.1.1",
     "pytest-subtests==0.11.0",
 ]
 

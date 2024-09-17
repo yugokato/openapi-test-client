@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from common_libs.utils import list_items
+from pytest_lazy_fixtures import lf as lazy_fixture
 
 from openapi_test_client import logger
 from openapi_test_client.clients import OpenAPIClient
@@ -11,11 +12,16 @@ from openapi_test_client.clients.demo_app.api import API_CLASSES
 from openapi_test_client.clients.demo_app.api.users import UsersAPI
 from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME, update_endpoint_functions
 from tests import helper
+from tests.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
+@pytest.mark.parametrize(
+    "url",
+    [lazy_fixture(demo_app_openapi_spec_url.__name__), lazy_fixture(petstore_openapi_spec_url.__name__)],
+)
 def test_generate_client(
-    demo_app_openapi_spec_url,
+    url,
     random_app_name,
     dry_run,
     external_dir,
@@ -26,7 +32,7 @@ def test_generate_client(
     - in the same project
     - in an external project
     """
-    args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name}"
+    args = f"generate -u {url} -a {random_app_name}"
     if external_dir:
         args += f" --dir {external_dir}"
     if dry_run:
@@ -36,7 +42,7 @@ def test_generate_client(
 
     if not dry_run:
         # Attempt to generate another client with the same name
-        args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name}"
+        args = f"generate -u {url} -a {random_app_name}"
         if external_dir:
             args += f" --dir {external_dir}"
         _, stderr = helper.run_command(args)
@@ -45,12 +51,12 @@ def test_generate_client(
 
         if external_dir:
             # Generate another client in the same external directory. This is allowed
-            args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name}_2 --dir {external_dir}"
+            args = f"generate -u {url} -a {random_app_name}_2 --dir {external_dir}"
             _, stderr = helper.run_command(args)
             assert not stderr
 
             # Attempt to generate another client in another location. We don't allow this scenario
-            args = f"generate -u {demo_app_openapi_spec_url} -a {random_app_name} --dir {external_dir}_new"
+            args = f"generate -u {url} -a {random_app_name} --dir {external_dir}_new"
             _, stderr = helper.run_command(args)
             assert stderr
             assert f"Detected the existing client setup in {external_dir}" in stderr
