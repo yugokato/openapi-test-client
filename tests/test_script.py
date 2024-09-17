@@ -10,7 +10,11 @@ from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.api import API_CLASSES
 from openapi_test_client.clients.demo_app.api.users import UsersAPI
-from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME, update_endpoint_functions
+from openapi_test_client.libraries.api.api_client_generator import (
+    API_MODEL_CLASS_DIR_NAME,
+    TAB,
+    update_endpoint_functions,
+)
 from tests import helper
 from tests.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
 
@@ -89,19 +93,36 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run, option):
     """
     users_api = getattr(temp_app_client, "USERS")
     assert users_api._unnamed_endpoint_1.endpoint == UsersAPI.create_user.endpoint
-
-    # Remove some code from the API class
     users_api_class_file = Path(inspect.getabsfile(type(users_api)))
     assert users_api_class_file.exists()
-    modified_api_class_code = original_api_class_code = users_api_class_file.read_text().replace(
+
+    original_api_class_code = users_api_class_file.read_text()
+
+    # First adjust the original code around the create_user API function to simulate some user customizations after
+    # the initial client generation
+    original_api_class_code = original_api_class_code.replace(
         # Change function name "_unnamed_endpoint_1" to "create_user" to simulate the real life scenario
         "_unnamed_endpoint_1",
         UsersAPI.create_user.__name__,
     )
+    create_user_func_docstring = '"""Create a new user"""'
+    original_api_class_code = original_api_class_code.replace(
+        # Replace the placeholder with fake custom logic
+        f"{TAB * 2}{create_user_func_docstring}\n{TAB * 2}...",
+        (
+            f"{TAB * 2}{create_user_func_docstring}\n"
+            f"{TAB * 2}# fake custom func logic\n"
+            f"{TAB * 2}params = dict(first_name=first_name, last_name=last_name, email=email, role=role, metadata=metadata)\n"
+            f"{TAB * 2}return self.{UsersAPI.create_user.__name__}(**params)"
+        ),
+    )
+
+    # Remove some code from the API class
+    modified_api_class_code = original_api_class_code
     for code_to_delete in [
         "from ..models.users import Metadata\n",
         "metadata: Optional[Metadata] = None,\n",
-        '"""Create a new user"""\n',
+        f"{create_user_func_docstring}\n",
     ]:
         assert code_to_delete in original_api_class_code
         modified_api_class_code = modified_api_class_code.replace(code_to_delete, "")
