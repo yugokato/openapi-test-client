@@ -59,24 +59,7 @@ class OpenAPISpec:
             except Exception as e:
                 logger.error(f"Unable to get API specs from {url}\n{type(e).__name__}: {e}")
             else:
-                adjusted_spec = copy.deepcopy(api_spec)
-                if self._has_reference(adjusted_spec):
-                    adjusted_spec = self._resolve_schemas(adjusted_spec)
-                adjusted_spec = self._adjust_spec(adjusted_spec)
-                endpoint_tags = self._collect_endpoint_tags(adjusted_spec)
-                if tags := adjusted_spec.get("tags"):
-                    if undefined_endpoint_tags := set(endpoint_tags).difference(set([t["name"] for t in tags])):
-                        logger.warning(
-                            f'One ore more endpoint tags are not defined at the top-level "tags": '
-                            f"{undefined_endpoint_tags}"
-                        )
-                else:
-                    # We need the top-level "tags" but it is either not defined or empty.
-                    # Collect all tags defined at the endpoint level and use them. If no tags are defined,
-                    # "default" tag will be added
-                    adjusted_spec["tags"] = [{"name": t} for t in endpoint_tags]
-                    assert adjusted_spec["tags"]
-                self._spec = adjusted_spec
+                self._spec = OpenAPISpec.parse(api_spec)
                 return self._spec
         else:
             logger.warning("API spec is not available")
@@ -104,14 +87,35 @@ class OpenAPISpec:
                 usage += f"- Request Body: {json.dumps(request_body, indent=4)}\n"
             return usage
 
-    def _has_reference(self, api_spec: dict[str, Any]) -> bool:
-        return "'$ref':" in str(api_spec)
+    @staticmethod
+    def parse(api_spec: dict[str, Any]) -> dict[str, Any]:
+        """Parse the raw OpenAPI specs and make some adjustments"""
+        parsed_spec = copy.deepcopy(api_spec)
+        parsed_spec = OpenAPISpec._resolve_schemas(parsed_spec)
+        parsed_spec = OpenAPISpec._adjust_spec(parsed_spec)
+        endpoint_tags = OpenAPISpec._collect_endpoint_tags(parsed_spec)
+        if tags := parsed_spec.get("tags"):
+            if undefined_endpoint_tags := set(endpoint_tags).difference(set([t["name"] for t in tags])):
+                logger.warning(
+                    f'One ore more endpoint tags are not defined at the top-level "tags": ' f"{undefined_endpoint_tags}"
+                )
+        else:
+            # We need the top-level "tags" but it is either not defined or empty.
+            # Collect all tags defined at the endpoint level and use them. If no tags are defined,
+            # "default" tag will be added
+            parsed_spec["tags"] = [{"name": t} for t in endpoint_tags]
+            assert parsed_spec["tags"]
+        return parsed_spec
 
-    def _resolve_schemas(self, api_spec: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def _resolve_schemas(api_spec: dict[str, Any]) -> dict[str, Any]:
         """Resolve '$ref' and overwrite the spec data"""
         ref_pattern = re.compile(r"#?/([^/]+)")
 
-        def resolve_recursive(reference, schemas_seen: list[str] = None):
+        def has_reference(obj: Any) -> bool:
+            return "'$ref':" in str(obj)
+
+        def resolve_recursive(reference: Any, schemas_seen: list[str] = None):
             if not schemas_seen:
                 schemas_seen = []
             if isinstance(reference, dict):
@@ -133,7 +137,7 @@ class OpenAPISpec:
                         except KeyError as e:
                             logger.warning(f"SKIPPED: Unable to resolve '$ref' for '{new_reference}' (KeyError: {e})")
                         else:
-                            if self._has_reference(resolved_value):
+                            if has_reference(resolved_value):
                                 resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
                             if isinstance(resolved_value, dict):
                                 reference.update(resolved_value)
@@ -146,12 +150,14 @@ class OpenAPISpec:
                     resolve_recursive(item, schemas_seen=schemas_seen)
             return reference
 
-        paths = api_spec["paths"]
-        for path in paths:
-            resolve_recursive(paths[path])
+        if has_reference(api_spec):
+            paths = api_spec["paths"]
+            for path in paths:
+                resolve_recursive(paths[path])
         return api_spec
 
-    def _adjust_spec(self, api_spec: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def _adjust_spec(api_spec: dict[str, Any]) -> dict[str, Any]:
         """Adjust the shape of the API specs for our library to work better"""
 
         def adjust_path_params(path_obj: dict[str, Any]):
@@ -221,21 +227,8 @@ class OpenAPISpec:
                 logger.exception(e)
         return api_spec
 
-    def _adjust_path_parameters(self, api_spec: dict[str, Any]):
-        """Move the path level "parameters" obj to under each path method level so that our library works better"""
-        paths = api_spec["paths"]
-        for path in paths:
-            path_obj = paths[path]
-            if "parameters" in path_obj:
-                for key in path_obj:
-                    if key in VALID_METHODS:
-                        current_path_parameters = path_obj[key].get("parameters", [])
-                        new_path_parameters = path_obj["parameters"] + current_path_parameters
-                        path_obj[key]["parameters"] = new_path_parameters
-                del path_obj["parameters"]
-        return api_spec
-
-    def _collect_endpoint_tags(self, resolved_api_spec: dict[str, Any]) -> list[str]:
+    @staticmethod
+    def _collect_endpoint_tags(resolved_api_spec: dict[str, Any]) -> list[str]:
         tags = []
 
         def collect(obj):

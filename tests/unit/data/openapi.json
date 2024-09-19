@@ -1,0 +1,136 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Test API",
+    "version": "0.1.0"
+  },
+  "tags": [
+    {
+      "name": "Test",
+      "description": "Test APIs"
+    }
+  ],
+  "paths": {
+    "/v1/something": {
+      "post": {
+        "parameters": [],
+        "responses": {},
+        "description": "",
+        "summary": "Create something",
+        "tags": [
+          "Test"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "title": "Name",
+                    "type": "string"
+                  },
+                  "email": {
+                    "format": "email",
+                    "title": "Email",
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Metadata"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "email"
+                ],
+                "title": "SomeRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "operationId": "create_something"
+      }
+    },
+    "/v1/something/{name}": {
+      "get": {
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "description": "",
+        "summary": "Get something",
+        "tags": [
+          "Test"
+        ],
+        "operationId": "get_something"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "description": "",
+        "summary": "Delete soomething",
+        "tags": [
+          "Test"
+        ],
+        "operationId": "delete_something"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Metadata": {
+        "properties": {
+          "time_created": {
+            "title": "Time Created",
+            "type": "str",
+            "format": "date-time",
+            "required": true
+          },
+          "time_updated": {
+            "title": "Time Updated",
+            "type": "str",
+            "format": "date-time",
+            "required": true
+          },
+          "version": {
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Version",
+            "type": "number"
+          },
+          "additional_info": {
+            "title": "Additional Info",
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

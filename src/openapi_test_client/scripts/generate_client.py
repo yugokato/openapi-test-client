@@ -76,7 +76,7 @@ from typing import TYPE_CHECKING
 
 from common_libs.clients.rest_client import RestClient
 from common_libs.logging import get_logger
-from common_libs.utils import list_items
+from common_libs.utils import clean_obj_name, list_items
 
 from openapi_test_client import (
     _PACKAGE_DIR,
@@ -89,7 +89,7 @@ from openapi_test_client import (
 )
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.libraries.api import api_client_generator as generator
-from openapi_test_client.libraries.common.misc import clean_obj_name, get_module_name_by_file_path
+from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api.api_classes import APIClassType
@@ -307,18 +307,20 @@ def generate_client(args: argparse.Namespace):
 
     # Generate API classes and models from the OpenAPI specs
     documented_tags = [x["name"] for x in api_spec["tags"] if x["name"]]
-    results = []
+    failed_results = []
     for tag in documented_tags:
-        results.append(
-            generator.generate_api_class(tmp_api_client, tag, dry_run=args.dry_run, show_generated_code=not args.quiet)
+        result = generator.generate_api_class(
+            tmp_api_client, tag, dry_run=args.dry_run, show_generated_code=not args.quiet
         )
+        if isinstance(result, tuple):
+            failed_results.append(result)
 
     if not args.dry_run:
         # Generate API client with the generated API classes
         generator.generate_api_client(tmp_api_client, show_generated_code=not args.quiet)
 
-    if failed_results := list(filter(None, results)):
-        _log_errors(args.subparser, failed_results)
+    if failed_results:
+        _log_errors(args.action, failed_results)
     elif not args.dry_run:
         # Instantiate the generated client to make sure no error is thrown
         success_msg = f"API client for {app_name} has been successfully generated!"

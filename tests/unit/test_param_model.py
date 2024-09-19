@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import Any, Literal
+from typing import Any
 
 import pytest
 from pytest_subtests import SubTests
@@ -9,7 +9,13 @@ from openapi_test_client.libraries.api.types import ParamModel
 
 
 @pytest.mark.parametrize("scenario", ["empty_model", "with_no_fields", "with_partial_fields", "with_all_fields"])
-def test_param_model(subtests: SubTests, scenario, EmptyParamModel, RegularParamModel, InnerParamModel):
+def test_param_model(
+    subtests: SubTests,
+    scenario: str,
+    EmptyParamModel: type[ParamModel],
+    RegularParamModel: type[ParamModel],
+    InnerParamModel: type[ParamModel],
+):
     """Verify the functionality around the following ParamModel capabilities
 
     1. Model creation and dynamic recreation logic handled by ParamModel.__new__()
@@ -62,7 +68,7 @@ def test_param_model(subtests: SubTests, scenario, EmptyParamModel, RegularParam
             do_test_delete_field(model, model_class, model_params, scope)
 
 
-def test_param_model_nested(subtests: SubTests, RegularParamModel, InnerParamModel):
+def test_param_model_nested(subtests: SubTests, RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel]):
     """Verify the above ParamModel functionality also works with nested param models"""
     model_params = {
         "param1": "123",
@@ -102,7 +108,9 @@ def test_param_model_nested(subtests: SubTests, RegularParamModel, InnerParamMod
 
 
 @pytest.mark.parametrize("validation_timing", ["create", "update"])
-def test_param_model_validation_mode(subtests: SubTests, RegularParamModel, InnerParamModel, validation_timing):
+def test_param_model_validation_mode(
+    RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel], validation_timing: str
+):
     """Verify Pydantic validation in validation mode
 
     The validation should happen at the following timings:
@@ -129,7 +137,7 @@ def test_param_model_validation_mode(subtests: SubTests, RegularParamModel, Inne
             assert f"1 validation error for {RegularParamModel.__name__}" in str(e.value)
 
 
-def do_test_instantiate_model(model_class, model_params):
+def do_test_instantiate_model(model_class: type[ParamModel], model_params: dict[str, Any]):
     should_be_recreated = set(model_class.__dataclass_fields__.keys()) != set(model_params.keys())
     model = model_class(**model_params)
     assert sorted(model.__dataclass_fields__.keys()) == sorted(model_params.keys())
@@ -140,10 +148,10 @@ def do_test_instantiate_model(model_class, model_params):
 
 
 def do_test_add_field(
-    model,
-    model_class,
-    model_params,
-    scope: Literal["dataclass", "dictionary"],
+    model: ParamModel,
+    model_class: type[ParamModel],
+    model_params: dict[str, Any],
+    scope: str,
     field_name: str = None,
     field_value: Any = None,
 ):
@@ -163,10 +171,10 @@ def do_test_add_field(
 
 
 def do_test_update_field(
-    model,
-    model_class,
-    model_params,
-    scope: Literal["dataclass", "dictionary"],
+    model: ParamModel,
+    model_class: type[ParamModel],
+    model_params: dict[str, Any],
+    scope: str,
     field_name: str = None,
     field_value: Any = None,
 ):
@@ -186,7 +194,7 @@ def do_test_update_field(
 
 
 def do_test_delete_field(
-    model, model_class, model_params, scope: Literal["dataclass", "dictionary"], field_name: str = None
+    model: ParamModel, model_class: type[ParamModel], model_params: dict[str, Any], scope: str, field_name: str = None
 ):
     if field_name:
         assert field_name in model.__dataclass_fields__.keys()

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Union, cast
 import inflect
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
 from common_libs.logging import get_logger
+from common_libs.utils import clean_obj_name
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 from openapi_test_client.libraries.api.types import (
@@ -22,7 +23,7 @@ from openapi_test_client.libraries.api.types import (
     ParamModel,
 )
 from openapi_test_client.libraries.common.constants import TAB
-from openapi_test_client.libraries.common.misc import clean_obj_name, generate_class_name
+from openapi_test_client.libraries.common.misc import generate_class_name
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import APIClassType

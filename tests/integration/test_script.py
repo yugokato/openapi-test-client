@@ -15,8 +15,8 @@ from openapi_test_client.libraries.api.api_client_generator import (
     TAB,
     update_endpoint_functions,
 )
-from tests import helper
-from tests.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
+from tests.integration import helper
+from tests.integration.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
@@ -25,10 +25,10 @@ from tests.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
     [lazy_fixture(demo_app_openapi_spec_url.__name__), lazy_fixture(petstore_openapi_spec_url.__name__)],
 )
 def test_generate_client(
-    url,
-    random_app_name,
-    dry_run,
-    external_dir,
+    url: str,
+    random_app_name: str,
+    dry_run: bool,
+    external_dir: Path | None,
 ):
     """Check that a new API client can be generated with the "generate" command.
 
@@ -85,7 +85,7 @@ def test_generate_client(
     ],
 )
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_update_client(temp_app_client: OpenAPIClient, dry_run, option):
+def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: str | None):
     """Check that API client can be updated with various options.
 
     NOTE: temp_app_client is a temporary client generated for this test against the demo_app app.

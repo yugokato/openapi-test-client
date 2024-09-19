@@ -18,9 +18,10 @@ logger = get_logger(__name__)
 class APIBase(metaclass=ABCMeta):
     """Base API class"""
 
-    app_name = None
-    is_documented = True
-    is_deprecated = False
+    app_name: Optional[str] = None
+    is_documented: bool = True
+    is_deprecated: bool = False
+    endpoints: Optional[list[Endpoint]] = None
 
     def __init__(self, api_client: APIClientType):
         if self.app_name != api_client.app_name:

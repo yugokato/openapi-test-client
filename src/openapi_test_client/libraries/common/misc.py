@@ -1,33 +1,13 @@
 import importlib.util
 import inspect
-import keyword
 import os
 import re
-from collections.abc import Collection, Mapping
-from functools import wraps
 from importlib.abc import InspectLoader
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, TypeVar
 
-
-def clean_obj_name(name: str) -> str:
-    """Convert the name to a legal Python object name
-
-    - Illegal values will be converted to "_" (multiple illegal values in a row will be converted to single "_")
-    - If the name starts with a number, "_" will be added at the beginning
-
-    :param name: The original value
-    """
-    pattern_illegal_chars = r"\W+|^(?=\d)"
-    has_illegal_chars = re.search(pattern_illegal_chars, name)
-    is_reserved_name = keyword.iskeyword(name)
-    if has_illegal_chars:
-        name = re.sub(pattern_illegal_chars, "_", name)
-    elif is_reserved_name:
-        name = f"_{name}"
-
-    return name
+T = TypeVar("T")
 
 
 def camel_to_snake(camel_case_str: str) -> str:
@@ -94,3 +74,34 @@ def import_module_with_new_code(new_code: str, path_or_obj: Path | Any) -> Modul
     mod = import_module_from_file_path(path)
     exec(code, mod.__dict__)
     return mod
+
+
+def reload_obj(obj: T) -> T:
+    """Reload object
+
+    Use this to reflect the inline code changes on the object
+    """
+    mod = importlib.reload(inspect.getmodule(obj))
+    return getattr(mod, obj.__name__)
+
+
+def reload_all_modules(root_dir: Path):
+    """Recursively reload all modules under the given directory
+
+    :param root_dir: The root directory to start module reoloading from
+    """
+
+    def reload(file_or_dir: Path):
+        mod = import_module_from_file_path(file_or_dir)
+        importlib.reload(mod)
+
+    def reload_recursively(file_or_dir: Path):
+        if file_or_dir.is_dir():
+            if (file_or_dir / "__init__.py").exists():
+                reload(file_or_dir)
+                for sub_file_or_dir in file_or_dir.iterdir():
+                    reload_recursively(sub_file_or_dir)
+        elif file_or_dir.stem == ".py":
+            reload(file_or_dir)
+
+    reload_recursively(root_dir)

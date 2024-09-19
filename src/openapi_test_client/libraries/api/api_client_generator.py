@@ -7,7 +7,7 @@ import shutil
 import traceback
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client.ext import RestResponse
@@ -35,6 +35,8 @@ from openapi_test_client.libraries.common.misc import (
     generate_class_name,
     import_module_from_file_path,
     import_module_with_new_code,
+    reload_all_modules,
+    reload_obj,
 )
 
 if TYPE_CHECKING:
@@ -102,6 +104,10 @@ class {base_api_class_name}({APIBase.__name__}):
     code = f"from .{base_app_api_class_file_stem} import {base_api_class_name}\n"
     _write_init_file(base_app_api_class_dir, code)
     mod = import_module_from_file_path(base_app_api_class_file_path)
+
+    # NOTE: Below __init__.py code is intentionally excluded from the above import since the initialization at least
+    # requires one API class to exist, which is not the case here.
+    # generate_api_class() will reload all modules to reinitialize everything later
     base_api_class = getattr(mod, base_api_class_name)
     code = format_code(
         f"from .{BASE_CLASS_DIR_NAME} import {base_api_class.__name__}\n"
@@ -120,7 +126,7 @@ def generate_api_class(
     add_endpoint_functions: bool = True,
     dry_run: bool = False,
     show_generated_code: bool = True,
-) -> Optional[tuple[str, Exception]]:
+) -> type[APIClassType] | tuple[str, Exception]:
     """Generate new API class file for the given API tag.
 
     If an exception is thrown during the process, API tag, API class name, and the exception will be returned.
@@ -186,8 +192,9 @@ def generate_api_class(
     # Add endpoint functions
     try:
         mod = import_module_with_new_code(code, api_class_file_path)
+        api_class = getattr(mod, class_name)
         result = update_endpoint_functions(
-            getattr(mod, class_name),
+            api_class,
             api_spec,
             is_new_api_class=True,
             add_missing_endpoints=add_endpoint_functions,
@@ -197,7 +204,14 @@ def generate_api_class(
         )
         _recursively_add_init_file(app_client_dir)
         if isinstance(result, tuple):
+            # Something failed while updating endpoint functions
             return result
+        else:
+            assert result is True
+            # Reimport everything to trigger the initialization of API classes
+            reload_all_modules(app_client_dir)
+            # reflect the updated code on the API class
+            return reload_obj(api_class)
     finally:
         if dry_run:
             if is_temp_client:
@@ -562,7 +576,7 @@ def update_endpoint_functions(
         return api_cls_updated or model_updated
 
 
-def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: bool = True):
+def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: bool = True) -> type[APIClientType]:
     """Generate new API client file
 
     NOTE: generate_api_class() must be called first for this to work properly
@@ -613,11 +627,15 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
         diff_code("", code)
 
     client_module_name = f"{app_name}_client"
-    (app_client_dir / f"{client_module_name}.py").write_text(code)
+    api_client_file_path = app_client_dir / f"{client_module_name}.py"
+    api_client_file_path.write_text(code)
 
     # Update __init__.py
     code = f"from .{client_module_name} import {api_client_class_name}\n"
     _write_init_file(app_client_dir, code)
+
+    mod = import_module_from_file_path(api_client_file_path)
+    return getattr(mod, api_client_class_name)
 
 
 def get_client_dir(client_name: str) -> Path:

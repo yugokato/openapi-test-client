@@ -56,7 +56,7 @@ def find_external_package_dir(current_dir: Path = None, missing_ok: bool = False
             return module_paths[0]
 
     if package_dir := (search_parent_dirs(current_dir) or search_child_dirs(current_dir)):
-        if str(package_dir) not in sys.path:
+        if str(package_dir.parent) not in sys.path:
             # external modules need to be accessible for updating clients
             sys.path.insert(0, str(package_dir.parent))
         return package_dir
@@ -69,7 +69,9 @@ def get_package_dir() -> Path:
     """Return the API client package directory"""
     if is_external_project():
         if api_client_package_dir := os.environ.get(ENV_VAR_PACKAGE_DIR, ""):
-            sys.path.append(str(Path(api_client_package_dir).parent))
+            external_dir = str(Path(api_client_package_dir).parent)
+            if external_dir not in sys.path:
+                sys.path.insert(0, external_dir)
             return Path(api_client_package_dir).resolve()
         else:
             try:
