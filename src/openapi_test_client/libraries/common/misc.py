@@ -96,6 +96,9 @@ def reload_all_modules(root_dir: Path):
         importlib.reload(mod)
 
     def reload_recursively(file_or_dir: Path):
+        if file_or_dir.name.startswith("_"):
+            return
+
         if file_or_dir.is_dir():
             if (file_or_dir / "__init__.py").exists():
                 reload(file_or_dir)
