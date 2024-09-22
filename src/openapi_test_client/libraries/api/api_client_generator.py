@@ -324,7 +324,7 @@ def update_endpoint_functions(
             # print(
             #     f"{method.upper()} {path}:\n"
             #     f" - matched: {repr(matched.group(0))}\n"
-            #     f" - decorators: {repr(func_def)}\n"
+            #     f" - decorators: {repr(decorators)}\n"
             #     f" - func_def: {repr(matched.group("func_def"))}\n"
             #     f"   - func_name: {repr(func_name)}\n"
             #     f"   - signature: {repr(signature)}\n"
