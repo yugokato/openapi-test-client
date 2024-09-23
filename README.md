@@ -894,4 +894,3 @@ extra
 > [!TIP]
 > The above example enables validation mode "per request" by passing `validate=True` to the API function call. 
 > Alternatively, you can also set `VALIDATION_MODE='true'` environment variable to globally enable the validation mode.
-

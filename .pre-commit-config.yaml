@@ -2,7 +2,21 @@ default_language_version:
   python: python3.11
 ci:
   autofix_prs: false
+  autoupdate_schedule: quarterly
 repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.6.0
+  hooks:
+    - id: check-toml
+    - id: check-yaml
+      args:
+        - --unsafe
+    - id: end-of-file-fixer
+    - id: pretty-format-json
+      args:
+        - --no-sort-keys
+        - --no-ensure-ascii
+        - --autofix
 - repo: https://github.com/PyCQA/autoflake
   rev: v2.3.1
   hooks:
