@@ -21,6 +21,7 @@ from pydantic import (
     NameEmail,
 )
 from pydantic.fields import FieldInfo
+from pydantic_extra_types.phone_numbers import PhoneNumber
 
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
@@ -49,6 +50,7 @@ PARAM_FORMAT_AND_TYPE_MAP = {
     "ipvanyaddress": IPvAnyAddress,
     "ipvanyinterface": IPvAnyInterface,
     "ipvanynetwork": IPvAnyNetwork,
+    "phone": PhoneNumber,
 }
 
 
