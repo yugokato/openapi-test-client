@@ -63,19 +63,34 @@ this project as your base project.
 
 Once the setup is complete, the `openapi-client` CLI command should be available for generating and updating an API 
 client from an OpenAPI spec file. It will take either `generate` or `update` as the first argument. Available command 
-options will change based on which action you choose. (see help with `-h` for more details)
+options will change based on which action you choose. (see help of each action with `-h` for more details)
 
+```shell
+$ openapi-client -h
+usage: openapi-client [-h] {generate,update} ...
+
+positional arguments:
+  {generate,update}  Action to take
+    generate         Generate a new API client from an OpenAPI spec URL
+    update           Update an existing API client
+
+options:
+  -h, --help         show this help message and exit
+
+```
 
 ### Generate a new API client
 
 You can generate a new API client from OpenAPI specs by running the `generate` command:
 ```
-openapi-client generate -u <url> -a <app_name> --dir <directory>
+openapi-client generate -u <url> -a <app_name> [--dir <directory>]
 ```
 `url`: The URL of the OpenAPI spec file (JSON/YAML, must be version 3.x) from which you want to generate the API client  
 `app_name`: The name of the target application. The value will be used for generating the client name  
 `directory`: A directory path to save the generated client modules. The specified directory will become the top-level 
 module for accessing all your clients. (This is optional if your project was cloned from the original repository)
+
+<img src="images/generate.gif" width="750"/>
 
 To generate another client for a different app, simply run the same command with the same `--dir` value, but with new 
 `-u` and `-a` values. 
@@ -94,6 +109,8 @@ You can update the existing client code by running the `update` command to refle
 openapi-client update -c <client_name>
 ```
 `client_name`: The name of the client assigned at the client generation step
+
+<img src="images/update.gif" width="750"/>
 
 This update functionality primarily focuses on reflecting the latest OpenAPI specs. It will only touch the following areas: 
 - Existing API class tag
