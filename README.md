@@ -774,8 +774,8 @@ Here are some comparisons between regular models and pydantic models:
 >>> model = client.USERS.create_user.endpoint.model
 <class 'types.UsersAPICreateUserEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
-{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, min_items=None, max_items=None, nullable=None, exclusive_minimum=None, exclusive_maximum=None)],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, min_items=None, max_items=None, nullable=None, exclusive_minimum=None, exclusive_maximum=None)],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
  'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
  'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
  'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.Metadata],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
@@ -873,8 +873,8 @@ Here are some comparisons between regular models and pydantic models:
 >>> pydantic_model = client.USERS.create_user.endpoint.model.to_pydantic()
 <class 'types.UsersAPICreateUserEndpointModel'>
 >>> pprint(pydantic_model.model_fields)
-{'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, min_items=None, max_items=None, nullable=None, exclusive_minimum=None, exclusive_maximum=None)]),
- 'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, min_items=None, max_items=None, nullable=None, exclusive_minimum=None, exclusive_maximum=None)]),
+{'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)]),
+ 'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)]),
  'email': FieldInfo(annotation=EmailStr, required=True, metadata=[Format(value='email')]),
  'role': FieldInfo(annotation=Literal['admin', 'viewer', 'support'], required=True),
  'metadata': FieldInfo(annotation=Union[Metadata, NoneType], required=False)}

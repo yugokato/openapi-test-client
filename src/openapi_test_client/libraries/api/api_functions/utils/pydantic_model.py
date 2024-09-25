@@ -130,7 +130,7 @@ def generate_pydantic_model_fields(
                     const.update(multiple_of=constraint.multiple_of)
                 field_value = Field(default_value, **const)
             elif param_type_util.is_type_of(field_type, list):
-                field_value = Field(default_value, min_items=constraint.min_items, max_items=constraint.max_items)
+                field_value = Field(default_value, min_length=constraint.min_len, max_length=constraint.max_len)
 
             if default_value is not None and constraint.nullable:
                 # Required and nullable = Optional

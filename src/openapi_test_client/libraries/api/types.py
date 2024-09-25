@@ -30,8 +30,8 @@ class ParamDef(HashableDict):
         super().__init__(obj)
         if self.is_array:
             self.constraint = Constraint(
-                min_items=self.get("minItems"),
-                max_items=self.get("maxItems"),
+                min_len=self.get("minItems"),
+                max_len=self.get("maxItems"),
                 nullable=self.get("nullable"),
             )
         else:
@@ -440,8 +440,6 @@ class Constraint(ParamAnnotationType):
     multiple_of: int = None
     min_len: int = None
     max_len: int = None
-    min_items: int = None
-    max_items: int = None
     nullable: bool = None
     pattern: str = None
 
