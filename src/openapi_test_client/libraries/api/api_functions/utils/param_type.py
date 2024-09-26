@@ -52,7 +52,9 @@ def get_type_annotation_as_str(tp: Any) -> str:
     elif isinstance(tp, (Alias, Format)):
         return f"{type(tp).__name__}({repr(tp.value)})"
     elif isinstance(tp, Constraint):
-        const = ", ".join(f"{k}={repr(v)}" for k, v in asdict(tp).items() if v is not None)
+        const = ", ".join(
+            f'{k}={("r" + repr(v) if k == "pattern" else repr(v))}' for k, v in asdict(tp).items() if v is not None
+        )
         return f"{type(tp).__name__}({const})"
     elif tp is NoneType:
         return "None"
