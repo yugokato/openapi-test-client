@@ -29,7 +29,7 @@ from openapi_test_client.libraries.api import APIBase
 from openapi_test_client.libraries.api.api_classes import get_api_classes, init_api_classes
 from openapi_test_client.libraries.api.types import ParamModel
 from openapi_test_client.libraries.common.code import diff_code, format_code
-from openapi_test_client.libraries.common.constants import TAB, VALID_METHODS
+from openapi_test_client.libraries.common.constants import BACKSLASH, TAB, VALID_METHODS
 from openapi_test_client.libraries.common.misc import (
     camel_to_snake,
     generate_class_name,
@@ -386,7 +386,9 @@ def update_endpoint_functions(
                 )
 
             # Update API function signatures
-            new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model)
+            new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model).replace(
+                BACKSLASH, BACKSLASH * 2
+            )
             updated_api_func_code = re.sub(re.escape(signature), new_func_signature, updated_api_func_code)
 
             # Update func body if missing

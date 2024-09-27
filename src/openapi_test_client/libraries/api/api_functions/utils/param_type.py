@@ -10,6 +10,7 @@ from common_libs.logging import get_logger
 
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamDef
+from openapi_test_client.libraries.common.constants import BACKSLASH
 
 logger = get_logger(__name__)
 
@@ -53,7 +54,9 @@ def get_type_annotation_as_str(tp: Any) -> str:
         return f"{type(tp).__name__}({repr(tp.value)})"
     elif isinstance(tp, Constraint):
         const = ", ".join(
-            f'{k}={("r" + repr(v) if k == "pattern" else repr(v))}' for k, v in asdict(tp).items() if v is not None
+            f'{k}={("r" + repr(v).replace(BACKSLASH * 2, BACKSLASH) if k == "pattern" else repr(v))}'
+            for k, v in asdict(tp).items()
+            if v is not None
         )
         return f"{type(tp).__name__}({const})"
     elif tp is NoneType:
