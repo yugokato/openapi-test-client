@@ -56,7 +56,7 @@ def test_generate_api_class_code(
     assert NewAPIClass.__name__ == api_class_name
     assert NewAPIClass.__module__.endswith(".test_something")
     assert NewAPIClass.app_name == temp_api_client.app_name
-    assert NewAPIClass.TAGs == ["Test"]
+    assert NewAPIClass.TAGs == ("Test",)
     assert (Path(inspect.getfile(NewAPIClass)).parent / "__init__.py").exists()
     # API class generation will trigger the initialization of API classes, which will update the `endpoints` attr
     assert NewAPIClass.endpoints is not None

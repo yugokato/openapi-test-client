@@ -12,7 +12,7 @@ def test_endpoint_handler(mocker: MockerFixture, api_client: DemoAppAPIClient, w
     """Verify the basic capability around EndpointHandler"""
 
     class TestAPI(APIBase):
-        TAGs = ["Test"]
+        TAGs = ("Test",)
         app_name = api_client.app_name
 
         def do_something(self):

@@ -183,7 +183,7 @@ def generate_api_class(
         "\n".join([f"from {_get_package(m)} import {m.__name__}" for m in [base_class, endpoint, RestResponse]])
         + "\n\n"
     )
-    code += f'class {class_name}({base_class.__name__}):\n{TAB}TAGs = ["{tag}"]\n\n'
+    code += f"class {class_name}({base_class.__name__}):\n{TAB}TAGs = {tuple([tag])}\n\n"
     code = format_code(code, remove_unused_imports=False)
     if is_temp_client:
         api_class_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -255,7 +255,7 @@ def update_endpoint_functions(
         >>>
         >>>
         >>> class SomeDemoAPI(DemoAppBaseAPI):
-        >>>     TAGs = ["Some Tag"]
+        >>>     TAGs = ("Some Tag",)
         >>>
         >>>     @endpoint.get("/v1/something/{uuid}")
         >>>     def do_something(self, uuid: str, /, *, param1: str = None, param2: int = None, **kwargs) -> RestResponse:
@@ -269,7 +269,7 @@ def update_endpoint_functions(
     # Regex for API class definition
     regex_api_class = re.compile(rf"class {api_class.__name__}\(\S+{BASE_API_CLASS_NAME_SUFFIX}\):")
     # Regex for TAGs and for individual tag inside TAGs
-    regex_tags = re.compile(r"TAGs = \[[^]]*\]", flags=re.MULTILINE)
+    regex_tags = re.compile(r"TAGs = \([^)]*\)", flags=re.MULTILINE)
     regex_tag = re.compile(r'"(?P<tag>[^"]*)"', flags=re.MULTILINE)
     # Regex for each endpoint function block
     tab = f"(?:{TAB}|\t)"
@@ -423,17 +423,17 @@ def update_endpoint_functions(
             tags_in_class = re.search(regex_tags, original_api_cls_code)
             if tags_in_class:
                 defined_tags = re.findall(regex_tag, tags_in_class.group(0))
-            if defined_tags:
+            if defined_tags or (not defined_tags and tags_in_class):
                 # Update TAGs only when none of defined tags match with documented tags. Note that when multiple tags are
                 # documented, the updated tags may not what you exactly want. If that is the case you'll need to remove
                 # tags that is not needed for this API class
                 if not set(defined_tags).intersection(api_spec_tags):
-                    new_code = re.sub(regex_tags, f"TAGs = {list(api_spec_tags)}", new_code)
+                    new_code = re.sub(regex_tags, f"TAGs = {tuple(api_spec_tags)}", new_code)
             else:
                 api_class_matched = re.search(regex_api_class, original_api_cls_code)
                 defined_api_class = api_class_matched.group(0)
                 new_code = re.sub(
-                    regex_api_class, f"{defined_api_class}\n{TAB}TAGs = {list(api_spec_tags)}\n", new_code
+                    regex_api_class, f"{defined_api_class}\n{TAB}TAGs = {tuple(api_spec_tags)}\n", new_code
                 )
 
         # Update code (if code changes)

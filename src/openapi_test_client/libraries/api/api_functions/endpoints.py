@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
+from threading import RLock
 from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, cast
 
 from common_libs.ansi_colors import ColorCodes, color
@@ -42,7 +43,7 @@ class Endpoint:
     This is accessible via an EndpointFunc object (see docstrings of the `endpoint` class below).
     """
 
-    tags: list[str]
+    tags: tuple[str, ...]
     api_class: type[APIClassType]
     method: str
     path: str
@@ -112,9 +113,9 @@ class endpoint:
         >>> isinstance(client.AUTH.login, EndpointFunc) and isinstance(AuthAPI.login, EndpointFunc)
         True
         >>> client.AUTH.login.endpoint
-        Endpoint(tags=['Auth'], api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='http://127.0.0.1:5000/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
+        Endpoint(tags=('Auth',), api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='http://127.0.0.1:5000/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> AuthAPI.login.endpoint
-        Endpoint(tags=['Auth'], api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
+        Endpoint(tags=('Auth',), api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> str(client.AUTH.login.endpoint)
         'POST /v1/auth/login'
         >>> str(AuthAPI.login.endpoint)
@@ -387,6 +388,7 @@ class EndpointHandler:
 
     # cache endpoint function objects
     _endpoint_functions = {}
+    _lock = RLock()
 
     def __init__(
         self,
@@ -410,17 +412,18 @@ class EndpointHandler:
     def __get__(self, instance: Optional[APIClassType], owner: type[APIClassType]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
-        if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
-            endpoint_func_name = (
-                f"{owner.__name__}{generate_class_name(self.original_func.__name__, suffix=EndpointFunc.__name__)}"
-            )
-            endpoint_func_class = type(
-                endpoint_func_name,
-                (EndpointFunc,),
-                {},
-            )
-            endpoint_func = endpoint_func_class(self, instance, owner)
-            EndpointHandler._endpoint_functions[key] = endpoint_func
+        with EndpointHandler._lock:
+            if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
+                endpoint_func_name = (
+                    f"{owner.__name__}{generate_class_name(self.original_func.__name__, suffix=EndpointFunc.__name__)}"
+                )
+                endpoint_func_class = type(
+                    endpoint_func_name,
+                    (EndpointFunc,),
+                    {},
+                )
+                endpoint_func = endpoint_func_class(self, instance, owner)
+                EndpointHandler._endpoint_functions[key] = endpoint_func
         return cast(EndpointFunc, update_wrapper(endpoint_func, self.original_func))
 
     @property
@@ -467,8 +470,8 @@ class EndpointFunc:
         # API class. To make the sorting of endpoint objects during an initialization of API
         # classes work using (endpoint.tag, endpoint.method, endpoint.path) key, assign an empty
         # list if TAGs is not defined
-        if not isinstance(tags := (instance or owner).TAGs, list):
-            tags = []
+        if isinstance(tags := (instance or owner).TAGs, property):
+            tags = ()
         self.endpoint = Endpoint(
             tags,
             owner,

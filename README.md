@@ -412,7 +412,7 @@ from openapi_test_client.libraries.api.api_functions import endpoint
 
 
 class AuthAPI(DemoAppBaseAPI):
-    TAGs = ["Auth"]
+    TAGs = ("Auth",)
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")
@@ -441,10 +441,10 @@ Some attributes available from the API class:
 ```pycon
 >>> # Get tag data
 >>> client.AUTH.TAGs
-['Auth']
+('Auth',)
 >>> # Get available endpoints under this API class 
 >>> pprint(client.AUTH.endpoints)
-[Endpoint(tags=['Auth'],
+[Endpoint(tags=('Auth',),
           api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
           method='post',
           path='/v1/auth/login',
@@ -455,7 +455,7 @@ Some attributes available from the API class:
           is_public=True,
           is_documented=True,
           is_deprecated=False),
- Endpoint(tags=['Auth'],
+ Endpoint(tags=('Auth',),
           api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
           method='get',
           path='/v1/auth/logout',
@@ -513,7 +513,7 @@ Various endpoint data is available from the endpoint function via `endpoint` pro
 >>> print(client.AUTH.login.endpoint)
 POST /v1/auth/login
 >>> pprint(client.AUTH.login.endpoint)
-Endpoint(tags=['Auth'],
+Endpoint(tags=('Auth',),
          api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
          method='post',
          path='/v1/auth/login',
@@ -540,7 +540,7 @@ True
 >>> print(AuthAPI.login.endpoint)
 POST /v1/auth/login
 >>> pprint(AuthAPI.login.endpoint)
-Endpoint(tags=['Auth'],
+Endpoint(tags=('Auth',),
          api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
          method='post',
          path='/v1/auth/login',
@@ -619,7 +619,7 @@ from ..models.users import Metadata
 
 
 class UsersAPI(DemoAppBaseAPI):
-    TAGs = ["Users"]
+    TAGs = ("Users",)
 
     @endpoint.post("/v1/users")
     def create_user(

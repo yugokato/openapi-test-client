@@ -35,7 +35,7 @@ class APIBase(metaclass=ABCMeta):
     @property
     @classmethod
     @abstractmethod
-    def TAGs(cls) -> list[str]:
+    def TAGs(cls) -> tuple[str, ...]:
         """API Tags defined in the swagger doc. Every API class MUST have this attribute"""
         raise NotImplementedError
 

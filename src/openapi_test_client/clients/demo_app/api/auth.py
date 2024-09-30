@@ -5,7 +5,7 @@ from openapi_test_client.libraries.api.api_functions import endpoint
 
 
 class AuthAPI(DemoAppBaseAPI):
-    TAGs = ["Auth"]
+    TAGs = ("Auth",)
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")

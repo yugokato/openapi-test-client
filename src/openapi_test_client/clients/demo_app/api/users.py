@@ -10,7 +10,7 @@ from ..models.users import Metadata
 
 
 class UsersAPI(DemoAppBaseAPI):
-    TAGs = ["Users"]
+    TAGs = ("Users",)
 
     @endpoint.post("/v1/users")
     def create_user(
