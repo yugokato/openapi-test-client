@@ -5,7 +5,7 @@ import json
 import re
 from copy import deepcopy
 from dataclasses import MISSING, Field, field, make_dataclass
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from common_libs.logging import get_logger
 
@@ -131,7 +131,7 @@ def _parse_parameter_objects(
     method: str,
     parameter_objects: list[dict[str, Any]],
     path_param_fields: list[tuple[str, Any]],
-    body_or_query_param_fields: list[tuple[str, Any, Optional[Field]]],
+    body_or_query_param_fields: list[tuple[str, Any, Field | None]],
 ):
     """Parse parameter objects
 
@@ -205,8 +205,8 @@ def _parse_parameter_objects(
 
 
 def _parse_request_body_object(
-    request_body_obj: dict[str, Any], body_or_query_param_fields: list[tuple[str, Any, Optional[Field]]]
-) -> Optional[str]:
+    request_body_obj: dict[str, Any], body_or_query_param_fields: list[tuple[str, Any, Field | None]]
+) -> str | None:
     """Parse request body object
 
     https://swagger.io/specification/#request-body-object
@@ -249,7 +249,7 @@ def _parse_request_body_object(
                 if _is_file_param(content_type, param_def):
                     param_type = File
                     if not param_def.is_required:
-                        param_type = Optional[param_type]
+                        param_type = param_type | None
                     body_or_query_param_fields.append((param_name, param_type, field(default=None)))
                 else:
                     existing_param_names = [x[0] for x in body_or_query_param_fields]

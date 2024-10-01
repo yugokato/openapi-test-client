@@ -112,7 +112,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
         (
             f"{TAB * 2}{create_user_func_docstring}\n"
             f"{TAB * 2}# fake custom func logic\n"
-            f"{TAB * 2}params = dict(first_name=first_name, last_name=last_name, email=email, role=role, metadata=metadata)\n"
+            f"{TAB * 2}params = dict(first_name=first_name, last_name=last_name, email=email, role=role, metadata=metadata)\n"  # noqa: E501
             f"{TAB * 2}return self.{UsersAPI.create_user.__name__}(**params)"
         ),
     )

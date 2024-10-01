@@ -33,7 +33,7 @@ def _register_blueprints(app, version: int):
     from demo_app.handlers.error_handlers import bp_error_handler
     from demo_app.handlers.request_handlers import bp_request_handler
 
-    bp_api = Blueprint(f"demo_app", __name__, url_prefix=f"/v{version}")
+    bp_api = Blueprint("demo_app", __name__, url_prefix=f"/v{version}")
     bp_api.register_blueprint(bp_auth, name=bp_auth.name)
     bp_api.register_blueprint(bp_user, name=bp_user.name)
 

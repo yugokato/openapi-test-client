@@ -33,7 +33,7 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
             Endpoint(tag='Auth', api_class=<class 'test_client.clients.demo_app.api.auth.AuthAPI'>, method='get', path='/v1/auth/logout', func_name='logout', model=<class 'types.LogoutEndpointModel'>)
         ]
 
-    """
+    """  # noqa: E501
     from openapi_test_client.libraries.api import Endpoint
 
     previous_frame = inspect.currentframe().f_back

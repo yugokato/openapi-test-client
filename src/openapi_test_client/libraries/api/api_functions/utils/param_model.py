@@ -48,7 +48,7 @@ def is_param_model(annotated_type: Any) -> bool:
         return _is_param_model(inner_type)
 
 
-def get_param_model(annotated_type: Any) -> Optional[ParamModel | list[ParamModel]]:
+def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None:
     """Returns a param model from the annotated type, if there is any
 
     :param annotated_type: Annotated type
@@ -91,7 +91,7 @@ def get_reserved_model_names() -> list[str]:
     custom_param_annotation_names = [
         x.__name__
         for x in mod.__dict__.values()
-        if inspect.isclass(x) and issubclass(x, (ParamAnnotationType, DataclassModel))
+        if inspect.isclass(x) and issubclass(x, ParamAnnotationType | DataclassModel)
     ]
     typing_class_names = [x.__name__ for x in [Any, Optional, Annotated, Literal, Union]]
     return custom_param_annotation_names + typing_class_names
@@ -106,7 +106,7 @@ def create_model_from_param_def(
     :param model_name: The model name
     :param param_def: ParamDef generated from an OpenAPI parameter object
     """
-    if not isinstance(param_def, (ParamDef, ParamDef.ParamGroup, ParamDef.UnknownType)):
+    if not isinstance(param_def, ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType):
         raise ValueError(f"Invalid param_def type: {type(param_def)}")
 
     if isinstance(param_def, ParamDef) and param_def.is_array and "items" in param_def:
@@ -273,7 +273,7 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
-def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[str, Any, Optional[Field]]]):
+def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[str, Any, Field | None]]):
     """Clean illegal model field name and annotate the field type with Alias class
 
     :param param_fields: fields value to be passed to make_dataclass()

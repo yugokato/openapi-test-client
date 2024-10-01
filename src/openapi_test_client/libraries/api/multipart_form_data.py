@@ -12,7 +12,7 @@ class MultipartFormData(MutableMapping):
     {'logo': ('logo.png', b'content', 'image/png'), 'favicon': ('fabicon.png', b'content', 'image/png')}
 
     NOTE: The File obj can be a dictionary instead
-    """
+    """  # noqa: E501
 
     def __init__(self, **files: File | dict[str, str | bytes | Any]):
         self._files = dict(

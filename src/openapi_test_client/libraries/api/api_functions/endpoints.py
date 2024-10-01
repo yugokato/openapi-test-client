@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Optional, ParamSpec, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
@@ -49,8 +50,8 @@ class Endpoint:
     path: str
     func_name: str
     model: type[EndpointModel]
-    url: Optional[str] = None  # Available only for an endpoint object accessed via an API client instance
-    content_type: Optional[str] = None
+    url: str | None = None  # Available only for an endpoint object accessed via an API client instance
+    content_type: str | None = None
     is_public: bool = False
     is_documented: bool = True
     is_deprecated: bool = False
@@ -125,7 +126,7 @@ class endpoint:
         >>> client.AUTH.login.endpoint.url
         'http://127.0.0.1:5000/v1/auth/login'
 
-    """
+    """  # noqa: E501
 
     @staticmethod
     def get(path: str, **requests_lib_options) -> Callable[P, OriginalFunc | EndpointFunc]:
@@ -409,7 +410,7 @@ class EndpointHandler:
         self.is_deprecated = False
         self.__decorators = []
 
-    def __get__(self, instance: Optional[APIClassType], owner: type[APIClassType]) -> EndpointFunc:
+    def __get__(self, instance: APIClassType | None, owner: type[APIClassType]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
         with EndpointHandler._lock:
@@ -442,14 +443,14 @@ class EndpointFunc:
     All parameters passed to the original API class function call will be passed through to the __call__()
     """
 
-    def __init__(self, endpoint_handler: EndpointHandler, instance: Optional[APIClassType], owner: type[APIClassType]):
+    def __init__(self, endpoint_handler: EndpointHandler, instance: APIClassType | None, owner: type[APIClassType]):
         """Initialize endpoint function"""
         if not issubclass(owner, APIBase):
             raise NotImplementedError(f"Unsupported API class: {owner}")
 
         self.method = endpoint_handler.method
         self.path = endpoint_handler.path
-        self.rest_client: Optional[RestClient]
+        self.rest_client: RestClient | None
         if instance:
             self.api_client = instance.api_client
             self.rest_client = self.api_client.rest_client
@@ -643,7 +644,7 @@ class EndpointFunc:
         f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
         return f(*args, **kwargs)
 
-    def get_usage(self) -> Optional[str]:
+    def get_usage(self) -> str | None:
         """Get OpenAPI spec definition for the endpoint"""
         if self.api_client and self.endpoint.is_documented:
             return self.api_client.api_spec.get_endpoint_usage(self.endpoint)

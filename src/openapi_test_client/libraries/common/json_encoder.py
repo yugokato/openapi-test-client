@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 class CustomJsonEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, (UUID, Decimal)):
+        if isinstance(obj, UUID | Decimal):
             return str(obj)
         elif isinstance(obj, datetime):
             return obj.isoformat()

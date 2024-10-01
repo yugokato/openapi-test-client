@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Annotated, Any, Optional, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin
 
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
 from common_libs.logging import get_logger
@@ -39,7 +39,8 @@ def check_params(endpoint: Endpoint, params: dict[str, Any]):
         if unexpected_params:
             msg = (
                 f"The request contains one or more parameters "
-                f"{endpoint.api_class.__name__}.{endpoint.func_name}() does not expect:\n{list_items(unexpected_params)}"
+                f"{endpoint.api_class.__name__}.{endpoint.func_name}() does not expect:\n"
+                f"{list_items(unexpected_params)}"
             )
             logger.warning(msg)
 
@@ -224,7 +225,7 @@ def generate_rest_func_params(
     # We will set the Content-type value using from the OpenAPI specs for this case, unless the header is explicitly
     # set by a user. Otherwise, requests lib will automatically handle this part
     if (data := rest_func_params.get("data")) and (
-        isinstance(data, (str, bytes)) and not specified_content_type_header and endpoint.content_type
+        isinstance(data, str | bytes) and not specified_content_type_header and endpoint.content_type
     ):
         rest_func_params.setdefault("headers", {}).update({"Content-Type": endpoint.content_type})
 
@@ -233,7 +234,7 @@ def generate_rest_func_params(
 
 def _get_specified_content_type_header(
     requests_lib_options: dict[str, Any], session_headers: dict[str, str]
-) -> Optional[str]:
+) -> str | None:
     """Get Content-Type header value set for the request or for the current session"""
     request_headers = requests_lib_options.get("headers", {})
     content_type_header = (

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from types import EllipsisType
-from typing import Any, Optional, TypeVar, get_origin
+from typing import Any, TypeVar, get_origin
 from uuid import UUID
 
 from pydantic import (
@@ -72,7 +72,7 @@ def in_validation_mode():
 
 def generate_pydantic_model_fields(
     original_model: type[DataclassModel | EndpointModel | ParamModel], field_type: Any
-) -> tuple[str, Optional[EllipsisType | FieldInfo]]:
+) -> tuple[str, EllipsisType | FieldInfo | None]:
     """Generate Pydantic field definition for validation mode
 
     :param original_model: The original model
@@ -134,22 +134,22 @@ def generate_pydantic_model_fields(
 
             if default_value is not None and constraint.nullable:
                 # Required and nullable = Optional
-                field_type = Optional[field_type]
+                field_type = field_type | None
 
-        # For query parameters,each parameter may be allowed to use multiple times with different values. Our client will
-        # support this scenario by taking values as a list. To prevent a validation error to occur when giving a list,
-        # adjust the model type to also allow list.
+        # For query parameters,each parameter may be allowed to use multiple times with different values. Our client
+        # will support this scenario by taking values as a list. To prevent a validation error to occur when giving a
+        # list, adjust the model type to also allow list.
         if is_query_param or (
             issubclass(original_model, EndpointModel) and original_model.endpoint_func.method.upper() == "GET"
         ):
             inner_type = param_type_util.get_inner_type(field_type)
-            if not get_origin(inner_type) is list:
+            if get_origin(inner_type) is not list:
                 field_type = param_type_util.replace_inner_type(field_type, inner_type | list[inner_type])
 
     return (field_type, field_value)
 
 
-def filter_annotated_metadata(annotated_type: Any, target_class: type[T]) -> Optional[T]:
+def filter_annotated_metadata(annotated_type: Any, target_class: type[T]) -> T | None:
     """Get a metadata for the target class from annotated type
 
     :param annotated_type: Type annotation with Annotated[]

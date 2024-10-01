@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 
 from pydantic import AnyUrl, BaseModel, EmailStr, Field
 from quart_schema.pydantic import File
@@ -18,27 +17,27 @@ class UserTheme(Enum):
 
 
 class UserQuery(BaseModel):
-    id: Optional[int] = None
-    email: Optional[EmailStr] = None
-    role: Optional[UserRole] = None
+    id: int | None = None
+    email: EmailStr | None = None
+    role: UserRole | None = None
 
 
 class SocialLinks(BaseModel):
-    facebook: Optional[AnyUrl] = None
-    instagram: Optional[AnyUrl] = None
-    linkedin: Optional[AnyUrl] = None
-    github: Optional[AnyUrl] = None
+    facebook: AnyUrl | None = None
+    instagram: AnyUrl | None = None
+    linkedin: AnyUrl | None = None
+    github: AnyUrl | None = None
 
 
 class Preferences(BaseModel):
-    theme: Optional[UserTheme] = UserTheme.LIGHT_MODE.value
-    language: Optional[str] = None
-    font_size: Optional[int] = Field(None, ge=8, le=40, multiple_of=2)
+    theme: UserTheme | None = UserTheme.LIGHT_MODE.value
+    language: str | None = None
+    font_size: int | None = Field(None, ge=8, le=40, multiple_of=2)
 
 
 class Metadata(BaseModel):
-    preferences: Optional[Preferences] = None
-    social_links: Optional[SocialLinks] = None
+    preferences: Preferences | None = None
+    social_links: SocialLinks | None = None
 
 
 class UserRequest(BaseModel):
@@ -46,7 +45,7 @@ class UserRequest(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
     role: UserRole
-    metadata: Optional[Metadata] = Field(default_factory=dict)
+    metadata: Metadata | None = Field(default_factory=dict)
 
 
 class User(UserRequest):
@@ -55,4 +54,4 @@ class User(UserRequest):
 
 class UserImage(BaseModel):
     file: File
-    description: Optional[str] = None
+    description: str | None = None

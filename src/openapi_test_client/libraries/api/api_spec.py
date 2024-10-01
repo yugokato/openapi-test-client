@@ -4,7 +4,7 @@ import copy
 import json
 import re
 from functools import lru_cache, reduce
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import requests
 import yaml
@@ -29,7 +29,7 @@ class OpenAPISpec:
         self._spec = None
 
     @lru_cache
-    def get_api_spec(self, url: str = None) -> Optional[dict[str, Any]]:
+    def get_api_spec(self, url: str = None) -> dict[str, Any] | None:
         """Return OpenAPI spec"""
         if self._spec is None:
             if url:
@@ -64,7 +64,7 @@ class OpenAPISpec:
         else:
             logger.warning("API spec is not available")
 
-    def get_endpoint_usage(self, endpoint: Endpoint) -> Optional[str]:
+    def get_endpoint_usage(self, endpoint: Endpoint) -> str | None:
         """Return usage of the endpoint
 
         :param endpoint: Endpoint object

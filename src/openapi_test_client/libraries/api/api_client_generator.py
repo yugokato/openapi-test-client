@@ -232,7 +232,8 @@ def update_endpoint_functions(
 ) -> bool | tuple[str, Exception]:
     '''Update endpoint functions (signature and docstring) and API TAGs based on the definition of the latest API spec
 
-    When no exception is thrown during the process, a boolean flag to indicate whether update is required or not is returned.
+    When no exception is thrown during the process, a boolean flag to indicate whether update is required or not is
+    returned.
     If an exception is thrown, API class name and the exception will be returned.
 
     :param api_class: API class
@@ -258,7 +259,9 @@ def update_endpoint_functions(
         >>>     TAGs = ("Some Tag",)
         >>>
         >>>     @endpoint.get("/v1/something/{uuid}")
-        >>>     def do_something(self, uuid: str, /, *, param1: str = None, param2: int = None, **kwargs) -> RestResponse:
+        >>>     def do_something(
+        >>>         self, uuid: str, /, *, param1: str = None, param2: int = None, **kwargs
+        >>>     ) -> RestResponse:
         >>>     """Do something"""
         >>>     ...
         >>>
@@ -369,7 +372,8 @@ def update_endpoint_functions(
 
             # Collect all param models for this endpoint
             param_models.extend(param_model_util.get_param_models(endpoint_model))
-            # Fill missing imports (typing and custom param model classes). Duplicates will be removed by black at the end
+            # Fill missing imports (typing and custom param model classes). Duplicates will be removed by black at
+            # the end
             if missing_imports_code := param_model_util.generate_imports_code_from_model(api_class, endpoint_model):
                 new_code = missing_imports_code + new_code
 
@@ -424,9 +428,9 @@ def update_endpoint_functions(
             if tags_in_class:
                 defined_tags = re.findall(regex_tag, tags_in_class.group(0))
             if defined_tags or (not defined_tags and tags_in_class):
-                # Update TAGs only when none of defined tags match with documented tags. Note that when multiple tags are
-                # documented, the updated tags may not what you exactly want. If that is the case you'll need to remove
-                # tags that is not needed for this API class
+                # Update TAGs only when none of defined tags match with documented tags. Note that when multiple tags
+                # are documented, the updated tags may not what you exactly want. If that is the case you'll need to
+                # remove tags that is not needed for this API class
                 if not set(defined_tags).intersection(api_spec_tags):
                     new_code = re.sub(regex_tags, f"TAGs = {tuple(api_spec_tags)}", new_code)
             else:

@@ -1,10 +1,11 @@
 import inspect
+from collections.abc import Sequence
 from dataclasses import asdict
 from functools import reduce
 from operator import or_
 from types import NoneType, UnionType
 from typing import _AnnotatedAlias  # noqa
-from typing import Annotated, Any, Literal, Optional, Sequence, Union, get_args, get_origin
+from typing import Annotated, Any, Literal, Optional, Union, get_args, get_origin
 
 from common_libs.logging import get_logger
 
@@ -41,7 +42,8 @@ def get_type_annotation_as_str(tp: Any) -> str:
                 return f"{Optional.__name__}[{get_type_annotation_as_str(inner_types[0])}]"
             else:
                 inner_types_union = " | ".join(get_type_annotation_as_str(x) for x in inner_types)
-                # Note: This is actually Union[tp1, ..., None] in Python, but we annotate this as Optional[tp1 | ...] in code
+                # Note: This is actually Union[tp1, ..., None] in Python, but we annotate this as
+                # Optional[tp1 | ...] in code
                 return f"{Optional.__name__}[{inner_types_union}]"
         else:
             return " | ".join(get_type_annotation_as_str(x) for x in args)
@@ -50,7 +52,7 @@ def get_type_annotation_as_str(tp: Any) -> str:
         return f"{tp.__origin__.__name__}[{inner_types}]"
     elif get_origin(tp) is Literal:
         return repr(tp).replace("typing.", "")
-    elif isinstance(tp, (Alias, Format)):
+    elif isinstance(tp, Alias | Format):
         return f"{type(tp).__name__}({repr(tp.value)})"
     elif isinstance(tp, Constraint):
         const = ", ".join(
@@ -71,7 +73,7 @@ def get_type_annotation_as_str(tp: Any) -> str:
 def resolve_type_annotation(
     param_name: str,
     param_def: ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType,
-    _is_required: Optional[bool] = None,
+    _is_required: bool | None = None,
     _is_array: bool = False,
 ) -> Any:
     """Resolve type annotation for the given parameter definition
@@ -85,7 +87,8 @@ def resolve_type_annotation(
     def resolve(param_type: str, param_format: str = None):
         """Resolve type annotation
 
-        NOTE: Some OpenAPI spec use a wrong param type value (eg. string v.s. str). We handle these scenarios accordingly
+        NOTE: Some OpenAPI spec use a wrong param type value (eg. string v.s. str).
+              We handle these scenarios accordingly
         """
         if param_type in STR_PARAM_TYPES:
             if param_format:
@@ -134,7 +137,7 @@ def resolve_type_annotation(
         else:
             raise NotImplementedError(f"Unsupported type: {param_type}")
 
-    if not isinstance(param_def, (ParamDef, ParamDef.ParamGroup, ParamDef.UnknownType)):
+    if not isinstance(param_def, ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType):
         # for inner obj
         param_def = ParamDef.from_param_obj(param_def)
 
@@ -173,7 +176,8 @@ def resolve_type_annotation(
             type_annotation = generate_optional_type(type_annotation)
 
     if num_optional_types := repr(type_annotation).count("Optional"):
-        # Sanity check for Optional type. If it is annotated with `Optional`, we want it to appear as the origin type only. If this check fails, it means the logic is broke somewhere
+        # Sanity check for Optional type. If it is annotated with `Optional`, we want it to appear as the origin type
+        # only. If this check fails, it means the logic is broke somewhere
         if num_optional_types > 1:
             raise RuntimeError(f"{Optional} should not appear more than once: {type_annotation}")
         if type_annotation.__name__ != Optional.__name__:
@@ -236,7 +240,7 @@ def replace_inner_type(tp: Any, new_type: Any, replace_container_type: bool = Fa
         args = get_args(tp)
         if is_union_type(tp):
             if is_optional_type(tp):
-                return Optional[replace_inner_type(args[0], new_type)]
+                return Optional[replace_inner_type(args[0], new_type)]  # noqa: UP007
             else:
                 return replace_inner_type(args, new_type)
         elif origin_type is Annotated:
@@ -355,7 +359,7 @@ def generate_optional_type(tp: Any) -> Any:
     if is_optional_type(tp):
         return tp
     else:
-        return Union[tp, None]
+        return Union[tp, None]  # noqa: UP007
 
 
 def generate_annotated_type(tp: Any, metadata: Any):
@@ -365,12 +369,12 @@ def generate_annotated_type(tp: Any, metadata: Any):
     """
     if is_optional_type(tp):
         inner_type = get_args(tp)[0]
-        return Optional[Annotated[inner_type, metadata]]
+        return Optional[Annotated[inner_type, metadata]]  # noqa: UP007
     else:
         return Annotated[tp, metadata]
 
 
-def get_annotated_type(tp: Any) -> Optional[_AnnotatedAlias]:
+def get_annotated_type(tp: Any) -> _AnnotatedAlias | None:
     """Get annotated type definition
 
     :param tp: Type annotation

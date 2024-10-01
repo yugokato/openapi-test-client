@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from common_libs.clients.rest_client import RestResponse
 from common_libs.logging import get_logger
@@ -18,10 +19,10 @@ logger = get_logger(__name__)
 class APIBase(metaclass=ABCMeta):
     """Base API class"""
 
-    app_name: Optional[str] = None
+    app_name: str | None = None
     is_documented: bool = True
     is_deprecated: bool = False
-    endpoints: Optional[list[Endpoint]] = None
+    endpoints: list[Endpoint] | None = None
 
     def __init__(self, api_client: APIClientType):
         if self.app_name != api_client.app_name:
@@ -51,8 +52,8 @@ class APIBase(metaclass=ABCMeta):
     def post_request_hook(
         self,
         endpoint: Endpoint,
-        response: Optional[RestResponse],
-        request_exception: Optional[RequestException],
+        response: RestResponse | None,
+        request_exception: RequestException | None,
         *path_params,
         **params,
     ):

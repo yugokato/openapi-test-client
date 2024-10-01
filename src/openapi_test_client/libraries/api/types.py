@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import _DataclassParams  # noqa
 from dataclasses import MISSING, Field, asdict, astuple, dataclass, field, is_dataclass, make_dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Mapping, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
@@ -52,7 +53,7 @@ class ParamDef(HashableDict):
         return self["type"]
 
     @property
-    def format(self) -> Optional[str]:
+    def format(self) -> str | None:
         return self.get("format")
 
     @property
@@ -104,7 +105,7 @@ class ParamDef(HashableDict):
         """Convert the parameter object to a ParamDef"""
 
         def convert(obj: Any):
-            if isinstance(obj, (ParamDef, ParamDef.ParamGroup)):
+            if isinstance(obj, ParamDef | ParamDef.ParamGroup):
                 return obj
             else:
                 if "oneOf" in obj:
@@ -192,7 +193,7 @@ class DataclassModel(Protocol):
 
 
 class EndpointModel(DataclassModel):
-    content_type: Optional[str]
+    content_type: str | None
     endpoint_func: EndpointFunc
 
 
@@ -364,7 +365,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
 
     @classmethod
     def recreate(
-        cls, current_class: type[ParamModel], new_fields: list[tuple[str, Any, Optional[field]]]
+        cls, current_class: type[ParamModel], new_fields: list[tuple[str, Any, field | None]]
     ) -> type[ParamModel]:
         """Recreate the model with the new fields
 

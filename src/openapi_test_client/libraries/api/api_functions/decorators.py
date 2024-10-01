@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, ParamSpec
+from typing import ParamSpec
 
 from common_libs.clients.rest_client import RestResponse
 from common_libs.logging import get_logger
