@@ -69,5 +69,3 @@ ignore = ["E731", "E741", "F403"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-# We currently use `Optional` in a special way
-"**/{clients,}/**/{api,models}/*" = ["UP007"]

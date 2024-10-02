@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import _DataclassParams  # noqa
 from dataclasses import MISSING, Field, asdict, astuple, dataclass, field, is_dataclass, make_dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
@@ -19,6 +19,15 @@ if TYPE_CHECKING:
     from openapi_test_client.libraries.api.api_functions import EndpointFunc
 else:
     Protocol = object
+
+
+T = TypeVar("T")
+
+# As a workaround for https://github.com/astral-sh/ruff/issues/4858, we temporarily define an alias of typing.Optional
+# to avoid UP007 been reported by ruff for API classes and models, where we currently intentionally use `Optional` to
+# indicate the endpoint/model parameter is optional. We may switch to use our own custom type for this purpose
+# in the future since typing.Optional doesn't actually mean optional, but it just means nullable
+Optional = T | None
 
 
 class ParamDef(HashableDict):

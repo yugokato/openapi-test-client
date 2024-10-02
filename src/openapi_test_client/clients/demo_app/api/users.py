@@ -1,10 +1,10 @@
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
-from openapi_test_client.libraries.api.types import Constraint, File, Format
+from openapi_test_client.libraries.api.types import Constraint, File, Format, Optional
 
 from ..models.users import Metadata
 

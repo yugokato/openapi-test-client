@@ -13,6 +13,7 @@ from common_libs.logging import get_logger
 from common_libs.utils import clean_obj_name
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
+import openapi_test_client.libraries.api.types as types_module
 from openapi_test_client.libraries.api.types import (
     Alias,
     DataclassModel,
@@ -152,7 +153,9 @@ def generate_imports_code_from_model(
                     [generate_imports_code(m) for m in [x for x in get_args(obj_type)]]
                 elif typing_origin in [UnionType, Union]:
                     if param_type_util.is_optional_type(obj_type):
-                        module_and_name_pairs.append(("typing", Optional.__name__))
+                        # NOTE: We will use our alias version of typing.Optional for now
+                        # module_and_name_pairs.append(("typing", Optional.__name__))
+                        module_and_name_pairs.append((types_module.__name__, Optional.__name__))
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 else:
                     raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")

@@ -4,9 +4,9 @@ Do NOT manually update the content.
 """
 
 from dataclasses import dataclass
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
-from openapi_test_client.libraries.api.types import Constraint, Format, ParamModel
+from openapi_test_client.libraries.api.types import Constraint, Format, Optional, ParamModel
 
 
 @dataclass
