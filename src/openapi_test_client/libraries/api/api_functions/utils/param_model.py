@@ -22,6 +22,7 @@ from openapi_test_client.libraries.api.types import (
     ParamAnnotationType,
     ParamDef,
     ParamModel,
+    Unset,
 )
 from openapi_test_client.libraries.common.constants import TAB
 from openapi_test_client.libraries.common.misc import generate_class_name
@@ -93,7 +94,7 @@ def get_reserved_model_names() -> list[str]:
         x.__name__
         for x in mod.__dict__.values()
         if inspect.isclass(x) and issubclass(x, ParamAnnotationType | DataclassModel)
-    ]
+    ] + ["Unset"]
     typing_class_names = [x.__name__ for x in [Any, Optional, Annotated, Literal, Union]]
     return custom_param_annotation_names + typing_class_names
 
@@ -119,7 +120,7 @@ def create_model_from_param_def(
             (
                 inner_param_name,
                 param_type_util.resolve_type_annotation(inner_param_name, ParamDef.from_param_obj(inner_param_obj)),
-                field(default=None, metadata=inner_param_obj),
+                field(default=Unset, metadata=inner_param_obj),
             )
             for inner_param_name, inner_param_obj in param_def.get("properties", {}).items()
         ]
@@ -176,9 +177,15 @@ def generate_imports_code_from_model(
                     name = type(obj_type).__name__
                 module_and_name_pairs.append((obj_type.__module__, name))
 
+    has_unset_field = False
     for field_name, field_obj in model.__dataclass_fields__.items():
+        if field_obj.default is Unset:
+            has_unset_field = True
         field_type = field_obj.type
         generate_imports_code(field_type)
+
+    if has_unset_field:
+        imports_code = _add_unset_import_code(imports_code)
 
     if module_and_name_pairs:
         for module, name in set(module_and_name_pairs):
@@ -196,8 +203,9 @@ def generate_model_code_from_model(api_class: type[APIClassType], model: type[Pa
     model_code = f"@dataclass\nclass {model.__name__}(ParamModel):\n"
     imports_code = generate_imports_code_from_model(api_class, model, exclude_nested_models=True)
     if dataclass_field_items := model.__dataclass_fields__.items():
+        imports_code = _add_unset_import_code(imports_code)
         for field_name, field_obj in dataclass_field_items:
-            model_code += f"{TAB}{field_name}: {param_type_util.get_type_annotation_as_str(field_obj.type)} = ...\n"
+            model_code += f"{TAB}{field_name}: {param_type_util.get_type_annotation_as_str(field_obj.type)} = Unset\n"
     else:
         model_code += (
             f"{TAB}# No parameters are documented for this model\n"
@@ -276,7 +284,7 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
-def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[str, Any, Field | None]]):
+def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[str, Any, Field]]):
     """Clean illegal model field name and annotate the field type with Alias class
 
     :param param_fields: fields value to be passed to make_dataclass()
@@ -307,11 +315,11 @@ def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[s
                 #
                 # @dataclass
                 # class NestedModel(ParamModel):
-                #     param: str = ...
+                #     param: str = Unset
                 #
                 # @dataclass
                 # class Model(ParamModel):
-                #     NestedModel: Annotated[NestedModel, "test"] = ...
+                #     NestedModel: Annotated[NestedModel, "test"] = Unset
                 #
                 if not isinstance(param_models, list):
                     param_models = [param_models]
@@ -348,21 +356,21 @@ def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:
     - Model1
         @dataclass
         class MyModel:
-            param_1: str = None
-            param_2: int = None
+            param_1: str = Unset
+            param_2: int = Unset
 
     - Model2
         @dataclass
         class MyModel:
-            param_1: str = None
-            param_3: int = None
+            param_1: str = Unset
+            param_3: int = Unset
 
     - Merged model
         @dataclass
         class MyModel:
-            param_1: str = None
-            param_2: int = None
-            param_3: int = None
+            param_1: str = Unset
+            param_2: int = Unset
+            param_3: int = Unset
 
     """
     assert models
@@ -371,7 +379,12 @@ def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:
     for model in models:
         merged_dataclass_fields.update(model.__dataclass_fields__)
     new_fields = [
-        (field_name, field_obj.type, field(default=None, metadata=field_obj.metadata))
+        (field_name, field_obj.type, field(default=Unset, metadata=field_obj.metadata))
         for field_name, field_obj in merged_dataclass_fields.items()
     ]
     return cast(type[ParamModel], make_dataclass(models[0].__name__, new_fields, bases=(ParamModel,)))
+
+
+def _add_unset_import_code(imports_code: str) -> str:
+    imports_code += f"from {types_module.__name__} import Unset\n"
+    return imports_code

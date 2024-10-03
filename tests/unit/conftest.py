@@ -15,7 +15,7 @@ from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.api.auth import AuthAPI
 from openapi_test_client.libraries.api.api_client_generator import setup_external_directory
 from openapi_test_client.libraries.api.api_spec import OpenAPISpec
-from openapi_test_client.libraries.api.types import ParamModel
+from openapi_test_client.libraries.api.types import ParamModel, Unset
 from tests.unit import helper
 
 
@@ -75,9 +75,9 @@ def RegularParamModel(InnerParamModel: type[ParamModel]) -> type[ParamModel]:
 
     @dataclass
     class Model(ParamModel):
-        param1: str = ...
-        param2: str = ...
-        param3: InnerParamModel = ...
+        param1: str = Unset
+        param2: str = Unset
+        param3: InnerParamModel = Unset
 
     return Model
 
@@ -88,7 +88,7 @@ def InnerParamModel() -> type[ParamModel]:
 
     @dataclass
     class Model(ParamModel):
-        inner_param1: str = ...
-        inner_param2: str = ...
+        inner_param1: str = Unset
+        inner_param2: str = Unset
 
     return Model

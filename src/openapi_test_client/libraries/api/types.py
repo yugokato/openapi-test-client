@@ -29,6 +29,10 @@ T = TypeVar("T")
 # in the future since typing.Optional doesn't actually mean optional, but it just means nullable
 Optional = T | None
 
+# The sentinel value set as a default value for endpoint body/query parameters and models.
+# Any parameters with this value will not be included in actual API call parameters
+Unset = object()
+
 
 class ParamDef(HashableDict):
     """A class to store OpenAPI parameter object data"""
@@ -244,8 +248,8 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
         >>>
         >>> @dataclass
         >>> class Model(ParamModel):
-        >>>    param_1: Optional[int] = ...
-        >>>    param_2: int = ...               # NOTE: This param is required in validation mode
+        >>>    param_1: Optional[int] = Unset
+        >>>    param_2: int = Unset              # NOTE: This param is required in validation mode
         >>>
         >>> model = Model(param_1=123)
         >>> print(model)
@@ -374,7 +378,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
 
     @classmethod
     def recreate(
-        cls, current_class: type[ParamModel], new_fields: list[tuple[str, Any, field | None]]
+        cls, current_class: type[ParamModel], new_fields: list[tuple[str, Any, Field | None]]
     ) -> type[ParamModel]:
         """Recreate the model with the new fields
 

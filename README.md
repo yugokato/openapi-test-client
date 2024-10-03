@@ -119,8 +119,8 @@ This update functionality primarily focuses on reflecting the latest OpenAPI spe
 - Currently missing API functions and parameter models (a new function will be added as "*\_unnamed_endpoint_{idx}*")
 - Currently missing API classes (this requires `-A` option)
 
-Anything else, (eg. API class/function names, decorators applied on API functions, etc.) will remain intact so that 
-updated client code won't break your existing test code.
+Anything else, (eg. API class/function names, function body, decorators applied on API functions, etc.) will remain 
+intact so that updated client code won't break your existing test code.
 
 > [!TIP]
 > - You might want to run the command with `-d`/`--dry-run` option first to see changes before actually updating code
@@ -236,7 +236,7 @@ By default, each auto-generated API function will look like a stub function with
 ```python
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs) -> RestResponse:
     """Login"""
     ...
 ```
@@ -279,7 +279,7 @@ def my_decorator(f):
 @my_decorator
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs) -> RestResponse:
     """Login"""
     ...
 ```
@@ -409,6 +409,7 @@ from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
+from openapi_test_client.libraries.api.types import Unset
 
 
 class AuthAPI(DemoAppBaseAPI):
@@ -416,7 +417,7 @@ class AuthAPI(DemoAppBaseAPI):
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")
-    def login(self, *, username: str = None, password: str = None, **kwargs) -> RestResponse:
+    def login(self, *, username: str = Unset, password: str = Unset, **kwargs) -> RestResponse:
         """Login"""
         ...
 
@@ -429,13 +430,14 @@ class AuthAPI(DemoAppBaseAPI):
 ```
 A function can take API path parameters and query/body parameters as arguments, where path parameters are always 
 defined as positional-only arguments, and other parameters are always defined as keyword-only arguments with a default 
-value of `None`. Note that this does not mean the parameter is actually optional for the endpoint. It just means you 
-can hit the endpoint without specifying that parameter, whether it is actually required or not (for negative case testing).    
-Additionally, it will always have `**kwargs` for supporting making a call with any undocumented parameters and/or with raw 
-`requests` library options (eg. `timeout`, `headers`, etc) if you need to. 
+value of `Unset`. Any parameters with this sentinel value will be excluded from the actual API call parameters.   
+Additionally, it will always have `**kwargs` for supporting making a call with any undocumented 
+parameters and/or with raw `requests` library options (eg. `timeout`, `headers`, etc) if you need to. 
 
 > [!NOTE]
-> Parameters defined as optional in the OpenAPI spec will be annotated with `Optional[]` in the function signature
+> Parameters defined as optional in the OpenAPI spec will be annotated with `Optional[]` in the function signature, but 
+> this does not mean the parameter is actually optional for the endpoint. It just means you can hit the endpoint 
+> without specifying that parameter, whether it is actually required or not (for negative case testing)
 
 Some attributes available from the API class: 
 ```pycon
@@ -589,11 +591,12 @@ An example of the additional capability the `EndpointFunc` obj provides - Automa
 Each endpoint is represented as an `EndpointModel` dataclass model, which holds various context around each 
 parameter (eg. type annotation).
 ```pycon
->>> client.AUTH.login.endpoint.model
+>>> model = client.AUTH.login.endpoint.model
+>>> print(model)
 <class 'types.AuthAPILoginEndpointModel'>
->>> client.AUTH.login.endpoint.model.__dataclass_fields__
-{'username': Field(name='username',type=<class 'str'>,default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104276e10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=False,_field_type=_FIELD),
- 'password': Field(name='password',type=<class 'str'>,default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104276e10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=False,_field_type=_FIELD)}
+>>> pprint(model.__dataclass_fields__, sort_dicts=False)
+{'username': Field(name='username',type=<class 'str'>,default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'password': Field(name='password',type=<class 'str'>,default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
 ```
 
 ## API parameter model
@@ -607,13 +610,13 @@ eg.
 ```python
 # openapi_test_client/clients/demo_app/api/users.py
 
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
-from openapi_test_client.libraries.api.types import Constraint, Format
+from openapi_test_client.libraries.api.types import Constraint, Format, Optional, Unset
 
 from ..models.users import Metadata
 
@@ -625,11 +628,11 @@ class UsersAPI(DemoAppBaseAPI):
     def create_user(
         self,
         *,
-        first_name: Annotated[str, Constraint(min_len=1, max_len=255)] = None,
-        last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = None,
-        email: Annotated[str, Format("email")] = None,
-        role: Literal["admin", "viewer", "support"] = None,
-        metadata: Optional[Metadata] = None,
+        first_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
+        last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
+        email: Annotated[str, Format("email")] = Unset,
+        role: Literal["admin", "viewer", "support"] = Unset,
+        metadata: Optional[Metadata] = Unset,
         **kwargs,
     ) -> RestResponse:
         """Create a new user"""
@@ -641,35 +644,36 @@ class UsersAPI(DemoAppBaseAPI):
 # openapi_test_client/clients/demo_app/models/users.py
 
 from dataclasses import dataclass
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
-from openapi_test_client.libraries.api.types import Constraint, Format, ParamModel
+from openapi_test_client.libraries.api.types import Constraint, Format, Optional, ParamModel, Unset
 
 
 @dataclass
 class Preferences(ParamModel):
-    theme: Optional[Literal["light", "dark", "system"]] = ...
-    language: Optional[str] = ...
-    font_size: Optional[Annotated[int, Constraint(min=8, max=40, multiple_of=2)]] = ...
+    theme: Optional[Literal["light", "dark", "system"]] = Unset
+    language: Optional[str] = Unset
+    font_size: Optional[Annotated[int, Constraint(min=8, max=40, multiple_of=2)]] = Unset
 
 
 @dataclass
 class SocialLinks(ParamModel):
-    facebook: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
-    instagram: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
-    linkedin: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
-    github: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
+    facebook: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
+    instagram: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
+    linkedin: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
+    github: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
 
 
 @dataclass
 class Metadata(ParamModel):
-    preferences: Optional[Preferences] = ...
-    social_links: Optional[SocialLinks] = ...
+    preferences: Optional[Preferences] = Unset
+    social_links: Optional[SocialLinks] = Unset
 
 ```
 
 > [!NOTE]
-> - All model attributes will be defined with a default value of `...`, which means there is no actual default value for our parameter models
+> Same like API function parameters:
+> - All model attributes will be defined with a default value of `Unset`. Any parameters with this sentinel value will be excluded from an API call payload
 > - Parameters defined as optional in the OpenAPI spec will be annotated with `Optional[]` in the model definition
 
 A parameter model is a customized `dataclass` that is intended to function exactly the same as a dictionary under the hood. 
@@ -772,13 +776,14 @@ Here are some comparisons between regular models and pydantic models:
 ```pycon 
 >>> # Model definition
 >>> model = client.USERS.create_user.endpoint.model
+>>> print(model)
 <class 'types.UsersAPICreateUserEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
-{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.Metadata],default=None,default_factory=<dataclasses._MISSING_TYPE object at 0x104b81f10>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
+{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, pattern=None, exclusive_minimum=None, exclusive_maximum=None)],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, pattern=None, exclusive_minimum=None, exclusive_maximum=None)],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.Metadata],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
 >>>
 >>> # Make an API request with the invalid parameter values
 >>> r = client.USERS.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123)
@@ -871,13 +876,14 @@ Here are some comparisons between regular models and pydantic models:
 ```pycon
 >>> # Model definition
 >>> pydantic_model = client.USERS.create_user.endpoint.model.to_pydantic()
+>>> print(pydantic_model)
 <class 'types.UsersAPICreateUserEndpointModel'>
->>> pprint(pydantic_model.model_fields)
-{'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)]),
- 'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, exclusive_minimum=None, exclusive_maximum=None)]),
+>>> pprint(pydantic_model.model_fields, sort_dicts=False)
+{'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, pattern=None, exclusive_minimum=None, exclusive_maximum=None)]),
+ 'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, pattern=None, exclusive_minimum=None, exclusive_maximum=None)]),
  'email': FieldInfo(annotation=EmailStr, required=True, metadata=[Format(value='email')]),
  'role': FieldInfo(annotation=Literal['admin', 'viewer', 'support'], required=True),
- 'metadata': FieldInfo(annotation=Union[Metadata, NoneType], required=False)}
+ 'metadata': FieldInfo(annotation=Union[Metadata, NoneType], required=False, default=None)}
 >>>
 >>> # Make an API request with the same invalid parmeter values, but with validate=True option
 >>> r = client.USERS.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123, validate=True)

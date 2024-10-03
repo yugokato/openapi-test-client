@@ -6,25 +6,25 @@ Do NOT manually update the content.
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from openapi_test_client.libraries.api.types import Constraint, Format, Optional, ParamModel
+from openapi_test_client.libraries.api.types import Constraint, Format, Optional, ParamModel, Unset
 
 
 @dataclass
 class Preferences(ParamModel):
-    theme: Optional[Literal["light", "dark", "system"]] = ...
-    language: Optional[str] = ...
-    font_size: Optional[Annotated[int, Constraint(min=8, max=40, multiple_of=2)]] = ...
+    theme: Optional[Literal["light", "dark", "system"]] = Unset
+    language: Optional[str] = Unset
+    font_size: Optional[Annotated[int, Constraint(min=8, max=40, multiple_of=2)]] = Unset
 
 
 @dataclass
 class SocialLinks(ParamModel):
-    facebook: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
-    instagram: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
-    linkedin: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
-    github: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = ...
+    facebook: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
+    instagram: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
+    linkedin: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
+    github: Optional[Annotated[str, Format("uri"), Constraint(min_len=1)]] = Unset
 
 
 @dataclass
 class Metadata(ParamModel):
-    preferences: Optional[Preferences] = ...
-    social_links: Optional[SocialLinks] = ...
+    preferences: Optional[Preferences] = Unset
+    social_links: Optional[SocialLinks] = Unset

@@ -4,7 +4,7 @@ from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
-from openapi_test_client.libraries.api.types import Constraint, File, Format, Optional
+from openapi_test_client.libraries.api.types import Constraint, File, Format, Optional, Unset
 
 from ..models.users import Metadata
 
@@ -16,11 +16,11 @@ class UsersAPI(DemoAppBaseAPI):
     def create_user(
         self,
         *,
-        first_name: Annotated[str, Constraint(min_len=1, max_len=255)] = None,
-        last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = None,
-        email: Annotated[str, Format("email")] = None,
-        role: Literal["admin", "viewer", "support"] = None,
-        metadata: Optional[Metadata] = None,
+        first_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
+        last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
+        email: Annotated[str, Format("email")] = Unset,
+        role: Literal["admin", "viewer", "support"] = Unset,
+        metadata: Optional[Metadata] = Unset,
         **kwargs,
     ) -> RestResponse:
         """Create a new user"""
@@ -35,9 +35,9 @@ class UsersAPI(DemoAppBaseAPI):
     def get_users(
         self,
         *,
-        id: Optional[int] = None,
-        email: Optional[Annotated[str, Format("email")]] = None,
-        role: Optional[Literal["admin", "viewer", "support"]] = None,
+        id: Optional[int] = Unset,
+        email: Optional[Annotated[str, Format("email")]] = Unset,
+        role: Optional[Literal["admin", "viewer", "support"]] = Unset,
         **kwargs,
     ) -> RestResponse:
         """Get users"""
@@ -45,7 +45,7 @@ class UsersAPI(DemoAppBaseAPI):
 
     @endpoint.content_type("multipart/form-data")
     @endpoint.post("/v1/users/images")
-    def upload_image(self, *, file: File = None, description: Optional[str] = None, **kwargs) -> RestResponse:
+    def upload_image(self, *, file: File = Unset, description: Optional[str] = Unset, **kwargs) -> RestResponse:
         """Upload user image"""
         ...
 

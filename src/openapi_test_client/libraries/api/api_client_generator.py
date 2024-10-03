@@ -75,7 +75,7 @@ def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIClassType
     code = f'''\
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from {APIBase.__module__} import {APIBase.__name__}
 
@@ -87,7 +87,7 @@ class {base_api_class_name}({APIBase.__name__}):
     """Base class for {app_name} API classes"""
 
     app_name = "{app_name}"
-    endpoints: Optional[list[{Endpoint.__name__}]] = None
+    endpoints: list[{Endpoint.__name__}] | None = None
 '''
     app_client_dir = get_client_dir(app_name)
     app_api_class_dir = app_client_dir / API_CLASS_DIR_NAME
@@ -253,6 +253,7 @@ def update_endpoint_functions(
         >>>
         >>> from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
         >>> from openapi_test_client.libraries.api.api_functions import endpoint
+        >>> from openapi_test_client.libraries.api.types import Unset
         >>>
         >>>
         >>> class SomeDemoAPI(DemoAppBaseAPI):
@@ -260,7 +261,7 @@ def update_endpoint_functions(
         >>>
         >>>     @endpoint.get("/v1/something/{uuid}")
         >>>     def do_something(
-        >>>         self, uuid: str, /, *, param1: str = None, param2: int = None, **kwargs
+        >>>         self, uuid: str, /, *, param1: str = Unset, param2: int = Unset, **kwargs
         >>>     ) -> RestResponse:
         >>>     """Do something"""
         >>>     ...

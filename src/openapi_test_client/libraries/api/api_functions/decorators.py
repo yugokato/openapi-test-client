@@ -46,7 +46,7 @@ def apply_default(**params_with_default_value):
     Usage:
         >>> @apply_default(param_a=123, param_b="test")
         >>> @endpoint.get("/v1/something")
-        >>> def get_something(self, *, param_a: int = None, param_b: str = None, **kwargs) -> RestResponse:
+        >>> def get_something(self, *, param_a: int = Unset, param_b: str = Unset, **kwargs) -> RestResponse:
         >>>     ...
     """
 

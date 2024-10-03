@@ -11,7 +11,7 @@ from common_libs.logging import get_logger
 
 from openapi_test_client.libraries.api.api_functions.utils import param_model as param_model_util
 from openapi_test_client.libraries.api.api_functions.utils import param_type as param_type_util
-from openapi_test_client.libraries.api.types import EndpointModel, File, ParamDef
+from openapi_test_client.libraries.api.types import EndpointModel, File, ParamDef, Unset
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
@@ -51,7 +51,7 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
                 path_param_fields.append((name, param_obj.annotation))
             else:
                 # keyword arguments (body/query parameters)
-                param_field = (name, param_obj.annotation, field(default=None))
+                param_field = (name, param_obj.annotation, field(default=Unset))
                 body_or_query_param_fields.append(param_field)
 
     if hasattr(endpoint_func, "endpoint"):
@@ -115,7 +115,7 @@ def generate_func_signature_in_str(model: type[EndpointModel]) -> str:
             if not has_params:
                 signatures.append("*")
             has_params = True
-            sig = f"{field_name}: {type_annotation} = None"
+            sig = f"{field_name}: {type_annotation} = Unset"
         signatures.append(sig)
     if has_path_var and not positional_only_added:
         signatures.append("/")
@@ -131,7 +131,7 @@ def _parse_parameter_objects(
     method: str,
     parameter_objects: list[dict[str, Any]],
     path_param_fields: list[tuple[str, Any]],
-    body_or_query_param_fields: list[tuple[str, Any, Field | None]],
+    body_or_query_param_fields: list[tuple[str, Any, Field]],
 ):
     """Parse parameter objects
 
@@ -185,13 +185,13 @@ def _parse_parameter_objects(
                                 (
                                     param_name,
                                     param_type_annotation,
-                                    field(default=None, metadata=param_obj),
+                                    field(default=Unset, metadata=param_obj),
                                 )
                             )
                 else:
                     if param_name not in [x[0] for x in body_or_query_param_fields]:
                         body_or_query_param_fields.append(
-                            (param_name, param_type_annotation, field(default=None, metadata=param_obj))
+                            (param_name, param_type_annotation, field(default=Unset, metadata=param_obj))
                         )
             else:
                 raise NotImplementedError(f"Unsupported param 'in': {param_location}")
@@ -205,7 +205,7 @@ def _parse_parameter_objects(
 
 
 def _parse_request_body_object(
-    request_body_obj: dict[str, Any], body_or_query_param_fields: list[tuple[str, Any, Field | None]]
+    request_body_obj: dict[str, Any], body_or_query_param_fields: list[tuple[str, Any, Field]]
 ) -> str | None:
     """Parse request body object
 
@@ -250,7 +250,7 @@ def _parse_request_body_object(
                     param_type = File
                     if not param_def.is_required:
                         param_type = param_type | None
-                    body_or_query_param_fields.append((param_name, param_type, field(default=None)))
+                    body_or_query_param_fields.append((param_name, param_type, field(default=Unset)))
                 else:
                     existing_param_names = [x[0] for x in body_or_query_param_fields]
                     if param_name in existing_param_names:
@@ -262,12 +262,12 @@ def _parse_request_body_object(
                         merged_param_field = (
                             param_name,
                             param_type_annotation,
-                            field(default=None, metadata=param_obj),
+                            field(default=Unset, metadata=param_obj),
                         )
                         body_or_query_param_fields[existing_param_names.index(param_name)] = merged_param_field
                     else:
                         param_type_annotation = param_type_util.resolve_type_annotation(param_name, param_def)
-                        param_field = (param_name, param_type_annotation, field(default=None, metadata=param_obj))
+                        param_field = (param_name, param_type_annotation, field(default=Unset, metadata=param_obj))
                         body_or_query_param_fields.append(param_field)
             except Exception:
                 logger.error(

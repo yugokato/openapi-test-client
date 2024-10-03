@@ -100,10 +100,11 @@ class endpoint:
     Example:
         >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
         >>> from openapi_test_client.clients.demo_app.api import DemoAppBaseAPI
+        >>> from openapi_test_client.libraries.api.types import Unset
         >>>
         >>> class AuthAPI(DemoAppBaseAPI):
         >>>     @endpoint.post("/v1/login")
-        >>>     def login(self, *, username: str, password: str, **params):
+        >>>     def login(self, *, username: str = Unset, password: str = Unset, **params):
         >>>         ...
         >>>
         >>> client = DemoAppAPIClient()
