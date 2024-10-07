@@ -5,13 +5,13 @@ ci:
   autoupdate_schedule: quarterly
 repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: "v0.6.8"
+  rev: "v0.6.9"
   hooks:
     - id: ruff
       args: ["--fix"]
       types_or: [python]
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.6.0
+  rev: v5.0.0
   hooks:
     - id: check-toml
     - id: check-yaml
@@ -41,7 +41,7 @@ repos:
       args:
         - --check
 - repo: https://github.com/psf/black
-  rev: 23.12.1
+  rev: 24.10.0
   hooks:
     - id: black
       args:
