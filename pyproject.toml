@@ -16,7 +16,7 @@ dependencies = [
 readme = "README.md"
 
 [project.optional-dependencies]
-dev = ["pre-commit==3.6.2", "ruff==0.6.8"]
+dev = ["pre-commit==3.7.1", "ruff==0.6.9"]
 app = [
     "common-libs[dev]",
     "Quart==0.19.4",
