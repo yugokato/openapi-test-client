@@ -9,7 +9,7 @@ repos:
   hooks:
     - id: ruff
       args: ["--fix"]
-      types_or: [python]
+      types: [python]
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
   hooks:
@@ -34,12 +34,14 @@ repos:
         - --ignore-init-module-imports
         - --ignore-pass-statements
         - --quiet
+      types: [python]
 - repo: https://github.com/PyCQA/isort
   rev: 5.13.2
   hooks:
     - id: isort
       args:
         - --check
+      types: [python]
 - repo: https://github.com/psf/black
   rev: 23.12.1
   hooks:
