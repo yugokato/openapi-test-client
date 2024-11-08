@@ -11,6 +11,7 @@ import requests
 from _pytest.fixtures import SubRequest
 from pytest_mock import MockerFixture
 
+from demo_app.main import DEFAULT_PORT
 from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, ENV_VAR_PACKAGE_DIR, logger
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
@@ -19,11 +20,20 @@ from tests.conftest import temp_dir
 from tests.integration import helper
 
 
+@pytest.fixture(scope="session")
+def app_port():
+    if os.environ.get("IS_TOX"):
+        return int(os.environ["APP_PORT"])
+    else:
+        return DEFAULT_PORT
+
+
 @pytest.fixture(scope="session", autouse=True)
-def demo_app_server():
+def demo_app_server(app_port):
     script_path = _PACKAGE_DIR.parent / "demo_app" / "main.py"
+    args = ["python", str(script_path), "-p", str(app_port)]
     proc = subprocess.Popen(
-        ["python", str(script_path)],
+        args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf-8",
@@ -32,6 +42,15 @@ def demo_app_server():
     if proc.poll():
         logger.error(proc.stderr.read())
     assert not proc.poll(), proc.stdout.read()
+
+    if os.environ.get("IS_TOX"):
+        # For tox parallel testing, modify the original URL config for demo_app to match with the actual app port
+        url_cfg = json.loads((_CONFIG_DIR / "urls.json").read_text())
+        url = url_cfg["dev"]["demo_app"]
+        if not url.endswith(f":{app_port}"):
+            url_cfg["dev"]["demo_app"] = url.replace(f":{DEFAULT_PORT}", f":{app_port}")
+            (_CONFIG_DIR / "urls.json").write_text(json.dumps(url_cfg))
+
     yield
     proc.terminate()
     stdout, stderr = proc.communicate()
@@ -76,7 +95,14 @@ def petstore_openapi_spec_url() -> str:
     return url
 
 
-@pytest.fixture(params=[False, True])
+@pytest.fixture(
+    params=[
+        pytest.param(
+            False, marks=pytest.mark.skipif(bool(os.environ.get("IS_TOX")), reason="Not supported in tox env")
+        ),
+        True,
+    ]
+)
 def external_dir(request: SubRequest, random_app_name: str) -> Path | None:
     temp_dir_: Path | None = None
     if request.param:

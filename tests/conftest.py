@@ -4,12 +4,12 @@ from typing import Any
 
 import pytest
 from common_libs.utils import clean_obj_name
-from pytest import Config, Item, TempPathFactory
+from pytest import Item, TempPathFactory
 from pytest_mock import MockerFixture
 
 
-def pytest_make_parametrize_id(config: Config, val: Any, argname: str):
-    return f"{argname}={val}"
+def pytest_make_parametrize_id(val: Any, argname: str):
+    return f"{argname}={repr(val)}"
 
 
 def pytest_runtest_setup(item: Item):

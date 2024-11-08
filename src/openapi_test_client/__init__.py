@@ -1,10 +1,17 @@
 import glob
 import os
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from common_libs.logging import get_logger, setup_logging
 from common_libs.utils import list_items
+
+try:
+    __version__ = version("openapi-test-client")
+except PackageNotFoundError:
+    pass
+
 
 # For internal use only
 _PROJECT_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
