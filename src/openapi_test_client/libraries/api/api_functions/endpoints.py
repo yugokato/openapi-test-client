@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
 from common_libs.clients.rest_client.utils import retry_on
+from common_libs.lock import Lock
 from common_libs.logging import get_logger
 from pydantic import ValidationError
 from requests.exceptions import RequestException
@@ -644,6 +645,24 @@ class EndpointFunc:
         """
         f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
         return f(*args, **kwargs)
+
+    def with_lock(self, *args, lock_name: str = None, **kwargs) -> RestResponse:
+        """Make an API call with lock
+
+        The lock will be applied on the API endpoint function level, which means any other API calls in the same/other
+        processes using the same API function will wait until after lock is acquired
+
+        See __call__() for supported function arguments
+
+        :param args: Positional arguments passed to __call__()
+        :param lock_name: Explicitly specify the lock name. Use this when the same lock needs to be shared among
+                          multiple endpoints
+        :param kwargs: Keyword arguments passed to __call__()
+        """
+        if not lock_name:
+            lock_name = f"{self._instance.app_name}-{type(self._instance).__name__}.{self._original_func.__name__}"
+        with Lock(lock_name):
+            return self(*args, **kwargs)
 
     def get_usage(self) -> str | None:
         """Get OpenAPI spec definition for the endpoint"""
