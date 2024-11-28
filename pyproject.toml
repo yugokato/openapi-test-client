@@ -36,19 +36,20 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-
 [project.optional-dependencies]
 dev = ["common-libs[dev]"]
 app = [
-    "Quart==0.19.4",
-    "quart-auth==0.9.0",
-    "quart-schema[pydantic]==0.19.1",
-
+    "Quart==0.19.9",
+    "quart-auth==0.10.1",
+    "quart-schema[pydantic]==0.20.0",
 ]
 test = [
     "common-libs[test]",
     "openapi-test-client[app]",
 ]
+
+[project.scripts]
+openapi-client = "openapi_test_client.scripts.generate_client:main"
 
 
 [tool.setuptools.packages.find]
@@ -57,8 +58,9 @@ where = ["src"]
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
 
-[project.scripts]
-openapi-client = "openapi_test_client.scripts.generate_client:main"
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]
+testpaths = "tests"
 
 [tool.isort]
 line_length = 120
