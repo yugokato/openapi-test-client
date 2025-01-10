@@ -1,14 +1,4 @@
-default_language_version:
-  python: python3.11
-ci:
-  autoupdate_schedule: quarterly
 repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: "v0.8.6"
-  hooks:
-    - id: ruff
-      args: ["--fix"]
-      types: [python]
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v5.0.0
   hooks:
@@ -22,10 +12,20 @@ repos:
         - --no-sort-keys
         - --no-ensure-ascii
         - --autofix
-- repo: https://github.com/PyCQA/autoflake
-  rev: v2.3.1
+- repo: local
   hooks:
+    - id: ruff
+      name: ruff
+      entry: ruff check
+      language: system
+      args:
+        - --fix
+      types: [ python ]
+    # TODO: Replace autoflake, isort, and black with ruff once ruff supports public APIs (https://github.com/astral-sh/ruff/issues/659)
     - id: autoflake
+      name: autoflake
+      entry: autoflake
+      language: system
       args:
         - --recursive
         - --check-diff
@@ -33,18 +33,18 @@ repos:
         - --ignore-init-module-imports
         - --ignore-pass-statements
         - --quiet
-      types: [python]
-- repo: https://github.com/PyCQA/isort
-  rev: 5.13.2
-  hooks:
+      types: [ python ]
     - id: isort
+      name: isort
+      entry: isort
+      language: system
       args:
         - --check
-      types: [python]
-- repo: https://github.com/psf/black
-  rev: 23.12.1
-  hooks:
+      types: [ python ]
     - id: black
+      name: black
+      entry: black
+      language: system
       args:
         - --check
-      types: [python]
+      types: [ python ]
