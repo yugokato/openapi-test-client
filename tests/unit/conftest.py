@@ -63,8 +63,7 @@ def EmptyParamModel() -> type[ParamModel]:
     """A ParamModel that has no attributes"""
 
     @dataclass
-    class Model(ParamModel):
-        ...
+    class Model(ParamModel): ...
 
     return Model
 
