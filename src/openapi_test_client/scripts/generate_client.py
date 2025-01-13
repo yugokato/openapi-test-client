@@ -418,7 +418,7 @@ def update_client(args: argparse.Namespace):
             )
 
         if failed_results:
-            _log_errors(args.subparser, failed_results)
+            _log_errors(args.action, failed_results)
 
 
 def _get_api_classes(app: str) -> list[type[APIClassType]]:
