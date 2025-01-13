@@ -80,7 +80,7 @@ class OpenAPISpec:
             summary = ep_doc.get("summary")
             parameters = ep_doc.get("parameters")
             request_body = ep_doc.get("requestBody")
-            usage = f"- Method: {method.upper()}\n" f"- Path: {path}\n- Summary: {summary}\n"
+            usage = f"- Method: {method.upper()}\n- Path: {path}\n- Summary: {summary}\n"
             if parameters:
                 usage += f"- Parameters: {json.dumps(parameters, indent=4)}\n"
             if request_body:
@@ -97,7 +97,7 @@ class OpenAPISpec:
         if tags := parsed_spec.get("tags"):
             if undefined_endpoint_tags := set(endpoint_tags).difference(set([t["name"] for t in tags])):
                 logger.warning(
-                    f'One ore more endpoint tags are not defined at the top-level "tags": ' f"{undefined_endpoint_tags}"
+                    f'One ore more endpoint tags are not defined at the top-level "tags": {undefined_endpoint_tags}'
                 )
         else:
             # We need the top-level "tags" but it is either not defined or empty.

@@ -285,11 +285,11 @@ def update_endpoint_functions(
         # endpoint path and endpoint options
         rf"(\n{tab}{{2}})?\"(?P<path>.+?)\"(?P<ep_options>,.+?)?(\n{tab})?\)\n"
         # function def
-        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> {RestResponse.__name__}:\n)"
+        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> {RestResponse.__name__}:\n?)"
         # docstring
         rf"({tab}{{2}}(?P<docstring>\"{{3}}.*?\"{{3}})\n)?"
         # function body
-        rf"(?P<func_body>\n*{tab}{{2}}(?:[^@]+|\.{{3}})\n)?$",
+        rf"(?P<func_body>(?:\n*{tab}{{2}}(?:[^@]+|\.{{3}})| \.{{3}})\n)?$",
         flags=re.MULTILINE | re.DOTALL,
     )
 
@@ -324,12 +324,12 @@ def update_endpoint_functions(
             endpoint_str = f"{method.upper()} {path}"
             defined_endpoints.append((method, path))
 
-            # For troubleshooting
+            # # For troubleshooting
             # print(
             #     f"{method.upper()} {path}:\n"
             #     f" - matched: {repr(matched.group(0))}\n"
-            #     f" - decorators: {repr(decorators)}\n"
-            #     f" - func_def: {repr(matched.group("func_def"))}\n"
+            #     f" - decorators: {repr(matched.group('decorators'))}\n"
+            #     f" - func_def: {repr(func_def)}\n"
             #     f"   - func_name: {repr(func_name)}\n"
             #     f"   - signature: {repr(signature)}\n"
             #     f" - docstring: {repr(docstring)}\n"
@@ -373,8 +373,7 @@ def update_endpoint_functions(
 
             # Collect all param models for this endpoint
             param_models.extend(param_model_util.get_param_models(endpoint_model))
-            # Fill missing imports (typing and custom param model classes). Duplicates will be removed by black at
-            # the end
+            # Fill missing imports (typing and custom param model classes). Duplicates will be removed at the end
             if missing_imports_code := param_model_util.generate_imports_code_from_model(api_class, endpoint_model):
                 new_code = missing_imports_code + new_code
 
@@ -387,8 +386,10 @@ def update_endpoint_functions(
                     updated_api_func_code = updated_api_func_code.replace(docstring, expected_docstring)
             else:
                 updated_api_func_code = updated_api_func_code.replace(
-                    func_def, func_def + f"{TAB * 2}{expected_docstring}\n"
+                    func_def, func_def + f"\n{TAB * 2}{expected_docstring}\n"
                 )
+                if func_body == " ...\n":
+                    updated_api_func_code = updated_api_func_code.replace(func_body, f"{TAB * 2}...\n")
 
             # Update API function signatures
             new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model).replace(
@@ -541,8 +542,7 @@ def update_endpoint_functions(
 
         if param_models:
             modified_model_code = (
-                f"from dataclasses import dataclass\n\n"
-                f"from {ParamModel.__module__} import {ParamModel.__name__}\n\n"
+                f"from dataclasses import dataclass\n\nfrom {ParamModel.__module__} import {ParamModel.__name__}\n\n"
             )
             for model in param_model_util.sort_by_dependency(param_model_util.dedup_models_by_name(param_models)):
                 imports_code, model_code = param_model_util.generate_model_code_from_model(api_class, model)
@@ -605,8 +605,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     api_client_class_name = f"{api_client_class_name_part}{API_CLIENT_CLASS_NAME_SUFFIX}"
 
     imports_code = (
-        f"from functools import cached_property\n\n"
-        f"from {OpenAPIClient.__module__} import {OpenAPIClient.__name__}\n"
+        f"from functools import cached_property\n\nfrom {OpenAPIClient.__module__} import {OpenAPIClient.__name__}\n"
     )
     api_client_code = (
         f"class {api_client_class_name}({OpenAPIClient.__name__}):\n"
@@ -624,9 +623,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
         imports_code += f"from .{API_CLASS_DIR_NAME}.{Path(mod.__file__).stem} import {api_class.__name__}\n"
         property_name = camel_to_snake(api_class.__name__.removesuffix("API")).upper()
         api_client_code += (
-            f"{TAB}@cached_property\n"
-            f"{TAB}def {property_name}(self):\n"
-            f"{TAB}{TAB}return {api_class.__name__}(self)\n\n"
+            f"{TAB}@cached_property\n{TAB}def {property_name}(self):\n{TAB}{TAB}return {api_class.__name__}(self)\n\n"
         )
 
     code = format_code(imports_code + api_client_code)
@@ -664,11 +661,7 @@ def setup_external_directory(client_name: str, base_url: str, env: str = DEFAULT
     api_client_lib_dir = get_package_dir()
     api_client_lib_dir.mkdir(parents=True, exist_ok=True)
     # Add __init__.py
-    code = (
-        f"import os\n"
-        f"from pathlib import Path\n\n"
-        f'os.environ["{ENV_VAR_PACKAGE_DIR}"] = str(Path(__file__).parent)'
-    )
+    code = f'import os\nfrom pathlib import Path\n\nos.environ["{ENV_VAR_PACKAGE_DIR}"] = str(Path(__file__).parent)'
     _write_init_file(api_client_lib_dir, format_code(DO_NOT_DELETE_COMMENT + code))
 
     # Add a hidden file to the package directory so that we can locate this directory later

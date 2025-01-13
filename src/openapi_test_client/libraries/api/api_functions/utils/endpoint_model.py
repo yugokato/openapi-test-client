@@ -29,7 +29,7 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
     """
     path_param_fields = []
     body_or_query_param_fields = []
-    model_name = f'{type(endpoint_func).__name__.replace("EndpointFunc", EndpointModel.__name__)}'
+    model_name = f"{type(endpoint_func).__name__.replace('EndpointFunc', EndpointModel.__name__)}"
     content_type = None
     if api_spec:
         # Generate model fields from the OpenAPI spec. See https://swagger.io/specification/ for the specification

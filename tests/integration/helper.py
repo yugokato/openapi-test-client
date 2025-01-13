@@ -41,7 +41,7 @@ def do_test_invalid_params(
         print(e.value)
         assert (
             f"Request parameter validation failed.\n"
-            f"{num_expected_errors} validation error{'s' if num_expected_errors>1 else''} for "
+            f"{num_expected_errors} validation error{'s' if num_expected_errors > 1 else ''} for "
             f"{endpoint_func.endpoint.model.__name__}" in str(e.value)
         )
     else:

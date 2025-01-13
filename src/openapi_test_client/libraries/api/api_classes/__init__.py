@@ -38,9 +38,9 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
 
     previous_frame = inspect.currentframe().f_back
     caller_file_path = inspect.getframeinfo(previous_frame).filename
-    assert caller_file_path.endswith(
-        "__init__.py"
-    ), f"API classes must be initialized in __init__.py. Unexpectedly called from {caller_file_path}"
+    assert caller_file_path.endswith("__init__.py"), (
+        f"API classes must be initialized in __init__.py. Unexpectedly called from {caller_file_path}"
+    )
 
     # Set each API class's available Endpoint objects to its endpoints attribute
     api_classes = get_api_classes(Path(caller_file_path).parent, base_api_class)
@@ -80,7 +80,7 @@ def get_api_classes(api_class_dir: Path, base_api_class: type[APIClassType]) -> 
         and issubclass(getattr(mod, x), base_api_class)
         and x != base_api_class.__name__
     ]
-    assert (
-        api_classes
-    ), f"Unable to find any API class that is a subclass of {base_api_class.__name__} in {api_class_dir}"
+    assert api_classes, (
+        f"Unable to find any API class that is a subclass of {base_api_class.__name__} in {api_class_dir}"
+    )
     return api_classes

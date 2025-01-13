@@ -13,7 +13,9 @@ from openapi_test_client import ENV_VAR_PACKAGE_DIR
 from openapi_test_client.clients.base import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.api.auth import AuthAPI
-from openapi_test_client.libraries.api.api_client_generator import setup_external_directory
+from openapi_test_client.libraries.api.api_client_generator import (
+    setup_external_directory,
+)
 from openapi_test_client.libraries.api.api_spec import OpenAPISpec
 from openapi_test_client.libraries.api.types import ParamModel, Unset
 from tests.unit import helper
@@ -63,8 +65,7 @@ def EmptyParamModel() -> type[ParamModel]:
     """A ParamModel that has no attributes"""
 
     @dataclass
-    class Model(ParamModel):
-        ...
+    class Model(ParamModel): ...
 
     return Model
 

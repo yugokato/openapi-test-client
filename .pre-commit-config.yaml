@@ -21,30 +21,8 @@ repos:
       args:
         - --fix
       types: [ python ]
-    # TODO: Replace autoflake, isort, and black with ruff once ruff supports public APIs (https://github.com/astral-sh/ruff/issues/659)
-    - id: autoflake
-      name: autoflake
-      entry: autoflake
+    - id: ruff-format
+      name: ruff-format
+      entry: ruff format
       language: system
-      args:
-        - --recursive
-        - --check-diff
-        - --remove-all-unused-imports
-        - --ignore-init-module-imports
-        - --ignore-pass-statements
-        - --quiet
-      types: [ python ]
-    - id: isort
-      name: isort
-      entry: isort
-      language: system
-      args:
-        - --check
-      types: [ python ]
-    - id: black
-      name: black
-      entry: black
-      language: system
-      args:
-        - --check
       types: [ python ]
