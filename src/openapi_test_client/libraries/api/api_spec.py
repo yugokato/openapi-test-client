@@ -144,10 +144,10 @@ class OpenAPISpec:
                             else:
                                 reference = resolved_value
                     else:
-                        resolve_recursive(new_reference, schemas_seen=schemas_seen)
+                        resolve_recursive(new_reference)
             elif isinstance(reference, list):
                 for item in reference:
-                    resolve_recursive(item, schemas_seen=schemas_seen)
+                    resolve_recursive(item)
             return reference
 
         if has_reference(api_spec):
