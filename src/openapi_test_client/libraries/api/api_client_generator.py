@@ -285,11 +285,11 @@ def update_endpoint_functions(
         # endpoint path and endpoint options
         rf"(\n{tab}{{2}})?\"(?P<path>.+?)\"(?P<ep_options>,.+?)?(\n{tab})?\)\n"
         # function def
-        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> {RestResponse.__name__}:\n)"
+        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> {RestResponse.__name__}:\n?)"
         # docstring
         rf"({tab}{{2}}(?P<docstring>\"{{3}}.*?\"{{3}})\n)?"
         # function body
-        rf"(?P<func_body>\n*{tab}{{2}}(?:[^@]+|\.{{3}})\n)?$",
+        rf"(?P<func_body>(?:\n*{tab}{{2}}(?:[^@]+|\.{{3}})| \.{{3}})\n)?$",
         flags=re.MULTILINE | re.DOTALL,
     )
 
@@ -324,12 +324,12 @@ def update_endpoint_functions(
             endpoint_str = f"{method.upper()} {path}"
             defined_endpoints.append((method, path))
 
-            # For troubleshooting
+            # # For troubleshooting
             # print(
             #     f"{method.upper()} {path}:\n"
             #     f" - matched: {repr(matched.group(0))}\n"
-            #     f" - decorators: {repr(decorators)}\n"
-            #     f" - func_def: {repr(matched.group("func_def"))}\n"
+            #     f" - decorators: {repr(matched.group('decorators'))}\n"
+            #     f" - func_def: {repr(func_def)}\n"
             #     f"   - func_name: {repr(func_name)}\n"
             #     f"   - signature: {repr(signature)}\n"
             #     f" - docstring: {repr(docstring)}\n"
@@ -387,8 +387,11 @@ def update_endpoint_functions(
                     updated_api_func_code = updated_api_func_code.replace(docstring, expected_docstring)
             else:
                 updated_api_func_code = updated_api_func_code.replace(
-                    func_def, func_def + f"{TAB * 2}{expected_docstring}\n"
+                    func_def, func_def + f"\n{TAB * 2}{expected_docstring}\n"
                 )
+                if func_body == " ...\n":
+                    # New black format after v24.1.0 (#3796)
+                    updated_api_func_code = updated_api_func_code.replace(func_body, f"{TAB * 2}...\n")
 
             # Update API function signatures
             new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model).replace(
