@@ -100,20 +100,17 @@ class ParamDef(HashableDict):
         def is_required(self) -> bool:
             return any(p.is_required for p in self)
 
-    class OneOf(ParamGroup):
-        ...
+    class OneOf(ParamGroup): ...
 
-    class AnyOf(ParamGroup):
-        ...
+    class AnyOf(ParamGroup): ...
 
-    class AllOf(ParamGroup):
-        ...
+    class AllOf(ParamGroup): ...
 
     @staticmethod
     @freeze_args
     @lru_cache
     def from_param_obj(
-        param_obj: Mapping[str, Any] | dict[str, Any] | Sequence[dict[str, Any]]
+        param_obj: Mapping[str, Any] | dict[str, Any] | Sequence[dict[str, Any]],
     ) -> ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType:
         """Convert the parameter object to a ParamDef"""
 

@@ -25,7 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "autoflake==2.3.1",
-    "black==23.12.1",
+    "black==25.1.0",
     "common-libs[client]@git+https://github.com/yugokato/common-libs",
     "isort==5.13.2",
     "inflect==7.0.0",

@@ -5,9 +5,11 @@ import autoflake
 import black
 import isort
 from common_libs.ansi_colors import ColorCodes, color
+from common_libs.logging import get_logger
 
 from openapi_test_client import _PROJECT_ROOT_DIR
 
+logger = get_logger(__name__)
 TAB = " " * 4
 
 
@@ -20,8 +22,11 @@ def format_code(code: str, remove_unused_imports: bool = True) -> str:
     - Run isort
     - Run black
     """
-
-    ast.parse(code)
+    try:
+        ast.parse(code)
+    except Exception:
+        logger.error(f"Failed to parse code:\n{code}")
+        raise
 
     # Apply autoflake
     code = autoflake.fix_code(code, remove_all_unused_imports=remove_unused_imports)
@@ -31,7 +36,6 @@ def format_code(code: str, remove_unused_imports: bool = True) -> str:
 
     # Apply black
     code = run_black(code)
-
     return code
 
 
@@ -52,6 +56,7 @@ def run_black(code: str) -> str:
         def __init__(self, src):
             self.default_map = {}
             self.params = {"src": src}
+            self.command = black.main
 
     ctx = _BlackCtx((_PROJECT_ROOT_DIR,))
     black.read_pyproject_toml(ctx, None, None)
