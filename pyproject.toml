@@ -24,15 +24,13 @@ classifiers = [
   "Topic :: Software Development :: Testing",
 ]
 dependencies = [
-    "autoflake==2.3.1",
-    "black==23.12.1",
     "common-libs[client]@git+https://github.com/yugokato/common-libs",
-    "isort==5.13.2",
     "inflect==7.0.0",
     "phonenumbers==8.13.45",
     "pydantic-extra-types==2.9.0",
     "pydantic[email]==2.9.2",
     "PyYAML==6.0.1",
+    "ruff==0.9.5"
 ]
 dynamic = ["version"]
 
@@ -62,15 +60,6 @@ local_scheme = "no-local-version"
 python_files = ["test_*.py"]
 testpaths = "tests"
 
-[tool.isort]
-line_length = 120
-multi_line_output = 3
-include_trailing_comma = true
-profile = "black"
-
-[tool.black]
-line_length = 120
-
 [tool.ruff]
 line-length = 120
 indent-width = 4
@@ -79,6 +68,7 @@ indent-width = 4
 select = [
     "E",    # pycodestyle
     "F",    # Pyflakes
+    "I",    # isort
     "UP",   # pyupgrade
 ]
 ignore = ["E731", "E741", "F403"]

@@ -4,8 +4,16 @@ from dataclasses import asdict
 from functools import reduce
 from operator import or_
 from types import NoneType, UnionType
-from typing import _AnnotatedAlias  # noqa
-from typing import Annotated, Any, Literal, Optional, Union, get_args, get_origin
+from typing import (
+    Annotated,
+    Any,
+    Literal,
+    Optional,
+    Union,
+    _AnnotatedAlias,  # noqa
+    get_args,
+    get_origin,
+)
 
 from common_libs.logging import get_logger
 
@@ -56,7 +64,7 @@ def get_type_annotation_as_str(tp: Any) -> str:
         return f"{type(tp).__name__}({repr(tp.value)})"
     elif isinstance(tp, Constraint):
         const = ", ".join(
-            f'{k}={("r" + repr(v).replace(BACKSLASH * 2, BACKSLASH) if k == "pattern" else repr(v))}'
+            f"{k}={('r' + repr(v).replace(BACKSLASH * 2, BACKSLASH) if k == 'pattern' else repr(v))}"
             for k, v in asdict(tp).items()
             if v is not None
         )

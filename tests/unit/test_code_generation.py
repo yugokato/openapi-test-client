@@ -77,7 +77,7 @@ def test_generate_api_class_code(
     # Check API functions
     num_available_endpoints = len(helper.get_defined_endpoints(openapi_specs))
     for i in range(num_available_endpoints):
-        api_func_name = f"_unnamed_endpoint_{i+1}"
+        api_func_name = f"_unnamed_endpoint_{i + 1}"
         api_func = getattr(NewAPIClass, api_func_name, None)
         if add_endpoint_functions:
             assert api_func

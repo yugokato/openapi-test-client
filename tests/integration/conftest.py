@@ -73,7 +73,7 @@ def api_client() -> DemoAppAPIClient:
 
 @pytest.fixture
 def random_app_name() -> str:
-    return f"app_{random.choice(range(1,1000))}"
+    return f"app_{random.choice(range(1, 1000))}"
 
 
 @pytest.fixture

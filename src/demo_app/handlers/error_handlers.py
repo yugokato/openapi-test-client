@@ -1,9 +1,8 @@
 import json
 from dataclasses import dataclass
 
-from quart import Blueprint, Response
+from quart import Blueprint, Response, jsonify, make_response, request
 from quart import current_app as app
-from quart import jsonify, make_response, request
 from quart_schema import RequestSchemaValidationError
 from werkzeug.exceptions import NotFound
 

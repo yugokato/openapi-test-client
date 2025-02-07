@@ -27,7 +27,7 @@ def generate_class_name(base_name: str, suffix: str = None) -> str:
     :param base_name: A value to be used as part of the class name
     :param suffix: Suffix to add to the class name
     """
-    class_name = f'{camel_to_snake(base_name).title().replace("_", "")}'
+    class_name = f"{camel_to_snake(base_name).title().replace('_', '')}"
     if suffix:
         class_name += suffix
     return re.sub(r"[^a-zA-Z0-9]+", "", class_name)
