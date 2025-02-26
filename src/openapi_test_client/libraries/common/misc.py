@@ -19,7 +19,7 @@ def camel_to_snake(camel_case_str: str) -> str:
     return snake_str.lower()
 
 
-def generate_class_name(base_name: str, suffix: str = None) -> str:
+def generate_class_name(base_name: str, suffix: str | None = None) -> str:
     """Generate a class name from the given value
 
     eg. A class name "MyClass" will be generated from "my class"

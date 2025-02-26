@@ -28,7 +28,7 @@ def is_external_project() -> bool:
     return bool(os.environ.get(ENV_VAR_PACKAGE_DIR, "") or not Path.cwd().is_relative_to(_PROJECT_ROOT_DIR))
 
 
-def find_external_package_dir(current_dir: Path = None, missing_ok: bool = False) -> Path:
+def find_external_package_dir(current_dir: Path | None = None, missing_ok: bool = False) -> Path:
     """Find an external package directory
 
     An external directory should have .api_test_client hidden file

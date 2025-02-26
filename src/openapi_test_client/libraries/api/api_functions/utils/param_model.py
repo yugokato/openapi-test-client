@@ -80,7 +80,7 @@ def generate_model_name(field_name: str, field_type: str | Any) -> str:
         model_name = singular_noun
 
     # Adjust the model name if it happens to conflict with class names we might import, or with the field_name itself
-    if model_name in get_reserved_model_names() + [field_name]:
+    if model_name in [*get_reserved_model_names(), field_name]:
         model_name += "_"
 
     return model_name  # type:ignore
@@ -143,7 +143,7 @@ def generate_imports_code_from_model(
     from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME
 
     def generate_imports_code(obj_type: Any):
-        if obj_type not in primitive_types + [None, NoneType] and not isinstance(obj_type, tuple(primitive_types)):
+        if obj_type not in [*primitive_types, None, NoneType] and not isinstance(obj_type, tuple(primitive_types)):
             if typing_origin := get_origin(obj_type):
                 if typing_origin is Annotated:
                     module_and_name_pairs.append(("typing", Annotated.__name__))
@@ -300,7 +300,7 @@ def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[s
         else:
             name = clean_obj_name(name)
             # NOTE: The escaping of kwargs is already is handled in endpoint model
-            reserved_param_names = get_supported_request_parameters() + ["validate"]
+            reserved_param_names = [*get_supported_request_parameters(), "validate"]
             if name in get_reserved_model_names() + reserved_param_names:
                 # The field name conflicts with one of reserved names
                 name += "_"

@@ -9,7 +9,7 @@ from pytest_mock import MockerFixture
 
 
 def pytest_make_parametrize_id(val: Any, argname: str):
-    return f"{argname}={repr(val)}"
+    return f"{argname}={val!r}"
 
 
 def pytest_runtest_setup(item: Item):

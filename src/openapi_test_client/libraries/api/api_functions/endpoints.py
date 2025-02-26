@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeVar, cast
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from openapi_test_client.libraries.api.api_classes import APIClassType
 
 
-__all__ = ["endpoint", "Endpoint", "EndpointFunc", "EndpointHandler"]
+__all__ = ["Endpoint", "EndpointFunc", "EndpointHandler", "endpoint"]
 
 
 P = ParamSpec("P")
@@ -390,7 +390,7 @@ class EndpointHandler:
     """
 
     # cache endpoint function objects
-    _endpoint_functions = {}
+    _endpoint_functions: ClassVar = {}
     _lock = RLock()
 
     def __init__(
@@ -503,16 +503,16 @@ class EndpointFunc:
                     my_class.__call__ = decorator(my_class.__call__)
 
     def __repr__(self) -> str:
-        return f"{super().__repr__()}\n(mapped to: {repr(self._original_func)})"
+        return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
     def __call__(
         self,
         *path_params,
         quiet: bool = False,
-        headers: dict[str, str] = None,
-        stream: bool = None,
-        with_hooks: bool = True,
-        validate: bool = None,
+        headers: dict[str, str] | None = None,
+        stream: bool | None = None,
+        with_hooks: bool | None = True,
+        validate: bool | None = None,
         **params,
     ) -> RestResponse:
         """Make an API call to the endpoint
@@ -539,7 +539,7 @@ class EndpointFunc:
         except ValueError as e:
             msg = str(e)
             if api_spec_definition := self.get_usage():
-                msg = f"{str(e)}\n{color(api_spec_definition, color_code=ColorCodes.YELLOW)}"
+                msg = f"{e!s}\n{color(api_spec_definition, color_code=ColorCodes.YELLOW)}"
             raise ValueError(msg) from None
 
         # Check if parameters used are expected for the endpoint. If not, it is an indication that the API function is
@@ -646,7 +646,7 @@ class EndpointFunc:
         f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
         return f(*args, **kwargs)
 
-    def with_lock(self, *args, lock_name: str = None, **kwargs) -> RestResponse:
+    def with_lock(self, *args, lock_name: str | None = None, **kwargs) -> RestResponse:
         """Make an API call with lock
 
         The lock will be applied on the API endpoint function level, which means any other API calls in the same/other

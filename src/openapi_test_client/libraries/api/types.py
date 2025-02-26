@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import (
     MISSING,
     Field,
-    _DataclassParams,  # noqa
+    _DataclassParams,  # type: ignore
     asdict,
     astuple,
     dataclass,

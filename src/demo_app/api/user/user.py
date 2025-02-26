@@ -10,13 +10,11 @@ tag_users = tag(["Users"])
 USER_ROLES = list(UserRole._member_map_.values())
 USERS = [
     User(
-        **{
-            "id": i,
-            "first_name": f"first_name_{i}",
-            "last_name": f"last_name_{i}",
-            "email": f"user{i}@demo.app.net",
-            "role": USER_ROLES[i % len(USER_ROLES)].value,
-        }
+        id=i,
+        first_name=f"first_name_{i}",
+        last_name=f"last_name_{i}",
+        email=f"user{i}@demo.app.net",
+        role=USER_ROLES[i % len(USER_ROLES)].value,
     )
     for i in range(1, 11)
 ]
@@ -28,7 +26,6 @@ USERS = [
 @validate_request(UserRequest)
 async def create_user(data: UserRequest) -> tuple[Response, int]:
     """Create a new user"""
-    global USERS
     user = User(id=len(USERS) + 1, **data.model_dump(mode="json"))
     # This is just a demo app. There's no fancy lock here
     USERS.append(user)
@@ -40,7 +37,6 @@ async def create_user(data: UserRequest) -> tuple[Response, int]:
 @login_required
 async def get_user(user_id: int) -> tuple[Response, int]:
     """Get user"""
-
     if users := _filter_users(UserQuery(id=user_id)):
         return jsonify(users[0]), 200
     else:
@@ -72,7 +68,6 @@ async def upload_image(data: UserImage) -> tuple[Response, int]:
 @login_required
 async def delete_user(user_id: int) -> tuple[Response, int]:
     """Delete user"""
-    global USERS
     if users := _filter_users(UserQuery(id=user_id)):
         USERS.remove(users[0])
     else:
@@ -81,7 +76,6 @@ async def delete_user(user_id: int) -> tuple[Response, int]:
 
 
 def _filter_users(query: UserQuery) -> list[User]:
-    global USERS
     filtered_users = []
     for user in USERS:
         if query.id is not None and user.id != query.id:

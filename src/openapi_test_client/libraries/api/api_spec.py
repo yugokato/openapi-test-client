@@ -29,7 +29,7 @@ class OpenAPISpec:
         self._spec = None
 
     @lru_cache
-    def get_api_spec(self, url: str = None) -> dict[str, Any] | None:
+    def get_api_spec(self, url: str | None = None) -> dict[str, Any] | None:
         """Return OpenAPI spec"""
         if self._spec is None:
             if url:
@@ -115,7 +115,7 @@ class OpenAPISpec:
         def has_reference(obj: Any) -> bool:
             return "'$ref':" in str(obj)
 
-        def resolve_recursive(reference: Any, schemas_seen: list[str] = None):
+        def resolve_recursive(reference: Any, schemas_seen: list[str] | None = None):
             if not schemas_seen:
                 schemas_seen = []
             if isinstance(reference, dict):
@@ -171,7 +171,7 @@ class OpenAPISpec:
                 del path_obj["parameters"]
 
         def adjust_recursive(
-            reference: Any, is_property: bool = None, required_params: tuple[str] = ()
+            reference: Any, is_property: bool | None = None, required_params: tuple[str] = ()
         ) -> dict[str, Any]:
             """Adjust specs
 

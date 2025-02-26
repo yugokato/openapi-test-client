@@ -56,6 +56,7 @@ def _run_ruff_check(code: str, remove_unused_imports: bool = True) -> str:
         input=code,
         capture_output=True,
         encoding="utf-8",
+        check=False,
     )
     if proc.returncode:
         raise RuntimeError(f"Unexpected error occurred during ruff check\n{proc.stderr}")

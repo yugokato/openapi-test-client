@@ -122,7 +122,7 @@ class {base_api_class_name}({APIBase.__name__}):
 def generate_api_class(
     api_client: APIClientType,
     tag: str,
-    class_name: str = None,
+    class_name: str | None = None,
     add_endpoint_functions: bool = True,
     dry_run: bool = False,
     show_generated_code: bool = True,
@@ -222,8 +222,8 @@ def update_endpoint_functions(
     api_class: type[APIClassType],
     api_spec: dict[str, Any],
     is_new_api_class: bool = False,
-    target_endpoints: list[str] = None,
-    endpoints_to_ignore: list[str] = None,
+    target_endpoints: list[str] | None = None,
+    endpoints_to_ignore: list[str] | None = None,
     add_missing_endpoints: bool = True,
     update_param_models_only: bool = False,
     dry_run: bool = False,
@@ -472,7 +472,7 @@ def update_endpoint_functions(
                 undefined_ep_functions = ""
                 undefined_func_name_prefix = "_unnamed_endpoint_"
                 undefined_func_regex = rf"{undefined_func_name_prefix}(\d+)"
-                start_idx = max(sorted([0] + list(set(int(x) for x in re.findall(undefined_func_regex, new_code))))) + 1
+                start_idx = max(sorted([0, *list(set(int(x) for x in re.findall(undefined_func_regex, new_code)))])) + 1
                 for idx, (meth, path) in enumerate(undefined_endpoints, start=start_idx):
                     endpoint_str = f"{meth.upper()} {path}"
                     if (target_endpoints and endpoint_str not in target_endpoints) or (

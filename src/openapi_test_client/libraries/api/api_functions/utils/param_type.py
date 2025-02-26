@@ -10,7 +10,7 @@ from typing import (
     Literal,
     Optional,
     Union,
-    _AnnotatedAlias,  # noqa
+    _AnnotatedAlias,  # type: ignore
     get_args,
     get_origin,
 )
@@ -61,7 +61,7 @@ def get_type_annotation_as_str(tp: Any) -> str:
     elif get_origin(tp) is Literal:
         return repr(tp).replace("typing.", "")
     elif isinstance(tp, Alias | Format):
-        return f"{type(tp).__name__}({repr(tp.value)})"
+        return f"{type(tp).__name__}({tp.value!r})"
     elif isinstance(tp, Constraint):
         const = ", ".join(
             f"{k}={('r' + repr(v).replace(BACKSLASH * 2, BACKSLASH) if k == 'pattern' else repr(v))}"
@@ -92,7 +92,7 @@ def resolve_type_annotation(
     :param _is_array: Indicates that this parameter is a list type
     """
 
-    def resolve(param_type: str, param_format: str = None):
+    def resolve(param_type: str, param_format: str | None = None):
         """Resolve type annotation
 
         NOTE: Some OpenAPI spec use a wrong param type value (eg. string v.s. str).

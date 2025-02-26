@@ -51,7 +51,7 @@ def test_generate_client(
             args += f" --dir {external_dir}"
         _, stderr = helper.run_command(args)
         assert stderr
-        assert f"API Client for '{random_app_name}' already exists in {external_dir}"
+        assert f"API Client for '{random_app_name}' already exists" in stderr
 
         if external_dir:
             # Generate another client in the same external directory. This is allowed
@@ -144,7 +144,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
         print(stderr)
     assert not stderr
 
-    if dry_run or option and option.startswith(("-i ", "--ignore ")):
+    if dry_run or (option and option.startswith(("-i ", "--ignore "))):
         # Code should not be actually updated
         assert users_api_class_file.read_text() == modified_api_class_code
         assert not users_model_file.exists()

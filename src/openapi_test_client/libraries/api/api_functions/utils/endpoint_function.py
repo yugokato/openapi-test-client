@@ -138,7 +138,7 @@ def is_json_request(
 def generate_rest_func_params(
     endpoint: Endpoint,
     endpoint_params: dict[str, JSONType],
-    session_headers: dict[str, str] = None,
+    session_headers: dict[str, str] | None = None,
     quiet: bool = False,
     use_query_string: bool = False,
     is_validation_mode: bool = False,

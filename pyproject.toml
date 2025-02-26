@@ -68,10 +68,24 @@ indent-width = 4
 select = [
     "E",    # pycodestyle
     "F",    # Pyflakes
+    "FA",   # flake8-future-annotations
     "I",    # isort
+    "PIE",  # flake8-pie
+    "PLC",  # Pylint convention
+    "PLE",  # Pylint error
+    "PLW",  # Pylint warning
+    "RUF",  # Ruff-specific rules
     "UP",   # pyupgrade
+    "W",    # pycodestyle warning
 ]
-ignore = ["E731", "E741", "F403"]
+ignore = [
+    "E731",
+    "E741",
+    "F403",
+    "PIE790",
+    "PLC0206",
+    "PLW2901",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] = None) -> type[EndpointModel]:
+def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] | None = None) -> type[EndpointModel]:
     """Create a model class for the endpoint from either current function signature or Swagger API spec
 
     :param endpoint_func: Endpoint function for the endpoint
@@ -213,7 +213,7 @@ def _parse_request_body_object(
     """
     contents = request_body_obj["content"].keys()
     # TODO: Support multiple content types
-    content_type = list(contents)[0]
+    content_type = next(iter(contents))
 
     def parse_schema_obj(obj: dict[str, Any]):
         # This part has some variations, and sometimes not consistent

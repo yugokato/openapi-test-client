@@ -152,7 +152,7 @@ def do_test_add_field(
     model_class: type[ParamModel],
     model_params: dict[str, Any],
     scope: str,
-    field_name: str = None,
+    field_name: str | None = None,
     field_value: Any = None,
 ):
     if not field_name:
@@ -175,13 +175,13 @@ def do_test_update_field(
     model_class: type[ParamModel],
     model_params: dict[str, Any],
     scope: str,
-    field_name: str = None,
+    field_name: str | None = None,
     field_value: Any = None,
 ):
     if field_name:
         assert field_name in model.__dataclass_fields__.keys()
     else:
-        field_name = list(model_params.keys())[0]
+        field_name = next(iter(model_params.keys()))
     if not field_value:
         field_value = f"updated_value_{scope}"
     model_params[field_name] = field_value
@@ -194,12 +194,16 @@ def do_test_update_field(
 
 
 def do_test_delete_field(
-    model: ParamModel, model_class: type[ParamModel], model_params: dict[str, Any], scope: str, field_name: str = None
+    model: ParamModel,
+    model_class: type[ParamModel],
+    model_params: dict[str, Any],
+    scope: str,
+    field_name: str | None = None,
 ):
     if field_name:
         assert field_name in model.__dataclass_fields__.keys()
     else:
-        field_name = list(model_params.keys())[0]
+        field_name = next(iter(model_params.keys()))
     del model_params[field_name]
     if scope == "dataclas":
         delattr(model, field_name)
