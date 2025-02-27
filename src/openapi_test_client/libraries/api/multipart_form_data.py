@@ -7,12 +7,14 @@ from openapi_test_client.libraries.api.types import File
 class MultipartFormData(MutableMapping):
     """Multipart Form data
 
-    >>> files = MultipartFormData(logo=File("logo.png", b"content", "image/png"), favicon=File("favicon.png", b"content", "image/png"))
+    >>> files = MultipartFormData(
+    ...     logo=File("logo.png", b"content", "image/png"), favicon=File("favicon.png", b"content", "image/png")
+    ... )
     >>> files.to_dict()
     {'logo': ('logo.png', b'content', 'image/png'), 'favicon': ('fabicon.png', b'content', 'image/png')}
 
     NOTE: The File obj can be a dictionary instead
-    """  # noqa: E501
+    """
 
     def __init__(self, **files: File | dict[str, str | bytes | Any]):
         self._files = dict(
