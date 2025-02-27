@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from openapi_test_client.libraries.api.api_classes import APIClassType
 
 
-__all__ = ["Endpoint", "EndpointFunc", "endpoint"]
+__all__ = ["endpoint", "Endpoint", "EndpointFunc", "EndpointHandler"]
 
 
 P = ParamSpec("P")

@@ -34,7 +34,7 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
         ]
 
     """  # noqa: E501
-    from openapi_test_client.libraries.api import Endpoint
+    from openapi_test_client.libraries.api.api_functions import EndpointFunc, EndpointHandler
 
     previous_frame = inspect.currentframe().f_back
     caller_file_path = inspect.getframeinfo(previous_frame).filename
@@ -47,14 +47,12 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
     for api_class in api_classes:
         if isinstance(api_class.TAGs, property):
             raise RuntimeError(f"API class {api_class.__name__} does not have TAGs been set")
-        if not isinstance(api_class.endpoints, list):
-            setattr(api_class, "endpoints", [])
-        for attr_str in api_class.__dict__:
-            if attr_str.startswith("__"):
-                continue
-            attr = getattr(api_class, attr_str)
-            if hasattr(attr, "endpoint") and isinstance(attr.endpoint, Endpoint):
-                api_class.endpoints.append(attr.endpoint)
+        api_class.endpoints = []
+        for attr_name, attr in api_class.__dict__.items():
+            if isinstance(attr, EndpointHandler):
+                endpoint_func = getattr(api_class, attr_name)
+                assert isinstance(endpoint_func, EndpointFunc)
+                api_class.endpoints.append(endpoint_func.endpoint)
 
     # Set all API class' Endpoint objects to the base class's endpoint attribute
     base_api_class.endpoints = sorted(

@@ -702,11 +702,11 @@ def _get_base_api_class(api_client: APIClientType) -> type[APIClassType]:
 
 def _recursively_add_init_file(base_dir: Path, exclude_dirs: tuple[str] = ()):
     def add_init_file(current_dir: Path):
-        if current_dir.name not in exclude_dirs:
+        if not current_dir.name.startswith("_") and current_dir.name not in exclude_dirs:
             if not (current_dir / "__init__.py").exists():
                 _write_init_file(current_dir)
             for file_or_dir in current_dir.iterdir():
-                if file_or_dir.is_dir():
+                if file_or_dir.is_dir() and not current_dir.name.startswith("_"):
                     add_init_file(file_or_dir)
 
     add_init_file(base_dir)
