@@ -273,7 +273,7 @@ def update_endpoint_functions(
     # Regex for API class definition
     regex_api_class = re.compile(rf"class {api_class.__name__}\(\S+{BASE_API_CLASS_NAME_SUFFIX}\):")
     # Regex for TAGs and for individual tag inside TAGs
-    regex_tags = re.compile(r"TAGs = \([^)]*\)", flags=re.MULTILINE)
+    regex_tags = re.compile(r"TAGs = \((.*?)\)\n", flags=re.MULTILINE | re.DOTALL)
     regex_tag = re.compile(r'"(?P<tag>[^"]*)"', flags=re.MULTILINE)
     # Regex for each endpoint function block
     tab = f"(?:{TAB}|\t)"
