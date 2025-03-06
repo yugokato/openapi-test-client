@@ -34,17 +34,17 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def is_param_model(annotated_type: Any) -> bool:
-    """Check if the given annotated type is for a custom model
+def has_param_model(annotated_type: Any) -> bool:
+    """Check if the given annotated type contains a custom param model
 
-    :param annotated_type: Annotated type for a field to check whether it is a param model or not
+    :param annotated_type: Annotated type for a field to check whether it contains a param model or not
     """
 
     def _is_param_model(obj: Any) -> bool:
-        return inspect.isclass(obj) and (issubclass(obj, ParamModel))
+        return inspect.isclass(obj) and issubclass(obj, ParamModel)
 
     inner_type = param_type_util.get_inner_type(annotated_type)
-    if get_origin(inner_type) in [Union, UnionType]:
+    if param_type_util.is_union_type(inner_type):
         return any(_is_param_model(o) for o in get_args(inner_type))
     else:
         return _is_param_model(inner_type)
@@ -56,9 +56,9 @@ def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None
     :param annotated_type: Annotated type
     """
     inner_type = param_type_util.get_inner_type(annotated_type)
-    if is_param_model(inner_type):
-        if get_origin(inner_type) in [Union, UnionType]:
-            return list(get_args(inner_type))
+    if has_param_model(inner_type):
+        if param_type_util.is_union_type(inner_type):
+            return [x for x in get_args(inner_type) if has_param_model(x)]
         else:
             return inner_type
 
@@ -160,7 +160,7 @@ def generate_imports_code_from_model(
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 else:
                     raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")
-            elif is_param_model(obj_type):
+            elif has_param_model(obj_type):
                 if not exclude_nested_models:
                     api_cls_module, model_file_name = api_class.__module__.rsplit(".", 1)
                     module_and_name_pairs.append(
@@ -226,7 +226,7 @@ def get_param_models(model: type[EndpointModel | ParamModel], recursive: bool = 
 
     def collect_param_models(model: type[EndpointModel | ParamModel]):
         for field_name, field_obj in model.__dataclass_fields__.items():
-            if is_param_model(field_obj.type):
+            if has_param_model(field_obj.type):
                 model_name = generate_model_name(field_name, field_obj.type)
                 param_def = ParamDef.from_param_obj(field_obj.metadata)
                 param_model = create_model_from_param_def(model_name, param_def)

@@ -159,9 +159,9 @@ def resolve_type_annotation(
             # code will be valid. So ignoring the warning here.
             type_annotation = Literal[*enum]  # type: ignore
         elif isinstance(param_def, ParamDef.UnknownType):
-            logger.exception(
+            logger.warning(
                 f"Unable to locate a parameter type for parameter '{param_name}'. Type '{Any}' will be applied.\n"
-                f"Failed parameter object:\n{param_def.param_obj}"
+                f"Failed parameter object: {param_def.param_obj}"
             )
             type_annotation = Any
         else:
@@ -193,15 +193,16 @@ def resolve_type_annotation(
     return type_annotation
 
 
-def get_inner_type(tp: Any, return_if_container_type: bool = False) -> Any | tuple[Any] | list[Any]:
+def get_inner_type(tp: Any, return_if_container_type: bool = False) -> Any | list[Any]:
     """Get the inner type (=actual type) from the type annotation
 
     eg:
         Optional[str] -> str
+        Optional[str | int] -> str | int
         Annotated[str, "metadata"] -> str
         Literal[1,2,3] -> Literal[1,2,3]
         list[str] -> str (list[str] if return_if_container_type=True)
-        str | int -> (str, int)
+        str | int -> str | int
 
         NOTE: This should also work with the combination of above
 
@@ -209,26 +210,20 @@ def get_inner_type(tp: Any, return_if_container_type: bool = False) -> Any | tup
     :param return_if_container_type: Consider container type like list and tuple as the inner type
     """
     if origin_type := get_origin(tp):
-        args = get_args(tp)
+        if origin_type not in [Optional, Union, UnionType, Annotated, Literal, list, dict]:
+            raise RuntimeError(f"Found unexpected origin type in '{tp}': {origin_type}")
+
         if is_union_type(tp):
-            if is_optional_type(tp):
-                return get_inner_type(args[0])
-            else:
-                return args
+            args_without_nonetype = [x for x in get_args(tp) if x is not NoneType]
+            return generate_union_type([get_inner_type(x) for x in args_without_nonetype])
         elif origin_type is Annotated:
             return get_inner_type(tp.__origin__)
-        elif origin_type in [list, tuple]:
+        elif origin_type is list:
             if return_if_container_type:
                 return tp
             else:
-                if origin_type is list:
-                    return get_inner_type(args[0])
-                else:
-                    return get_inner_type(args)
-        else:
-            return tp
-    else:
-        return tp
+                return get_inner_type(get_args(tp)[0])
+    return tp
 
 
 def replace_inner_type(tp: Any, new_type: Any, replace_container_type: bool = False) -> Any:
