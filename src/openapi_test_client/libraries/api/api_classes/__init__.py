@@ -56,8 +56,8 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
 
     # Set all API class' Endpoint objects to the base class's endpoint attribute
     base_api_class.endpoints = sorted(
-        list(itertools.chain(*[x.endpoints for x in api_classes if x.endpoints])),
-        key=lambda x: (", ".join(x.tags), x.method, x.path),
+        itertools.chain(*(x.endpoints for x in api_classes if x.endpoints)),
+        key=lambda x: (x.tags, x.method, x.path),
     )
     return sorted(api_classes, key=lambda x: x.TAGs)
 
@@ -71,14 +71,17 @@ def get_api_classes(api_class_dir: Path, base_api_class: type[APIClassType]) -> 
         raise RuntimeError(f"Found no API class modules in {api_class_dir}")
 
     api_classes = [
-        getattr(mod, x)
+        obj
         for mod in api_modules
         for x in dir(mod)
-        if inspect.isclass(getattr(mod, x))
-        and issubclass(getattr(mod, x), base_api_class)
+        if not x.startswith("_")
         and x != base_api_class.__name__
+        and (obj := getattr(mod, x))
+        and inspect.isclass(obj)
+        and issubclass(obj, base_api_class)
     ]
-    assert api_classes, (
-        f"Unable to find any API class that is a subclass of {base_api_class.__name__} in {api_class_dir}"
-    )
+    if not api_classes:
+        raise RuntimeError(
+            f"Unable to find any API class that is a subclass of {base_api_class.__name__} in {api_class_dir}"
+        )
     return api_classes

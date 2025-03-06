@@ -430,14 +430,14 @@ class File(dict, DataclassModel):
         return astuple(self)  # type: ignore
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ParamAnnotationType:
     """Base class for all custom classes used for annotating endpoint function parameters"""
 
     ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Alias(ParamAnnotationType):
     """Alias param name
 
@@ -448,7 +448,7 @@ class Alias(ParamAnnotationType):
     value: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Format(ParamAnnotationType):
     """OpenAPI parameter format
 
@@ -458,7 +458,7 @@ class Format(ParamAnnotationType):
     value: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Constraint(ParamAnnotationType):
     """OpenAPI parameter constraints (maxLength, minLength, etc.)
 

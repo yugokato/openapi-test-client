@@ -88,6 +88,7 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
             namespace={"content_type": content_type, "endpoint_func": endpoint_func},
             kw_only=True,
             frozen=True,
+            slots=True,
         ),
     )
 

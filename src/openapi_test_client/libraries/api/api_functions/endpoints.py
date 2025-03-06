@@ -38,7 +38,7 @@ OriginalFunc = TypeVar("OriginalFunc")
 logger = get_logger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Endpoint:
     """An Endpoint class to hold various endpoint data associated to an API class function
 
