@@ -1,6 +1,8 @@
+import inspect
 import ipaddress
 import os
 from contextlib import contextmanager
+from dataclasses import Field as DataclassField
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from types import EllipsisType
@@ -71,14 +73,18 @@ def in_validation_mode():
 
 
 def generate_pydantic_model_fields(
-    original_model: type[DataclassModel | EndpointModel | ParamModel], field_type: Any
+    original_model: type[DataclassModel | EndpointModel | ParamModel], model_field: DataclassField
 ) -> tuple[str, EllipsisType | FieldInfo | None]:
     """Generate Pydantic field definition for validation mode
 
-    :param original_model: The original model
-    :param field_type: The original dataclass field type
+    :param original_model: The original dataclass model
+    :param model_field: The model field obj
     """
     is_query_param = False
+    field_type = model_field.type
+    if isinstance(field_type, str):
+        # Resolve forward reference
+        field_type = inspect.get_annotations(original_model, eval_str=True)[model_field.name]
 
     # Convert nested param models to Pydantic models and replace it in the original field type
     if param_model := param_model_util.get_param_model(field_type):

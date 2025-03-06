@@ -200,7 +200,10 @@ def generate_model_code_from_model(api_class: type[APIClassType], model: type[Pa
     :param model: A dataclass obj
     """
     model_code = f"@dataclass\nclass {model.__name__}(ParamModel):\n"
-    imports_code = generate_imports_code_from_model(api_class, model, exclude_nested_models=True)
+    imports_code = (
+        f"from __future__ import annotations\n\n"  # workaround for NameError when 2 models depend on each other
+        f"{generate_imports_code_from_model(api_class, model, exclude_nested_models=True)}"
+    )
     if dataclass_field_items := model.__dataclass_fields__.items():
         imports_code = _add_unset_import_code(imports_code)
         for field_name, field_obj in dataclass_field_items:
