@@ -138,7 +138,7 @@ def generate_imports_code_from_model(
     :param exclude_nested_models: Skip imports for nested models (to avoid define imports for models in the same file)
     """
     imports_code = ""
-    module_and_name_pairs: list[tuple[str, str]] = []
+    module_and_name_pairs = set()
     primitive_types = [int, float, str, bool]
     from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME
 
@@ -146,24 +146,24 @@ def generate_imports_code_from_model(
         if obj_type not in [*primitive_types, None, NoneType] and not isinstance(obj_type, tuple(primitive_types)):
             if typing_origin := get_origin(obj_type):
                 if typing_origin is Annotated:
-                    module_and_name_pairs.append(("typing", Annotated.__name__))
+                    module_and_name_pairs.add(("typing", Annotated.__name__))
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 elif typing_origin is Literal:
-                    module_and_name_pairs.append(("typing", Literal.__name__))
+                    module_and_name_pairs.add(("typing", Literal.__name__))
                 elif typing_origin in [list, dict, tuple]:
                     [generate_imports_code(m) for m in [x for x in get_args(obj_type)]]
                 elif typing_origin in [UnionType, Union]:
                     if param_type_util.is_optional_type(obj_type):
                         # NOTE: We will use our alias version of typing.Optional for now
-                        # module_and_name_pairs.append(("typing", Optional.__name__))
-                        module_and_name_pairs.append((types_module.__name__, Optional.__name__))
+                        # module_and_name_pairs.add(("typing", Optional.__name__))
+                        module_and_name_pairs.add((types_module.__name__, Optional.__name__))
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 else:
                     raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")
             elif has_param_model(obj_type):
                 if not exclude_nested_models:
                     api_cls_module, model_file_name = api_class.__module__.rsplit(".", 1)
-                    module_and_name_pairs.append(
+                    module_and_name_pairs.add(
                         (
                             f"..{API_MODEL_CLASS_DIR_NAME}.{model_file_name}",
                             # Using the original field type here to detect list or not
@@ -175,7 +175,7 @@ def generate_imports_code_from_model(
                     name = obj_type.__name__
                 else:
                     name = type(obj_type).__name__
-                module_and_name_pairs.append((obj_type.__module__, name))
+                module_and_name_pairs.add((obj_type.__module__, name))
 
     has_unset_field = False
     for field_name, field_obj in model.__dataclass_fields__.items():
@@ -187,9 +187,8 @@ def generate_imports_code_from_model(
     if has_unset_field:
         imports_code = _add_unset_import_code(imports_code)
 
-    if module_and_name_pairs:
-        for module, name in set(module_and_name_pairs):
-            imports_code += f"from {module} import {name}\n"
+    for module, name in module_and_name_pairs:
+        imports_code += f"from {module} import {name}\n"
 
     return imports_code
 
