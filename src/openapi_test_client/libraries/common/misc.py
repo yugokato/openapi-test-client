@@ -7,6 +7,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, TypeVar
 
+from common_libs.utils import clean_obj_name
+
 T = TypeVar("T")
 
 
@@ -27,10 +29,15 @@ def generate_class_name(base_name: str, suffix: str | None = None) -> str:
     :param base_name: A value to be used as part of the class name
     :param suffix: Suffix to add to the class name
     """
-    class_name = f"{camel_to_snake(base_name).title().replace('_', '')}"
+    class_name = camel_to_snake(base_name).title()
+    if leading_underscores := re.match(r"^_+", class_name):
+        underscores = leading_underscores.group(0)
+        class_name = underscores + re.sub("_", "", class_name[len(underscores) :])
+    else:
+        class_name = re.sub("_", "", class_name)
     if suffix:
         class_name += suffix
-    return re.sub(r"[^a-zA-Z0-9]+", "", class_name)
+    return clean_obj_name(re.sub(r"[^a-zA-Z0-9_]+", "", class_name))
 
 
 def get_module_name_by_file_path(file_path: Path) -> str:
