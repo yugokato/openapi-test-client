@@ -3,15 +3,16 @@ from __future__ import annotations
 import inspect
 import json
 import re
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from dataclasses import MISSING, Field, field, make_dataclass
+from dataclasses import MISSING, field, make_dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from common_libs.logging import get_logger
 
 from openapi_test_client.libraries.api.api_functions.utils import param_model as param_model_util
 from openapi_test_client.libraries.api.api_functions.utils import param_type as param_type_util
-from openapi_test_client.libraries.api.types import EndpointModel, File, ParamDef, Unset
+from openapi_test_client.libraries.api.types import DataclassModelField, EndpointModel, File, ParamDef, Unset
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
@@ -27,8 +28,8 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
     :param api_spec: Create a model from the OpenAPI spec. Otherwise the model be created from the existing endpoint
                      function signatures
     """
-    path_param_fields = []
-    body_or_query_param_fields = []
+    path_param_fields: list[DataclassModelField] = []
+    body_or_query_param_fields: list[DataclassModelField] = []
     model_name = f"{type(endpoint_func).__name__.replace('EndpointFunc', EndpointModel.__name__)}"
     content_type = None
     if api_spec:
@@ -48,11 +49,10 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
                 continue
             elif param_obj.default == inspect.Parameter.empty:
                 # Positional arguments (path parameters)
-                path_param_fields.append((name, param_obj.annotation))
+                path_param_fields.append(DataclassModelField(name, param_obj.annotation))
             else:
                 # keyword arguments (body/query parameters)
-                param_field = (name, param_obj.annotation, field(default=Unset))
-                body_or_query_param_fields.append(param_field)
+                _add_body_or_query_param_field(body_or_query_param_fields, name, param_obj.annotation)
 
     if hasattr(endpoint_func, "endpoint"):
         method = endpoint_func.endpoint.method
@@ -64,13 +64,13 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
             # Some OpenAPI specs don't properly document path parameters at all, or path parameters could be documented
             # as incorrect "in" like "query". We fix this by adding the missing path parameters, and remove them from
             # body/query params if any
-            path_param_fields = [(x, str) for x in expected_path_params]
+            path_param_fields = [DataclassModelField(x, str) for x in expected_path_params]
             body_or_query_param_fields = [x for x in body_or_query_param_fields if x[0] not in expected_path_params]
 
     # Address the case where a path param name conflicts with body/query param name
-    for i, (field_name, field_type) in enumerate(path_param_fields):
+    for i, (field_name, field_type, _) in enumerate(path_param_fields):
         if field_name in [x[0] for x in body_or_query_param_fields]:
-            path_param_fields[i] = (f"{field_name}_", field_type)
+            path_param_fields[i] = DataclassModelField(f"{field_name}_", field_type)
 
     # Some OpenAPI specs define a parameter name using characters we can't use as a python variable name.
     # We will use the cleaned name as the model field and annotate it as `Annotated[field_type, Alias(<original_val>)]`
@@ -83,7 +83,7 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
         type[EndpointModel],
         make_dataclass(
             model_name,
-            fields,
+            fields,  # type: ignore
             bases=(EndpointModel,),
             namespace={"content_type": content_type, "endpoint_func": endpoint_func},
             kw_only=True,
@@ -130,8 +130,8 @@ def generate_func_signature_in_str(model: type[EndpointModel]) -> str:
 def _parse_parameter_objects(
     method: str,
     parameter_objects: list[dict[str, Any]],
-    path_param_fields: list[tuple[str, Any]],
-    body_or_query_param_fields: list[tuple[str, Any, Field]],
+    path_param_fields: list[DataclassModelField],
+    body_or_query_param_fields: list[DataclassModelField],
 ):
     """Parse parameter objects
 
@@ -148,12 +148,13 @@ def _parse_parameter_objects(
             param_type_annotation = param_type_util.resolve_type_annotation(
                 param_name, param_def, _is_required=is_required
             )
-
             if param_location in ["header", "cookies"]:
                 # We currently don't support these
                 continue
             elif param_location == "path":
-                path_param_fields.append((param_name, param_type_annotation))
+                if param_name not in [x[0] for x in path_param_fields]:
+                    # Handle duplicates. Some API specs incorrectly document duplicated parameters
+                    path_param_fields.append(DataclassModelField(param_name, param_type_annotation))
             elif param_location == "query":
                 if method.upper() != "GET":
                     # Annotate query params for non GET endpoints
@@ -180,19 +181,14 @@ def _parse_parameter_objects(
                             method, parameter_objects, path_param_fields, body_or_query_param_fields
                         )
                     else:
-                        if param_name not in [x[0] for x in body_or_query_param_fields]:
-                            body_or_query_param_fields.append(
-                                (
-                                    param_name,
-                                    param_type_annotation,
-                                    field(default=Unset, metadata=param_obj),
-                                )
-                            )
-                else:
-                    if param_name not in [x[0] for x in body_or_query_param_fields]:
-                        body_or_query_param_fields.append(
-                            (param_name, param_type_annotation, field(default=Unset, metadata=param_obj))
+                        _add_body_or_query_param_field(
+                            body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
                         )
+
+                else:
+                    _add_body_or_query_param_field(
+                        body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
+                    )
             else:
                 raise NotImplementedError(f"Unsupported param 'in': {param_location}")
         except Exception:
@@ -205,7 +201,7 @@ def _parse_parameter_objects(
 
 
 def _parse_request_body_object(
-    request_body_obj: dict[str, Any], body_or_query_param_fields: list[tuple[str, Any, Field]]
+    request_body_obj: dict[str, Any], body_or_query_param_fields: list[DataclassModelField]
 ) -> str | None:
     """Parse request body object
 
@@ -250,7 +246,9 @@ def _parse_request_body_object(
                     param_type = File
                     if not param_def.is_required:
                         param_type = param_type | None
-                    body_or_query_param_fields.append((param_name, param_type, field(default=Unset)))
+                    _add_body_or_query_param_field(
+                        body_or_query_param_fields, param_name, param_type, param_obj=param_obj
+                    )
                 else:
                     existing_param_names = [x[0] for x in body_or_query_param_fields]
                     if param_name in existing_param_names:
@@ -259,16 +257,17 @@ def _parse_request_body_object(
                         for _, t, m in duplicated_param_fields:
                             param_type_annotations.append(t)
                         param_type_annotation = param_type_util.generate_union_type(param_type_annotations)
-                        merged_param_field = (
+                        merged_param_field = DataclassModelField(
                             param_name,
                             param_type_annotation,
-                            field(default=Unset, metadata=param_obj),
+                            default=field(default=Unset, metadata=param_obj),
                         )
                         body_or_query_param_fields[existing_param_names.index(param_name)] = merged_param_field
                     else:
                         param_type_annotation = param_type_util.resolve_type_annotation(param_name, param_def)
-                        param_field = (param_name, param_type_annotation, field(default=Unset, metadata=param_obj))
-                        body_or_query_param_fields.append(param_field)
+                        _add_body_or_query_param_field(
+                            body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
+                        )
             except Exception:
                 logger.error(
                     "Encountered an error while processing the param object in 'requestBody':\n"
@@ -281,6 +280,18 @@ def _parse_request_body_object(
     parse_schema_obj(schema_obj)
 
     return content_type
+
+
+def _add_body_or_query_param_field(
+    param_fields: list[DataclassModelField],
+    param_name: str,
+    param_type_annotation: Any,
+    param_obj: Mapping[str, Any] | dict[str, Any] | Sequence[dict[str, Any]] | None = None,
+):
+    if param_name not in [x[0] for x in param_fields]:
+        param_fields.append(
+            DataclassModelField(param_name, param_type_annotation, default=field(default=Unset, metadata=param_obj))
+        )
 
 
 def _is_file_param(

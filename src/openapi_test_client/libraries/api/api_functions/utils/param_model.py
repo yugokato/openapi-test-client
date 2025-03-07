@@ -17,6 +17,7 @@ import openapi_test_client.libraries.api.types as types_module
 from openapi_test_client.libraries.api.types import (
     Alias,
     DataclassModel,
+    DataclassModelField,
     EndpointModel,
     File,
     ParamAnnotationType,
@@ -117,15 +118,22 @@ def create_model_from_param_def(
         return _merge_models([create_model_from_param_def(model_name, p) for p in param_def])
     else:
         fields = [
-            (
+            DataclassModelField(
                 inner_param_name,
                 param_type_util.resolve_type_annotation(inner_param_name, ParamDef.from_param_obj(inner_param_obj)),
-                field(default=Unset, metadata=inner_param_obj),
+                default=field(default=Unset, metadata=inner_param_obj),
             )
             for inner_param_name, inner_param_obj in param_def.get("properties", {}).items()
         ]
         alias_illegal_model_field_names(fields)
-        return cast(type[ParamModel], make_dataclass(model_name, fields, bases=(ParamModel,)))
+        return cast(
+            type[ParamModel],
+            make_dataclass(
+                model_name,
+                fields,  # type: ignore
+                bases=(ParamModel,),
+            ),
+        )
 
 
 def generate_imports_code_from_model(
@@ -286,10 +294,10 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
-def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[str, Any, Field]]):
+def alias_illegal_model_field_names(model_fields: list[DataclassModelField]):
     """Clean illegal model field name and annotate the field type with Alias class
 
-    :param param_fields: fields value to be passed to make_dataclass()
+    :param model_fields: fields value to be passed to make_dataclass()
     """
 
     def make_alias(name: str, param_type: Any) -> str:
@@ -330,22 +338,17 @@ def alias_illegal_model_field_names(param_fields: list[tuple[str, Any] | tuple[s
                     name += "_"
             return name
 
-    if param_fields:
-        for i, param_field in enumerate(param_fields):
-            if len(param_field) == 2:
-                # path parameters
-                field_name, field_type = param_field
-                field_obj = object
-            else:
-                # body or query parameters
-                field_name, field_type, field_obj = param_field
-
-            if (alias_name := make_alias(field_name, field_type)) != field_name:
-                if isinstance(field_obj, Field) and field_obj.metadata:
-                    logger.warning(f"Converted parameter name '{field_name}' to '{alias_name}'")
-                new_fields = [alias_name, param_type_util.generate_annotated_type(field_type, Alias(field_name))]
-                new_fields.append(field_obj)
-                param_fields[i] = tuple(new_fields)
+    if model_fields:
+        for i, model_field in enumerate(model_fields):
+            if (alias_name := make_alias(model_field.name, model_field.type)) != model_field.name:
+                if isinstance(model_field.default, Field) and model_field.default.metadata:
+                    logger.warning(f"Converted parameter name '{model_field.name}' to '{alias_name}'")
+                new_fields = (
+                    alias_name,
+                    param_type_util.generate_annotated_type(model_field.type, Alias(model_field.name)),
+                    model_field.default,
+                )
+                model_fields[i] = DataclassModelField(*new_fields)
 
 
 def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:

@@ -116,7 +116,7 @@ class OpenAPISpec:
             return "'$ref':" in str(obj)
 
         def resolve_recursive(reference: Any, schemas_seen: list[str] | None = None):
-            if not schemas_seen:
+            if schemas_seen is None:
                 schemas_seen = []
             if isinstance(reference, dict):
                 for k, v in copy.deepcopy(reference).items():

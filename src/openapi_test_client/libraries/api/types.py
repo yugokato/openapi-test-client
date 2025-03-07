@@ -14,7 +14,7 @@ from dataclasses import (
     make_dataclass,
 )
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast
 
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
@@ -217,6 +217,14 @@ class DataclassModel(Protocol):
                 **model_fields,
             ),
         )
+
+
+class DataclassModelField(NamedTuple):
+    """Dataclass model field"""
+
+    name: str
+    type: Any
+    default: Field | type[MISSING] = MISSING
 
 
 class EndpointModel(DataclassModel):
