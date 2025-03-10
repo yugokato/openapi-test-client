@@ -4,7 +4,7 @@ import inspect
 from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
-from types import NoneType, UnionType
+from types import MappingProxyType, NoneType, UnionType
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Union, cast, get_args, get_origin
 
 import inflect
@@ -35,20 +35,24 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def is_param_model(annotated_type: Any) -> bool:
+    """Check if the givin annotated type is a custom parammodel
+    :param annotated_type: Annotated type to check whether it is a param model or not
+    """
+    return inspect.isclass(annotated_type) and issubclass(annotated_type, ParamModel)
+
+
 def has_param_model(annotated_type: Any) -> bool:
     """Check if the given annotated type contains a custom param model
 
     :param annotated_type: Annotated type for a field to check whether it contains a param model or not
     """
 
-    def _is_param_model(obj: Any) -> bool:
-        return inspect.isclass(obj) and issubclass(obj, ParamModel)
-
     inner_type = param_type_util.get_inner_type(annotated_type)
     if param_type_util.is_union_type(inner_type):
-        return any(_is_param_model(o) for o in get_args(inner_type))
+        return any(is_param_model(o) for o in get_args(inner_type))
     else:
-        return _is_param_model(inner_type)
+        return is_param_model(inner_type)
 
 
 def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None:
@@ -360,29 +364,48 @@ def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:
 
     - Model1
         @dataclass
-        class MyModel:
+        class MyModel(ParamModel):
             param_1: str = Unset
             param_2: int = Unset
+            param_3: Literal["1", "2"] = Unset
 
     - Model2
         @dataclass
-        class MyModel:
+        class MyModel(ParamModel):
             param_1: str = Unset
-            param_3: int = Unset
+            param_2: str = Unset
+            param_3: Literal["2", "3"] = Unset
+            param_4: int = Unset
 
     - Merged model
         @dataclass
-        class MyModel:
+        class MyModel(ParamModel):
             param_1: str = Unset
-            param_2: int = Unset
-            param_3: int = Unset
-
+            param_2: int | str = Unset
+            param_3: Literal["1", "2", "3"] = Unset
+            param_4: int = Unset
     """
     assert models
     assert len(set(m.__name__ for m in models)) == 1
-    merged_dataclass_fields = {}
+    merged_dataclass_fields: dict[str, Field] = {}
     for model in models:
-        merged_dataclass_fields.update(model.__dataclass_fields__)
+        for field_name, field_obj in model.__dataclass_fields__.items():
+            if field_name in merged_dataclass_fields:
+                merged_field_obj = merged_dataclass_fields[field_name]
+                if merged_field_obj.type != field_obj.type:
+                    # merge field types and metadata
+                    merged_field_obj.type = param_type_util.merge_annotation_types(
+                        merged_field_obj.type, field_obj.type
+                    )
+                    if "anyOf" in merged_field_obj.metadata:
+                        merged_field_obj.metadata["anyOf"].append(field_obj.metadata)
+                    else:
+                        merged_field_obj.metadata = MappingProxyType(
+                            {"anyOf": [merged_field_obj.metadata, field_obj.metadata]}
+                        )
+            else:
+                merged_dataclass_fields[field_name] = field_obj
+
     new_fields = [
         (field_name, field_obj.type, field(default=Unset, metadata=field_obj.metadata))
         for field_name, field_obj in merged_dataclass_fields.items()

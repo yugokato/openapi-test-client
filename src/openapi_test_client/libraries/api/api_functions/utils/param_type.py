@@ -2,7 +2,6 @@ import inspect
 from collections.abc import Sequence
 from dataclasses import asdict
 from functools import reduce
-from operator import or_
 from types import NoneType, UnionType
 from typing import (
     Annotated,
@@ -18,7 +17,7 @@ from typing import (
 from common_libs.logging import get_logger
 
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
-from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamDef
+from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamAnnotationType, ParamDef
 from openapi_test_client.libraries.common.constants import BACKSLASH
 
 logger = get_logger(__name__)
@@ -291,8 +290,7 @@ def is_type_of(tp: str | Any, type_to_check: Any) -> bool:
             return is_type_of(tp.__origin__, type_to_check)
         elif is_union_type(tp):
             return any([is_type_of(x, type_to_check) for x in get_args(tp)])
-    else:
-        return tp is type_to_check
+    return tp is type_to_check
 
 
 def is_optional_type(tp: Any) -> bool:
@@ -332,17 +330,12 @@ def is_deprecated_param(tp: Any) -> bool:
         return get_origin(tp) is Annotated and "deprecated" in tp.__metadata__
 
 
-def generate_union_type(type_annotations: Sequence[Any]) -> Any:
+def generate_union_type(type_annotations: Sequence[Any]) -> UnionType:
     """Convert multiple annotations to a Union type
 
     :param type_annotations: type annotations
     """
-    if len(set(repr(x) for x in type_annotations)) == 1:
-        # All annotations are the same
-        type_annotation = type_annotations[0]
-    else:
-        type_annotation = reduce(or_, type_annotations)
-    return type_annotation
+    return reduce(or_, type_annotations)
 
 
 def generate_optional_type(tp: Any) -> Any:
@@ -388,3 +381,111 @@ def get_annotated_type(tp: Any) -> _AnnotatedAlias | None:
     else:
         if get_origin(tp) is Annotated:
             return tp
+
+
+def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
+    """Merge type annotations
+
+    :param tp1: annotated type1
+    :param tp2: annotated type2
+
+    Note: This is still experimental
+    """
+
+    def dedup(*args: Any) -> tuple[Any, ...]:
+        """Deduplicate items by retaining the order"""
+        seen = set()
+        deduped_args = []
+        for arg in args:
+            if arg not in seen:
+                deduped_args.append(arg)
+            seen.add(arg)
+        return tuple(deduped_args)
+
+    def merge_args_per_origin(args: Sequence[Any]) -> tuple[Any, ...]:
+        """Merge type annotations per its origiin type"""
+        origin_type_order = {Literal: 1, Annotated: 2, Union: 3, UnionType: 4, list: 5, dict: 6, None: 10}
+        args_per_origin = {}
+        for arg in args:
+            args_per_origin.setdefault(get_origin(arg), []).append(arg)
+        return tuple(
+            reduce(
+                merge_annotation_types,
+                sorted(args_, key=lambda x: origin_type_order.get(get_origin(x), 99)),
+            )
+            for args_ in args_per_origin.values()
+        )
+
+    origin = get_origin(tp1)
+    origin2 = get_origin(tp2)
+    if origin or origin2:
+        if origin == origin2:
+            args1 = get_args(tp1)
+            args2 = get_args(tp2)
+            # stop using set here
+            combined_args = dedup(*args1, *args2)
+            if origin is Literal:
+                return Literal[*combined_args]
+            elif origin is Annotated:
+                # If two Annotated types have different set of ParamAnnotationType objects in metadata, treat them as
+                # different types as a union type. Otherwise merge them
+                # TODO: revisit this part
+                annotation_types1 = [x for x in tp1.__metadata__ if isinstance(x, ParamAnnotationType)]
+                annotation_types2 = [x for x in tp2.__metadata__ if isinstance(x, ParamAnnotationType)]
+                if (
+                    annotation_types1
+                    and annotation_types1
+                    and ([asdict(x) for x in annotation_types1] == [asdict(y) for y in annotation_types2])
+                ) or not (annotation_types1 or annotation_types2):
+                    combined_type = merge_annotation_types(get_args(tp1)[0], get_args(tp2)[0])
+                    combined_metadata = dedup(*tp1.__metadata__, *tp2.__metadata__)
+                    return Annotated[combined_type, *combined_metadata]
+                else:
+                    return generate_union_type([tp1, tp2])
+            elif origin is dict:
+                key_type, val_type = args1
+                key_type2, val_type2 = args2
+                if key_type == key_type2:
+                    if val_type == val_type2:
+                        return dict[key_type, val_type]
+                    else:
+                        return dict[key_type, merge_annotation_types(val_type, val_type2)]
+                else:
+                    if val_type == val_type2:
+                        return dict[generate_union_type((key_type, key_type2)), val_type]
+            elif origin is list:
+                return list[generate_union_type(merge_args_per_origin(combined_args))]
+            elif origin in [Union, UnionType]:
+                return Union[*merge_args_per_origin(combined_args)]
+    return generate_union_type((tp1, tp2))
+
+
+def or_(x: Any, y: Any) -> Any:
+    """Customized version of operator.or_ that treats our dynamically created param model classes with the same
+    name as duplicates
+
+    eg. operator.or_ v.s our or_
+    >>> import operator
+    >>> from openapi_test_client.libraries.api.types import ParamModel
+    >>> Model1 = type("MyModel", (ParamModel,), {})
+    >>> Model2 = type("MyModel", (ParamModel,), {})
+    >>> reduce(operator.or_, [Model1 | None, Model2])
+    __main__.MyModel | None | __main__.MyModel
+    >>> reduce(or_, [Model1 | None, Model2])
+    __main__.MyModel | None
+    """
+    if param_model_util.is_param_model(x) and param_model_util.is_param_model(y) and x.__name__ == y.__name__:
+        return x
+    else:
+        is_x_union = is_union_type(x)
+        is_y_union = is_union_type(y)
+        if is_x_union:
+            if is_y_union:
+                return reduce(or_, (*get_args(x), *get_args(y)))
+            elif param_model_util.is_param_model(y):
+                param_model_names_in_x = [x.__name__ for x in get_args(x) if param_model_util.is_param_model(x)]
+                if y.__name__ in param_model_names_in_x:
+                    return x
+        elif is_y_union:
+            return reduce(or_, (x, *get_args(y)))
+    return x | y
