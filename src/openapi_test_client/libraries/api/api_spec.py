@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from openapi_test_client.clients import APIClientType
     from openapi_test_client.libraries.api import Endpoint
 
-
 logger = get_logger(__name__)
 
 
@@ -57,7 +56,7 @@ class OpenAPISpec:
                 elif not (open_api_version := api_spec["openapi"]).startswith("3."):
                     raise NotImplementedError(f"Unsupported OpenAPI version: {open_api_version}")
             except Exception as e:
-                logger.error(f"Unable to get API specs from {url}\n{type(e).__name__}: {e}")
+                logger.exception(f"Unable to get API specs from {url}\n{type(e).__name__}", exc_info=e)
             else:
                 self._spec = OpenAPISpec.parse(api_spec)
                 return self._spec
@@ -113,7 +112,17 @@ class OpenAPISpec:
         ref_pattern = re.compile(r"#?/([^/]+)")
 
         def has_reference(obj: Any) -> bool:
-            return "'$ref':" in str(obj)
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if key == "$ref":
+                        return True
+                    if has_reference(value):
+                        return True
+            elif isinstance(obj, list):
+                for item in obj:
+                    if has_reference(item):
+                        return True
+            return False
 
         def resolve_recursive(reference: Any, schemas_seen: list[str] | None = None):
             if schemas_seen is None:
@@ -122,32 +131,38 @@ class OpenAPISpec:
                 for k, v in copy.deepcopy(reference).items():
                     new_reference = reference[k]
                     if k == "$ref":
+                        del reference[k]
                         ref_keys = re.findall(ref_pattern, new_reference)
                         assert ref_keys
                         schema = "/".join(ref_keys)
                         if schema in schemas_seen:
+                            # Detected a circular reference
                             logger.warning(
-                                f"WARNING: Detected recursive schema definition. This is not supported: {schema}"
+                                f"WARNING: Detected a circular schema reference. This is not supported: {schema}"
                             )
+                            reference.clear()
+                            reference.update(type="object")
                         else:
                             schemas_seen.append(schema)
-                        try:
-                            resolved_value = reduce(lambda d, k: d[k], ref_keys, api_spec)
-                            del reference[k]
-                        except KeyError as e:
-                            logger.warning(f"SKIPPED: Unable to resolve '$ref' for '{new_reference}' (KeyError: {e})")
-                        else:
-                            if has_reference(resolved_value):
-                                resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
-                            if isinstance(resolved_value, dict):
-                                reference.update(resolved_value)
+                            try:
+                                resolved_value = reduce(lambda d, k: d[k], ref_keys, api_spec)
+                            except KeyError as e:
+                                logger.warning(
+                                    f"SKIPPED: Unable to resolve '$ref' for '{new_reference}' (KeyError: {e})"
+                                )
                             else:
-                                reference = resolved_value
+                                if has_reference(resolved_value):
+                                    resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
+                                schemas_seen.remove(schema)
+                                if isinstance(resolved_value, dict):
+                                    reference.update(resolved_value)
+                                else:
+                                    reference = resolved_value
                     else:
-                        resolve_recursive(new_reference)
+                        resolve_recursive(new_reference, schemas_seen=schemas_seen)
             elif isinstance(reference, list):
                 for item in reference:
-                    resolve_recursive(item)
+                    resolve_recursive(item, schemas_seen=schemas_seen)
             return reference
 
         if has_reference(api_spec):
