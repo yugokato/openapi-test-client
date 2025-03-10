@@ -65,10 +65,10 @@ def unauthenticated_api_client() -> DemoAppAPIClient:
 @pytest.fixture(scope="session")
 def api_client() -> DemoAppAPIClient:
     client = DemoAppAPIClient()
-    r = client.AUTH.login(username="foo", password="bar")
+    r = client.Auth.login(username="foo", password="bar")
     assert r.ok
     yield client
-    client.AUTH.logout()
+    client.Auth.logout()
 
 
 @pytest.fixture

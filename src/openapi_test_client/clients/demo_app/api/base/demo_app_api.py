@@ -29,5 +29,5 @@ class DemoAppBaseAPI(APIBase):
     ):
         super().post_request_hook(endpoint, response, request_exception, *path_params, **params)
         if response and response.ok:
-            if endpoint in self.api_client.AUTH.endpoints:
+            if endpoint in self.api_client.Auth.endpoints:
                 manage_auth_session(self.api_client, endpoint, response)

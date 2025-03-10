@@ -191,17 +191,17 @@ def test_generate_api_client_code(temp_api_client: OpenAPIClient, mocker: Mocker
     # Initializa the client and check both API classes are accessible
     api_client = NewAPIClient()  # type: ignore
     assert api_client.app_name == temp_api_client.app_name
-    assert hasattr(api_client, "TEST_SOMETHING1")
-    assert hasattr(api_client, "TEST_SOMETHING2")
-    assert isinstance(api_client.TEST_SOMETHING1, NewAPIClass1)  # type: ignore
-    assert isinstance(api_client.TEST_SOMETHING2, NewAPIClass2)  # type: ignore
+    assert hasattr(api_client, "TestSomething1")
+    assert hasattr(api_client, "TestSomething2")
+    assert isinstance(api_client.TestSomething1, NewAPIClass1)  # type: ignore
+    assert isinstance(api_client.TestSomething2, NewAPIClass2)  # type: ignore
 
     # Make an API request using a mocked RestAPI client function call
     rest_client = api_client.rest_client
     mock = mocker.patch(
         f"{rest_client.__module__}.{type(rest_client).__name__}._{NewAPIClass1._unnamed_endpoint_1.method}"
     )
-    api_client.TEST_SOMETHING1._unnamed_endpoint_1()  # type: ignore
+    api_client.TestSomething1._unnamed_endpoint_1()  # type: ignore
     mock.assert_called_once()
 
 

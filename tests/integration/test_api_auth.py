@@ -7,11 +7,11 @@ from tests.integration import helper
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool):
     """Check basic client/server functionality of Auth login/logout APIs"""
-    r = unauthenticated_api_client.AUTH.login(username="foo", password="bar", validate=validation_mode)
+    r = unauthenticated_api_client.Auth.login(username="foo", password="bar", validate=validation_mode)
     assert r.ok
     assert set(r.response.keys()) == {"token"}
 
-    r = unauthenticated_api_client.AUTH.logout()
+    r = unauthenticated_api_client.Auth.logout()
     assert r.ok
     assert r.response["message"] == "logged out"
 
@@ -25,7 +25,7 @@ def test_user_login_with_invalid_params(unauthenticated_api_client: DemoAppAPICl
     - password: missing required parameter
     """
     helper.do_test_invalid_params(
-        endpoint_func=unauthenticated_api_client.AUTH.login,
+        endpoint_func=unauthenticated_api_client.Auth.login,
         validation_mode=validation_mode,
         invalid_params=dict(username=123),
         num_expected_errors=2,

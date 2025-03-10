@@ -31,7 +31,7 @@ def api_client() -> DemoAppAPIClient:
 def api_class_or_instance(request: FixtureRequest, api_client: DemoAppAPIClient) -> AuthAPI | type[AuthAPI]:
     """Parametrize fixture that returns the demo API client's AuthAPI class or an isntance of the class"""
     if request.param == "instance":
-        return api_client.AUTH
+        return api_client.Auth
     else:
         return AuthAPI
 

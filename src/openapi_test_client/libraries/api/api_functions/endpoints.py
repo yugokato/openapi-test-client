@@ -82,9 +82,9 @@ class Endpoint:
             >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
             >>>
             >>> client = DemoAppAPIClient()
-            >>> r = client.AUTH.login(username="foo", password="bar")
+            >>> r = client.Auth.login(username="foo", password="bar")
             >>> # Above API call can be also done directly from the endpoint object, if you need to:
-            >>> endpoint = client.AUTH.login.endpoint
+            >>> endpoint = client.Auth.login.endpoint
             >>> r2 = endpoint(client, username="foo", password="bar")
         """
         endpoint_func: EndpointFunc = getattr(self.api_class(api_client), self.func_name)
@@ -109,23 +109,23 @@ class endpoint:
         >>>         ...
         >>>
         >>> client = DemoAppAPIClient()
-        >>> type(client.AUTH.login)
+        >>> type(client.Auth.login)
         <class 'openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc'>
         >>> type(AuthAPI.login)
         <class 'openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc'>
-        >>> isinstance(client.AUTH.login, EndpointFunc) and isinstance(AuthAPI.login, EndpointFunc)
+        >>> isinstance(client.Auth.login, EndpointFunc) and isinstance(AuthAPI.login, EndpointFunc)
         True
-        >>> client.AUTH.login.endpoint
+        >>> client.Auth.login.endpoint
         Endpoint(tags=('Auth',), api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='http://127.0.0.1:5000/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> AuthAPI.login.endpoint
         Endpoint(tags=('Auth',), api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
-        >>> str(client.AUTH.login.endpoint)
+        >>> str(client.Auth.login.endpoint)
         'POST /v1/auth/login'
         >>> str(AuthAPI.login.endpoint)
         'POST /v1/auth/login'
-        >>> client.AUTH.login.endpoint.path
+        >>> client.Auth.login.endpoint.path
         '/v1/auth/login'
-        >>> client.AUTH.login.endpoint.url
+        >>> client.Auth.login.endpoint.url
         'http://127.0.0.1:5000/v1/auth/login'
 
     """  # noqa: E501
