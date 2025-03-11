@@ -143,7 +143,6 @@ class OpenAPISpec:
                             reference.clear()
                             reference.update(type="object")
                         else:
-                            schemas_seen.append(schema)
                             try:
                                 resolved_value = reduce(lambda d, k: d[k], ref_keys, api_spec)
                             except KeyError as e:
@@ -151,9 +150,10 @@ class OpenAPISpec:
                                     f"SKIPPED: Unable to resolve '$ref' for '{new_reference}' (KeyError: {e})"
                                 )
                             else:
+                                schemas_seen.append(schema)
                                 if has_reference(resolved_value):
                                     resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
-                                schemas_seen.remove(schema)
+                                schemas_seen.pop()
                                 if isinstance(resolved_value, dict):
                                     reference.update(resolved_value)
                                 else:
@@ -244,17 +244,18 @@ class OpenAPISpec:
 
     @staticmethod
     def _collect_endpoint_tags(resolved_api_spec: dict[str, Any]) -> list[str]:
-        tags = []
+        collected_tags = []
 
         def collect(obj):
             if isinstance(obj, dict):
-                if "tags" in obj:
-                    tags.extend(obj["tags"])
+                tags = obj.get("tags")
+                if tags and isinstance(tags, list) and all(isinstance(t, str) for t in tags):
+                    collected_tags.extend(tags)
                 else:
                     for k, v in obj.items():
                         collect(obj[k])
 
         collect(resolved_api_spec["paths"])
-        if not tags:
-            tags.append("default")
-        return list(set(tags))
+        if not collected_tags:
+            collected_tags.append("default")
+        return list(set(collected_tags))
