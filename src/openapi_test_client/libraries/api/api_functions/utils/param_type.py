@@ -19,6 +19,7 @@ from common_libs.logging import get_logger
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamAnnotationType, ParamDef
 from openapi_test_client.libraries.common.constants import BACKSLASH
+from openapi_test_client.libraries.common.misc import dedup
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,8 @@ def get_type_annotation_as_str(tp: Any) -> str:
     """
     if isinstance(tp, str):
         return repr(tp)
+    elif tp is Ellipsis:
+        return "..."
     elif get_origin(tp) is Annotated:
         orig_type = get_type_annotation_as_str(tp.__origin__)
         metadata_types = ", ".join(get_type_annotation_as_str(m) for m in tp.__metadata__)
@@ -68,7 +71,7 @@ def get_type_annotation_as_str(tp: Any) -> str:
             if v is not None
         )
         return f"{type(tp).__name__}({const})"
-    elif tp is NoneType:
+    elif tp in [NoneType, None]:
         return "None"
     else:
         if inspect.isclass(tp):
@@ -192,8 +195,8 @@ def resolve_type_annotation(
     return type_annotation
 
 
-def get_inner_type(tp: Any, return_if_container_type: bool = False) -> Any | list[Any]:
-    """Get the inner type (=actual type) from the type annotation
+def get_base_type(tp: Any, return_if_container_type: bool = False) -> Any | list[Any]:
+    """Get the base type from the type annotation
 
     eg:
         Optional[str] -> str
@@ -214,26 +217,26 @@ def get_inner_type(tp: Any, return_if_container_type: bool = False) -> Any | lis
 
         if is_union_type(tp):
             args_without_nonetype = [x for x in get_args(tp) if x is not NoneType]
-            return generate_union_type([get_inner_type(x) for x in args_without_nonetype])
+            return generate_union_type([get_base_type(x) for x in args_without_nonetype])
         elif origin_type is Annotated:
-            return get_inner_type(tp.__origin__)
+            return get_base_type(tp.__origin__)
         elif origin_type is list:
             if return_if_container_type:
                 return tp
             else:
-                return get_inner_type(get_args(tp)[0])
+                return get_base_type(get_args(tp)[0])
     return tp
 
 
-def replace_inner_type(tp: Any, new_type: Any, replace_container_type: bool = False) -> Any:
-    """Replace an inner type of in the type annotation to something else
+def replace_base_type(tp: Any, new_type: Any, replace_container_type: bool = False) -> Any:
+    """Replace the base type of the type annotation to something else
 
     :param tp: The original type annotation
-    :param new_type: A new type to replace the inner type with
-    :param replace_container_type: Treat container types like list and tuple as an inner type
+    :param new_type: A new type to replace the base type with
+    :param replace_container_type: Treat container types like list and tuple as an base type
 
     >>> tp = Optional[Annotated[int, "metadata"]]
-    >>> new_tp = replace_inner_type(tp, str)
+    >>> new_tp = replace_base_type(tp, str)
     >>> print(new_tp)
     typing.Optional[typing.Annotated[str, 'metadata']]
     """
@@ -242,16 +245,16 @@ def replace_inner_type(tp: Any, new_type: Any, replace_container_type: bool = Fa
         args = get_args(tp)
         if is_union_type(tp):
             if is_optional_type(tp):
-                return Optional[replace_inner_type(args[0], new_type)]  # noqa: UP007
+                return Optional[replace_base_type(args[0], new_type)]  # noqa: UP007
             else:
-                return replace_inner_type(args, new_type)
+                return replace_base_type(args, new_type)
         elif origin_type is Annotated:
-            return Annotated[replace_inner_type(tp.__origin__, new_type), *tp.__metadata__]
+            return Annotated[replace_base_type(tp.__origin__, new_type), *tp.__metadata__]
         elif origin_type in [list, tuple]:
             if replace_container_type:
                 return new_type
             else:
-                return origin_type[replace_inner_type(args, new_type)]
+                return origin_type[replace_base_type(args, new_type)]
         else:
             return new_type
     else:
@@ -358,16 +361,22 @@ def generate_optional_type(tp: Any) -> Any:
         return Union[tp, None]  # noqa: UP007
 
 
-def generate_annotated_type(tp: Any, metadata: Any):
-    """Add `Annotated` type to the type annotation with the metadata
+def generate_annotated_type(tp: Any, *metadata: Any):
+    """Add `Annotated` type to the type annotation with the metadata.
+
+    If the given type is already annotated, the specified metadata will be merged into the existing annotated type
 
     :param tp: Type annotation
+    :param metadata: Metadata to add to Annotated[]
     """
-    if is_optional_type(tp):
+    if get_origin(tp) is Annotated:
+        # merge metadata
+        return generate_annotated_type(get_args(tp)[0], *(dedup(*tp.__metadata__, *metadata)))
+    elif is_optional_type(tp):
         inner_type = get_args(tp)[0]
-        return Optional[Annotated[inner_type, metadata]]  # noqa: UP007
+        return Optional[generate_annotated_type(inner_type, *metadata)]  # noqa: UP007
     else:
-        return Annotated[tp, metadata]
+        return Annotated[tp, *metadata]
 
 
 def get_annotated_type(tp: Any) -> _AnnotatedAlias | None:
@@ -391,16 +400,6 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
 
     Note: This is still experimental
     """
-
-    def dedup(*args: Any) -> tuple[Any, ...]:
-        """Deduplicate items by retaining the order"""
-        seen = set()
-        deduped_args = []
-        for arg in args:
-            if arg not in seen:
-                deduped_args.append(arg)
-            seen.add(arg)
-        return tuple(deduped_args)
 
     def merge_args_per_origin(args: Sequence[Any]) -> tuple[Any, ...]:
         """Merge type annotations per its origiin type"""

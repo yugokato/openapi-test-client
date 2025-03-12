@@ -48,11 +48,11 @@ def has_param_model(annotated_type: Any) -> bool:
     :param annotated_type: Annotated type for a field to check whether it contains a param model or not
     """
 
-    inner_type = param_type_util.get_inner_type(annotated_type)
-    if param_type_util.is_union_type(inner_type):
-        return any(is_param_model(o) for o in get_args(inner_type))
+    base_type = param_type_util.get_base_type(annotated_type)
+    if param_type_util.is_union_type(base_type):
+        return any(is_param_model(o) for o in get_args(base_type))
     else:
-        return is_param_model(inner_type)
+        return is_param_model(base_type)
 
 
 def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None:
@@ -60,12 +60,12 @@ def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None
 
     :param annotated_type: Annotated type
     """
-    inner_type = param_type_util.get_inner_type(annotated_type)
-    if has_param_model(inner_type):
-        if param_type_util.is_union_type(inner_type):
-            return [x for x in get_args(inner_type) if has_param_model(x)]
+    base_type = param_type_util.get_base_type(annotated_type)
+    if has_param_model(base_type):
+        if param_type_util.is_union_type(base_type):
+            return [x for x in get_args(base_type) if has_param_model(x)]
         else:
-            return inner_type
+            return base_type
 
 
 @lru_cache

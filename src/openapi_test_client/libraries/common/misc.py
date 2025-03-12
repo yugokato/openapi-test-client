@@ -115,3 +115,17 @@ def reload_all_modules(root_dir: Path):
             reload(file_or_dir)
 
     reload_recursively(root_dir)
+
+
+def dedup(*objects: Any) -> tuple[Any, ...]:
+    """Deduplicate objects by retaining the order
+
+    :param objects: Objects to perform deduplication with
+    """
+    seen = set()
+    deduped = []
+    for obj in objects:
+        if obj not in seen:
+            deduped.append(obj)
+            seen.add(obj)
+    return tuple(deduped)

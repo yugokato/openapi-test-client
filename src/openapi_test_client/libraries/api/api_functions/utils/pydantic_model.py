@@ -93,7 +93,7 @@ def generate_pydantic_model_fields(
             pydantic_model_type = param_type_util.generate_union_type(models)
         else:
             pydantic_model_type = param_model.to_pydantic()
-        field_type = param_type_util.replace_inner_type(field_type, pydantic_model_type)
+        field_type = param_type_util.replace_base_type(field_type, pydantic_model_type)
 
     # Adjust field type and value
     if param_type_util.is_optional_type(field_type):
@@ -148,9 +148,9 @@ def generate_pydantic_model_fields(
         if is_query_param or (
             issubclass(original_model, EndpointModel) and original_model.endpoint_func.method.upper() == "GET"
         ):
-            inner_type = param_type_util.get_inner_type(field_type)
-            if get_origin(inner_type) is not list:
-                field_type = param_type_util.replace_inner_type(field_type, inner_type | list[inner_type])
+            base_type = param_type_util.get_base_type(field_type)
+            if get_origin(base_type) is not list:
+                field_type = param_type_util.replace_base_type(field_type, base_type | list[base_type])
 
     return (field_type, field_value)
 
@@ -175,6 +175,6 @@ def convert_type_from_param_format(field_type: Any, format: str) -> Any:
     :param format: OpenAPI parameter format
     """
     if pydantic_type := PARAM_FORMAT_AND_TYPE_MAP.get(format):
-        return param_type_util.replace_inner_type(field_type, pydantic_type)
+        return param_type_util.replace_base_type(field_type, pydantic_type)
     else:
         return field_type
