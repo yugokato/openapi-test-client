@@ -6,6 +6,7 @@ from types import NoneType, UnionType
 from typing import (
     Annotated,
     Any,
+    ForwardRef,
     Literal,
     Optional,
     Union,
@@ -40,6 +41,8 @@ def get_type_annotation_as_str(tp: Any) -> str:
         return repr(tp)
     elif tp is Ellipsis:
         return "..."
+    elif isinstance(tp, ForwardRef):
+        return tp.__forward_arg__
     elif get_origin(tp) is Annotated:
         orig_type = get_type_annotation_as_str(tp.__origin__)
         metadata_types = ", ".join(get_type_annotation_as_str(m) for m in tp.__metadata__)
@@ -94,7 +97,7 @@ def resolve_type_annotation(
     :param _is_array: Indicates that this parameter is a list type
     """
 
-    def resolve(param_type: str, param_format: str | None = None):
+    def resolve(param_type: str, param_format: str | None = None) -> Any:
         """Resolve type annotation
 
         NOTE: Some OpenAPI spec use a wrong param type value (eg. string v.s. str).
@@ -138,10 +141,14 @@ def resolve_type_annotation(
                 # Looks like param type for a list item is not always documented properly
                 return list[Any]
         elif param_type == "object":
-            if "properties" in param_def:
+            if "properties" in param_def or param_def.get("__circular_ref__"):
                 # Param model
                 model_name = param_model_util.generate_model_name(param_name, list if _is_array else Any)
-                return param_model_util.create_model_from_param_def(model_name, param_def)
+                if "properties" in param_def:
+                    return param_model_util.create_model_from_param_def(model_name, param_def)
+                else:
+                    # This will be internally treated as a ForwardRef type. It will be resolved later
+                    return model_name
             else:
                 return dict[str, Any]
         else:
@@ -163,7 +170,7 @@ def resolve_type_annotation(
         elif isinstance(param_def, ParamDef.UnknownType):
             logger.warning(
                 f"Unable to locate a parameter type for parameter '{param_name}'. Type '{Any}' will be applied.\n"
-                f"Failed parameter object: {param_def.param_obj}"
+                f"Unknown parameter object: {param_def.param_obj}"
             )
             type_annotation = Any
         else:

@@ -84,7 +84,7 @@ class ParamDef(HashableDict):
 
     @property
     def is_deprecated(self) -> bool:
-        return self.get("deprecated", False)
+        return self.get("deprecated") is True
 
     @property
     def is_array(self) -> bool:
@@ -102,7 +102,7 @@ class ParamDef(HashableDict):
 
         @property
         def is_deprecated(self) -> bool:
-            return self.get("deprecated", False)
+            return self.get("deprecated") is True
 
     class ParamGroup(tuple):
         @property

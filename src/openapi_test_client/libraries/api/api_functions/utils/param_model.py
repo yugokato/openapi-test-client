@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
 from types import MappingProxyType, NoneType, UnionType
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Union, cast, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional, Union, cast, get_args, get_origin
 
 import inflect
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
@@ -36,10 +36,14 @@ logger = get_logger(__name__)
 
 
 def is_param_model(annotated_type: Any) -> bool:
-    """Check if the givin annotated type is a custom parammodel
+    """Check if the givin annotated type is a custom param model
+
     :param annotated_type: Annotated type to check whether it is a param model or not
+    :param allow_forward_ref: Consider ForwardRef obj as a param model
     """
-    return inspect.isclass(annotated_type) and issubclass(annotated_type, ParamModel)
+    return (inspect.isclass(annotated_type) and issubclass(annotated_type, ParamModel)) or isinstance(
+        annotated_type, ForwardRef
+    )
 
 
 def has_param_model(annotated_type: Any) -> bool:
@@ -55,7 +59,7 @@ def has_param_model(annotated_type: Any) -> bool:
         return is_param_model(base_type)
 
 
-def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None:
+def get_param_model(annotated_type: Any) -> type[ParamModel] | ForwardRef | list[type[ParamModel] | ForwardRef] | None:
     """Returns a param model from the annotated type, if there is any
 
     :param annotated_type: Annotated type
@@ -63,7 +67,7 @@ def get_param_model(annotated_type: Any) -> ParamModel | list[ParamModel] | None
     base_type = param_type_util.get_base_type(annotated_type)
     if has_param_model(base_type):
         if param_type_util.is_union_type(base_type):
-            return [x for x in get_args(base_type) if has_param_model(x)]
+            return [get_param_model(x) for x in get_args(base_type) if has_param_model(x)]
         else:
             return base_type
 
@@ -337,7 +341,7 @@ def alias_illegal_model_field_names(model_fields: list[DataclassModelField]):
                 #
                 if not isinstance(param_models, list):
                     param_models = [param_models]
-                if any(name == m.__name__ for m in param_models):
+                if any(name == (m.__forward_arg__ if isinstance(m, ForwardRef) else m.__name__) for m in param_models):
                     # This meets the above issue conditions
                     name += "_"
             return name
