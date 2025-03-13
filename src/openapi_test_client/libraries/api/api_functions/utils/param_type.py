@@ -268,8 +268,8 @@ def replace_base_type(tp: Any, new_type: Any, replace_container_type: bool = Fal
         return new_type
 
 
-def is_type_of(tp: str | Any, type_to_check: Any) -> bool:
-    """Check if the given param type is same as the specified type to check
+def is_type_of(param_type: str | Any, type_to_check: Any) -> bool:
+    """Check if the specified type falls into the given parameter type
 
     eg. This will return True:
         - param_type=Annotated[list[Any]]
@@ -278,29 +278,29 @@ def is_type_of(tp: str | Any, type_to_check: Any) -> bool:
     :param tp: OpenAPI parameter type or python type annotation
     :param type_to_check: Python type
     """
-    if isinstance(tp, str):
+    if isinstance(param_type, str):
         # OpenAPI param type
         if type_to_check is list:
-            return tp in LIST_PARAM_TYPES
+            return param_type in LIST_PARAM_TYPES
         elif type_to_check is str:
-            return tp in STR_PARAM_TYPES
+            return param_type in STR_PARAM_TYPES
         elif type_to_check is bool:
-            return tp in BOOL_PARAM_TYPES
+            return param_type in BOOL_PARAM_TYPES
         elif type_to_check is int:
-            return tp in LIST_PARAM_TYPES
+            return param_type in INT_PARAM_TYPES
         elif type_to_check is None:
-            return tp in NULL_PARAM_TYPES
+            return param_type in NULL_PARAM_TYPES
         else:
             # Add if needed
             raise NotImplementedError
-    elif origin_type := get_origin(tp):
+    elif origin_type := get_origin(param_type):
         if origin_type is type_to_check:
             return True
         elif origin_type is Annotated:
-            return is_type_of(tp.__origin__, type_to_check)
-        elif is_union_type(tp):
-            return any([is_type_of(x, type_to_check) for x in get_args(tp)])
-    return tp is type_to_check
+            return is_type_of(param_type.__origin__, type_to_check)
+        elif is_union_type(param_type):
+            return any([is_type_of(x, type_to_check) for x in get_args(param_type)])
+    return param_type is type_to_check
 
 
 def is_optional_type(tp: Any) -> bool:
@@ -428,16 +428,18 @@ def modify_annotated_metadata(annotated_tp: Any, *metadata, action: Literal["add
 def get_annotated_type(tp: Any) -> _AnnotatedAlias | tuple[_AnnotatedAlias] | None:
     """Get annotated type definition(s)
 
+    NOTE: If the type annotation is a union of multiple Annotated[] types, all annotated types will be returned
+
     :param tp: Type annotation
     """
     if is_union_type(tp):
         annotated_types = tuple(filter(None, [get_annotated_type(arg) for arg in get_args(tp)]))
-        if not annotated_types:
-            return None
-        elif len(annotated_types) == 1:
-            return annotated_types[0]
-        else:
-            return annotated_types
+        if annotated_types:
+            if len(annotated_types) == 1:
+                return annotated_types[0]
+            else:
+                return annotated_types
+        return None
     else:
         if get_origin(tp) is Annotated:
             return tp
