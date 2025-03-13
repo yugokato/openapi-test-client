@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin
+from typing import TYPE_CHECKING, Any, get_args
 
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
 from common_libs.logging import get_logger
@@ -171,15 +171,17 @@ def generate_rest_func_params(
         else:
             if field_obj := dataclass_fields.get(param_name):
                 # Check Annotated metadata
-                if param_type_util.is_optional_type(field_obj.type):
-                    # If Optional[Annotated[]], Annotated is the first arg
-                    field_type = get_args(field_obj.type)[0]
-                else:
-                    field_type = field_obj.type
+                if annotated_type := param_type_util.get_annotated_type(field_obj.type):
+                    if isinstance(annotated_type, list | tuple):
+                        # Select the first annotaed type where the type of the given param value matches
+                        annotated_type = [
+                            x
+                            for x in annotated_type
+                            if param_type_util.is_type_of(get_args(annotated_type)[0], type(param_value))
+                        ] or annotated_type[0]
 
-                if get_origin(field_type) is Annotated:
                     # Process alias name and query parameter
-                    metadata = field_type.__metadata__
+                    metadata = annotated_type.__metadata__
                     if alias_param := [x for x in metadata if isinstance(x, Alias)]:
                         assert len(alias_param) == 1
                         # Resolve the actual param name

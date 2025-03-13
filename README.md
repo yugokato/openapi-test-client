@@ -805,7 +805,7 @@ Here are some comparisons between regular models and pydantic models:
                 ],
                 "msg": "Input should be a valid string",
                 "input": 123,
-                "url": "https://errors.pydantic.dev/2.6/v/string_type"
+                "url": "https://errors.pydantic.dev/2.9/v/string_type"
             },
             {
                 "type": "missing",
@@ -824,19 +824,19 @@ Here are some comparisons between regular models and pydantic models:
                     },
                     "extra": 123
                 },
-                "url": "https://errors.pydantic.dev/2.6/v/missing"
+                "url": "https://errors.pydantic.dev/2.9/v/missing"
             },
             {
                 "type": "value_error",
                 "loc": [
                     "email"
                 ],
-                "msg": "value is not a valid email address: The email address is not valid. It must have exactly one @-sign.",
+                "msg": "value is not a valid email address: An email address must have an @-sign.",
                 "input": "foo",
                 "ctx": {
-                    "reason": "The email address is not valid. It must have exactly one @-sign."
+                    "reason": "An email address must have an @-sign."
                 },
-                "url": "https://errors.pydantic.dev/2.6/v/value_error"
+                "url": "https://errors.pydantic.dev/2.9/v/value_error"
             },
             {
                 "type": "enum",
@@ -848,7 +848,7 @@ Here are some comparisons between regular models and pydantic models:
                 "ctx": {
                     "expected": "'admin', 'viewer' or 'support'"
                 },
-                "url": "https://errors.pydantic.dev/2.6/v/enum"
+                "url": "https://errors.pydantic.dev/2.9/v/enum"
             },
             {
                 "type": "url_parsing",
@@ -862,7 +862,7 @@ Here are some comparisons between regular models and pydantic models:
                 "ctx": {
                     "error": "relative URL without a base"
                 },
-                "url": "https://errors.pydantic.dev/2.6/v/url_parsing"
+                "url": "https://errors.pydantic.dev/2.9/v/url_parsing"
             }
         ],
         "request_id": "91b4ac05-1280-473b-ac41-0be30903c448"
@@ -871,18 +871,20 @@ Here are some comparisons between regular models and pydantic models:
 - response_time: 0.010107s
 ```
 
+<br>
+
 - Pydantic model (Validation will be done on the client-side)
 ```pycon
 >>> # Model definition
 >>> pydantic_model = client.Users.create_user.endpoint.model.to_pydantic()
 >>> print(pydantic_model)
-<class 'types.UsersAPICreateUserEndpointModel'>
+<class 'types.UsersAPICreateUserEndpointModelPydantic'>
 >>> pprint(pydantic_model.model_fields, sort_dicts=False)
-{'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, pattern=None, exclusive_minimum=None, exclusive_maximum=None)]),
- 'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255), Constraint(min=None, max=None, multiple_of=None, min_len=1, max_len=255, nullable=None, pattern=None, exclusive_minimum=None, exclusive_maximum=None)]),
+{'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255)]),
+ 'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255)]),
  'email': FieldInfo(annotation=EmailStr, required=True, metadata=[Format(value='email')]),
  'role': FieldInfo(annotation=Literal['admin', 'viewer', 'support'], required=True),
- 'metadata': FieldInfo(annotation=Union[Metadata, NoneType], required=False, default=None)}
+ 'metadata': FieldInfo(annotation=Union[MetadataPydantic, NoneType], required=False, default=None)}
 >>>
 >>> # Make an API request with the same invalid parmeter values, but with validate=True option
 >>> r = client.Users.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123, validate=True)
@@ -893,24 +895,24 @@ Traceback (most recent call last):
     <snip>
     raise ValueError(
 ValueError: Request parameter validation failed.
-6 validation errors for UsersAPICreateUserEndpointModel
+6 validation errors for UsersAPICreateUserEndpointModelPydantic
 first_name
   Input should be a valid string [type=string_type, input_value=123, input_type=int]
-    For further information visit https://errors.pydantic.dev/2.6/v/string_type
+    For further information visit https://errors.pydantic.dev/2.9/v/string_type
 last_name
   Field required [type=missing, input_value={'first_name': 123, 'emai... 'test'}}, 'extra': 123}, input_type=dict]
-    For further information visit https://errors.pydantic.dev/2.6/v/missing
+    For further information visit https://errors.pydantic.dev/2.9/v/missing
 email
-  value is not a valid email address: The email address is not valid. It must have exactly one @-sign. [type=value_error, input_value='foo', input_type=str]
+  value is not a valid email address: An email address must have an @-sign. [type=value_error, input_value='foo', input_type=str]
 role
   Input should be 'admin', 'viewer' or 'support' [type=literal_error, input_value='something', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.6/v/literal_error
+    For further information visit https://errors.pydantic.dev/2.9/v/literal_error
 metadata.social_links.facebook
   Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='test', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.6/v/url_parsing
+    For further information visit https://errors.pydantic.dev/2.9/v/url_parsing
 extra
   Extra inputs are not permitted [type=extra_forbidden, input_value=123, input_type=int]
-    For further information visit https://errors.pydantic.dev/2.6/v/extra_forbidden
+    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
 ```
 
 > [!TIP]

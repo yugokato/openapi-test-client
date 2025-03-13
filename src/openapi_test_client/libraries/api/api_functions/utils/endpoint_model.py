@@ -158,7 +158,7 @@ def _parse_parameter_objects(
             elif param_location == "query":
                 if method.upper() != "GET":
                     # Annotate query params for non GET endpoints
-                    param_type_annotation = param_type_util.generate_annotated_type(param_type_annotation, "query")
+                    param_type_annotation = param_type_util.annotate_type(param_type_annotation, "query")
 
                 if "schema" in param_obj:
                     # defined as model. We unpack the model details

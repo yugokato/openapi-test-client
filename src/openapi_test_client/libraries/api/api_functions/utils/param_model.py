@@ -353,7 +353,7 @@ def alias_illegal_model_field_names(model_fields: list[DataclassModelField]):
                     logger.warning(f"Converted parameter name '{model_field.name}' to '{alias_name}'")
                 new_fields = (
                     alias_name,
-                    param_type_util.generate_annotated_type(model_field.type, Alias(model_field.name)),
+                    param_type_util.annotate_type(model_field.type, Alias(model_field.name)),
                     model_field.default,
                 )
                 model_fields[i] = DataclassModelField(*new_fields)

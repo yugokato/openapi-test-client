@@ -35,6 +35,7 @@ def test_api_endpoint_function(subtests: SubTests, api_class_or_instance: AuthAP
         endpoint_model = endpoint_obj.model
         assert issubclass(endpoint_model, EndpointModel)
         assert endpoint_model.__name__ == expected_model_name
+
         pydantic_model = endpoint_model.to_pydantic()
         assert issubclass(pydantic_model, PydanticModel)
-        assert pydantic_model.__name__ == expected_model_name
+        assert pydantic_model.__name__ == expected_model_name + "Pydantic"

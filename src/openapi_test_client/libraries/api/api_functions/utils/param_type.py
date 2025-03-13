@@ -105,14 +105,14 @@ def resolve_type_annotation(
         """
         if param_type in STR_PARAM_TYPES:
             if param_format:
-                return generate_annotated_type(str, Format(param_format))
+                return annotate_type(str, Format(param_format))
             else:
                 return str
         elif param_type in INT_PARAM_TYPES:
             if param_type == "number" and param_format == "float":
                 return float
             elif param_format:
-                return generate_annotated_type(int, Format(param_format))
+                return annotate_type(int, Format(param_format))
             else:
                 return int
         elif param_type in BOOL_PARAM_TYPES:
@@ -178,9 +178,9 @@ def resolve_type_annotation(
 
         # Add metadata
         if param_def.is_deprecated:
-            type_annotation = generate_annotated_type(type_annotation, "deprecated")
+            type_annotation = annotate_type(type_annotation, "deprecated")
         if isinstance(param_def, ParamDef) and any(filter(None, list(asdict(param_def.constraint).values()))):
-            type_annotation = generate_annotated_type(type_annotation, param_def.constraint)
+            type_annotation = annotate_type(type_annotation, param_def.constraint)
 
         if (
             _is_required is not True
@@ -334,13 +334,13 @@ def is_deprecated_param(tp: Any) -> bool:
 
     :param tp: Type annotation
     """
-    if is_optional_type(tp):
+    if is_union_type(tp):
         return any(is_deprecated_param(x) for x in get_args(tp))
     else:
         return get_origin(tp) is Annotated and "deprecated" in tp.__metadata__
 
 
-def generate_union_type(type_annotations: Sequence[Any]) -> UnionType:
+def generate_union_type(type_annotations: Sequence[Any]) -> Any:
     """Convert multiple annotations to a Union type
 
     :param type_annotations: type annotations
@@ -368,32 +368,76 @@ def generate_optional_type(tp: Any) -> Any:
         return Union[tp, None]  # noqa: UP007
 
 
-def generate_annotated_type(tp: Any, *metadata: Any):
-    """Add `Annotated` type to the type annotation with the metadata.
-
-    If the given type is already annotated, the specified metadata will be merged into the existing annotated type
+def annotate_type(tp: Any, *metadata: Any) -> Any:
+    """Annotate the provided type with `Annotated[]` with the metadata. If the provided type is already annotated,
+    we will just add metadata to it.
 
     :param tp: Type annotation
     :param metadata: Metadata to add to Annotated[]
     """
+    if get_annotated_type(tp):
+        return modify_annotated_metadata(tp, *metadata, action="add")
+
     if get_origin(tp) is Annotated:
-        # merge metadata
-        return generate_annotated_type(get_args(tp)[0], *(dedup(*tp.__metadata__, *metadata)))
+        return modify_annotated_metadata(tp, *metadata, action="add")
     elif is_optional_type(tp):
-        inner_type = get_args(tp)[0]
-        return Optional[generate_annotated_type(inner_type, *metadata)]  # noqa: UP007
+        inner_type = generate_union_type([x for x in get_args(tp) if x is not NoneType])
+        return Optional[annotate_type(inner_type, *metadata)]  # noqa: UP007
     else:
         return Annotated[tp, *metadata]
 
 
-def get_annotated_type(tp: Any) -> _AnnotatedAlias | None:
-    """Get annotated type definition
+def modify_annotated_metadata(annotated_tp: Any, *metadata, action: Literal["add", "replace", "remove"]) -> Any:
+    """Modify metadata in the annotated type. If the given type is a union of multiple Annotated types, the same
+    action will be performed on both.
+
+    :param annotated_tp: Annotated type annotation
+    :param metadata: Metadata to add or replace
+    :param action:
+        - add: Add new metadata to the existing ones
+        - remove: Remove given metadata from the existing ones
+        - replace: Replace existing metadata with new ones
+    """
+    if not is_type_of(annotated_tp, Annotated):
+        raise ValueError(f"'{annotated_tp}' is not a valid annotated type with Annotated[]")
+    if not metadata:
+        raise ValueError("At least one metadata must be provided")
+    if action not in ["add", "replace", "remove"]:
+        raise ValueError(f"Invalid action: {action}")
+
+    def modify_metadata(tp: Any):
+        if get_origin(tp) is Annotated:
+            if action == "add":
+                new_metadata = dedup(*tp.__metadata__, *metadata)
+            elif action == "remove":
+                new_metadata = (x for x in tp.__metadata__ if x not in metadata)
+            else:
+                new_metadata = dedup(*metadata)
+            if not new_metadata:
+                raise ValueError("At least one metadata must exist after the action is performed")
+            return Annotated[get_args(tp)[0], *new_metadata]
+        else:
+            if is_union_type(tp):
+                return generate_union_type([modify_metadata(arg) for arg in get_args(tp)])
+            else:
+                return tp
+
+    return modify_metadata(annotated_tp)
+
+
+def get_annotated_type(tp: Any) -> _AnnotatedAlias | tuple[_AnnotatedAlias] | None:
+    """Get annotated type definition(s)
 
     :param tp: Type annotation
     """
-    if is_optional_type(tp):
-        inner_type = get_args(tp)[0]
-        return get_annotated_type(inner_type)
+    if is_union_type(tp):
+        annotated_types = tuple(filter(None, [get_annotated_type(arg) for arg in get_args(tp)]))
+        if not annotated_types:
+            return None
+        elif len(annotated_types) == 1:
+            return annotated_types[0]
+        else:
+            return annotated_types
     else:
         if get_origin(tp) is Annotated:
             return tp
@@ -441,7 +485,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
                 if (
                     annotation_types1
                     and annotation_types1
-                    and ([asdict(x) for x in annotation_types1] == [asdict(y) for y in annotation_types2])
+                    and (sorted(repr(x) for x in annotation_types1) == sorted(repr(y) for y in annotation_types2))
                 ) or not (annotation_types1 or annotation_types2):
                     combined_type = merge_annotation_types(get_args(tp1)[0], get_args(tp2)[0])
                     combined_metadata = dedup(*tp1.__metadata__, *tp2.__metadata__)
@@ -463,6 +507,13 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
                 return list[generate_union_type(merge_args_per_origin(combined_args))]
             elif origin in [Union, UnionType]:
                 return Union[*merge_args_per_origin(combined_args)]
+
+        # TODO: Needs improvements to cover more cases
+        if is_optional_type(tp1):
+            return generate_union_type([merge_annotation_types(get_args(tp1)[0], tp2), NoneType])
+        elif is_optional_type(tp2):
+            return generate_union_type([merge_annotation_types(tp1, get_args(tp2)[0]), NoneType])
+
     return generate_union_type((tp1, tp2))
 
 
