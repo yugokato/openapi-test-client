@@ -121,9 +121,9 @@ def generate_func_signature_in_str(model: type[EndpointModel]) -> str:
         signatures.append("/")
 
     if any("kwargs:" in s for s in signatures):
-        signatures.append("**kwargs_")
+        signatures.append("**kwargs_: Any")
     else:
-        signatures.append("**kwargs")
+        signatures.append("**kwargs: Any")
     return ", ".join(signatures)
 
 

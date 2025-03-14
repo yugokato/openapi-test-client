@@ -235,7 +235,7 @@ By default, each auto-generated API function will look like a stub function with
 ```python
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = Unset, password: str = Unset, **kwargs) -> RestResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
     """Login"""
     ...
 ```
@@ -278,7 +278,7 @@ def my_decorator(f):
 @my_decorator
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = Unset, password: str = Unset, **kwargs) -> RestResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
     """Login"""
     ...
 ```
@@ -416,13 +416,13 @@ class AuthAPI(DemoAppBaseAPI):
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")
-    def login(self, *, username: str = Unset, password: str = Unset, **kwargs) -> RestResponse:
+    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
         """Login"""
         ...
 
     @endpoint.is_public
     @endpoint.get("/v1/auth/logout")
-    def logout(self, **kwargs) -> RestResponse:
+    def logout(self, **kwargs: Any) -> RestResponse:
         """Logout"""
         ...
 
@@ -632,7 +632,7 @@ class UsersAPI(DemoAppBaseAPI):
         email: Annotated[str, Format("email")] = Unset,
         role: Literal["admin", "viewer", "support"] = Unset,
         metadata: Optional[Metadata] = Unset,
-        **kwargs,
+        **kwargs: Any,
     ) -> RestResponse:
         """Create a new user"""
         ...

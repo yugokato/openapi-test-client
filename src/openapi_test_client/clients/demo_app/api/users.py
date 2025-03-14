@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from common_libs.clients.rest_client import RestResponse
 
@@ -21,13 +21,13 @@ class UsersAPI(DemoAppBaseAPI):
         email: Annotated[str, Format("email")] = Unset,
         role: Literal["admin", "viewer", "support"] = Unset,
         metadata: Optional[Metadata] = Unset,
-        **kwargs,
+        **kwargs: Any,
     ) -> RestResponse:
         """Create a new user"""
         ...
 
     @endpoint.get("/v1/users/{user_id}")
-    def get_user(self, user_id: int, /, **kwargs) -> RestResponse:
+    def get_user(self, user_id: int, /, **kwargs: Any) -> RestResponse:
         """Get user"""
         ...
 
@@ -38,18 +38,18 @@ class UsersAPI(DemoAppBaseAPI):
         id: Optional[int] = Unset,
         email: Optional[Annotated[str, Format("email")]] = Unset,
         role: Optional[Literal["admin", "viewer", "support"]] = Unset,
-        **kwargs,
+        **kwargs: Any,
     ) -> RestResponse:
         """Get users"""
         ...
 
     @endpoint.content_type("multipart/form-data")
     @endpoint.post("/v1/users/images")
-    def upload_image(self, *, file: File = Unset, description: Optional[str] = Unset, **kwargs) -> RestResponse:
+    def upload_image(self, *, file: File = Unset, description: Optional[str] = Unset, **kwargs: Any) -> RestResponse:
         """Upload user image"""
         ...
 
     @endpoint.delete("/v1/users/{user_id}")
-    def delete_user(self, user_id: int, /, **kwargs) -> RestResponse:
+    def delete_user(self, user_id: int, /, **kwargs: Any) -> RestResponse:
         """Delete user"""
         ...

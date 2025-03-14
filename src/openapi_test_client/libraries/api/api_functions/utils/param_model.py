@@ -153,7 +153,7 @@ def generate_imports_code_from_model(
     :param model: A dataclass obj
     :param exclude_nested_models: Skip imports for nested models (to avoid define imports for models in the same file)
     """
-    imports_code = ""
+    imports_code = "from typing import Any\n"
     module_and_name_pairs = set()
     primitive_types = [int, float, str, bool]
     from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME
