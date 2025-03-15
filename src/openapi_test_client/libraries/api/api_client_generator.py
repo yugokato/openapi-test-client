@@ -610,7 +610,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     api_client_code = (
         f"class {api_client_class_name}({OpenAPIClient.__name__}):\n"
         f'{TAB}"""API client for {app_name}"""\n\n'
-        f'{TAB}def __init__(self, env: str = "dev"):\n'
+        f'{TAB}def __init__(self, env: str = "dev") -> None:\n'
         f'{TAB}{TAB}super().__init__("{app_name}", env=env, doc="{temp_api_client.api_spec.doc_path}")\n\n'
     )
 
@@ -623,7 +623,9 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
         imports_code += f"from .{API_CLASS_DIR_NAME}.{Path(mod.__file__).stem} import {api_class.__name__}\n"
         property_name = api_class.__name__.removesuffix("API")
         api_client_code += (
-            f"{TAB}@cached_property\n{TAB}def {property_name}(self):\n{TAB}{TAB}return {api_class.__name__}(self)\n\n"
+            f"{TAB}@cached_property\n"
+            f"{TAB}def {property_name}(self) -> {api_class.__name__}:\n"
+            f"{TAB}{TAB}return {api_class.__name__}(self)\n\n"
         )
 
     code = format_code(imports_code + api_client_code)

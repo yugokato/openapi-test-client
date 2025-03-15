@@ -326,15 +326,15 @@ from .api.users import UsersAPI
 class DemoAppAPIClient(OpenAPIClient):
     """API client for demo_app"""
 
-    def __init__(self, env: str = "dev"):
+    def __init__(self, env: str = "dev") -> None:
         super().__init__("demo_app", env=env, doc="openapi.json")
 
     @cached_property
-    def Auth(self):
+    def Auth(self) -> AuthAPI:
         return AuthAPI(self)
 
     @cached_property
-    def Users(self):
+    def Users(self) -> UsersAPI:
         return UsersAPI(self)
 ```
 

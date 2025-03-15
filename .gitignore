@@ -162,7 +162,8 @@ cython_debug/
 .DS_Store
 
 # terminalizer
-images/*.yml
+images/*
+!images/*.gif
 
 # Unofficial tests
 tests/_*/**
