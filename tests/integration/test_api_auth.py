@@ -5,7 +5,7 @@ from tests.integration import helper
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool):
+def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of Auth login/logout APIs"""
     r = unauthenticated_api_client.Auth.login(username="foo", password="bar", validate=validation_mode)
     assert r.ok
@@ -17,7 +17,7 @@ def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validat
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_user_login_with_invalid_params(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool):
+def test_user_login_with_invalid_params(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check validation for login API
 
     The request payload contains the following 2 errors

@@ -8,7 +8,7 @@ from tests.integration import helper
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of create user API"""
     r = api_client.Users.create_user(
         first_name="test",
@@ -26,7 +26,7 @@ def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool):
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_get_user(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_get_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of get user API"""
     user_id = 5
     r = api_client.Users.get_user(user_id, validate=validation_mode)
@@ -35,7 +35,7 @@ def test_get_user(api_client: DemoAppAPIClient, validation_mode: bool):
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_get_users(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_get_users(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of get users API"""
     role = "support"
     r = api_client.Users.get_users(role=role, validate=validation_mode)
@@ -44,7 +44,7 @@ def test_get_users(api_client: DemoAppAPIClient, validation_mode: bool):
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of upload user image API"""
     image_data = (
         # https://evanhahn.com/worlds-smallest-png/
@@ -59,7 +59,7 @@ def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool):
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_delete_user(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_delete_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of delete user API"""
     user_id = 1 + bool(validation_mode)
     r = api_client.Users.delete_user(user_id, validate=validation_mode)
@@ -68,7 +68,7 @@ def test_delete_user(api_client: DemoAppAPIClient, validation_mode: bool):
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_create_user_with_invalid_params(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_create_user_with_invalid_params(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check validation for create user API
 
     The request contains the following 7 errors
@@ -98,7 +98,7 @@ def test_create_user_with_invalid_params(api_client: DemoAppAPIClient, validatio
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_get_users_with_invalid_params(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_get_users_with_invalid_params(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check validation for get users API
 
     The request contains the following 2 errors
@@ -116,7 +116,7 @@ def test_get_users_with_invalid_params(api_client: DemoAppAPIClient, validation_
 @pytest.mark.parametrize(
     "validation_mode", [pytest.param(False, marks=pytest.mark.skip(reason="Not applicable")), True]
 )
-def test_upload_image_with_invalid_params(api_client: DemoAppAPIClient, validation_mode: bool):
+def test_upload_image_with_invalid_params(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check validation for upload user image API
 
     The request contains the following error

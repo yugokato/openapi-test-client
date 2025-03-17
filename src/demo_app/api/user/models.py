@@ -30,7 +30,7 @@ class SocialLinks(BaseModel):
 
 
 class Preferences(BaseModel):
-    theme: UserTheme | None = UserTheme.LIGHT_MODE.value
+    theme: UserTheme | None = UserTheme.LIGHT_MODE
     language: str | None = None
     font_size: int | None = Field(None, ge=8, le=40, multiple_of=2)
 

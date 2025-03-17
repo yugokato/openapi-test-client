@@ -29,7 +29,7 @@ def test_generate_client(
     random_app_name: str,
     dry_run: bool,
     external_dir: Path | None,
-):
+) -> None:
     """Check that a new API client can be generated with the "generate" command.
 
     This test covers the following two different use cases for the location of the generated client modules
@@ -85,7 +85,7 @@ def test_generate_client(
     ],
 )
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: str | None):
+def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: str | None) -> None:
     """Check that API client can be updated with various options.
 
     NOTE: temp_app_client is a temporary client generated for this test against the demo_app app.
@@ -141,7 +141,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
         args += " -d"
     _, stderr = helper.run_command(args)
     if stderr:
-        print(stderr)
+        print(stderr)  # noqa: T201
     assert not stderr
 
     if dry_run or (option and option.startswith(("-i ", "--ignore "))):
@@ -158,7 +158,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
         assert users_model_file.read_text() == original_model_code
 
 
-def test_demo_app_api_client_is_up_to_date(unauthenticated_api_client: DemoAppAPIClient):
+def test_demo_app_api_client_is_up_to_date(unauthenticated_api_client: DemoAppAPIClient) -> None:
     """Check that DemoAppAPIClient code is up-to-date"""
     api_spec = unauthenticated_api_client.api_spec.get_api_spec()
     update_required = []

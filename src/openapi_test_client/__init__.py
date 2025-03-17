@@ -28,7 +28,7 @@ def is_external_project() -> bool:
     return bool(os.environ.get(ENV_VAR_PACKAGE_DIR, "") or not Path.cwd().is_relative_to(_PROJECT_ROOT_DIR))
 
 
-def find_external_package_dir(current_dir: Path | None = None, missing_ok: bool = False) -> Path:
+def find_external_package_dir(current_dir: Path | None = None, missing_ok: bool = False) -> Path | None:
     """Find an external package directory
 
     An external directory should have .api_test_client hidden file
@@ -45,17 +45,17 @@ def find_external_package_dir(current_dir: Path | None = None, missing_ok: bool 
             f"Please create a project directory and start from there"
         )
 
-    def search_parent_dirs(dir: Path):
+    def search_parent_dirs(dir: Path) -> Path | None:
         if (dir / filename).exists():
             return dir
 
         parent = dir.parent
         if parent == dir:
-            return
+            return None
 
         return search_parent_dirs(parent)
 
-    def search_child_dirs(dir: Path):
+    def search_child_dirs(dir: Path) -> Path | None:
         if hidden_files := glob.glob(f"**/{filename}", root_dir=dir, recursive=True):
             module_paths = [(dir / x).parent for x in hidden_files]
             if len(module_paths) > 1:
@@ -82,7 +82,7 @@ def get_package_dir() -> Path:
             return Path(api_client_package_dir).resolve()
         else:
             try:
-                return find_external_package_dir()
+                return find_external_package_dir() or _PACKAGE_DIR
             except FileNotFoundError:
                 # Initial script run from an external location. The directory hasn't been setup yet
                 return _PACKAGE_DIR

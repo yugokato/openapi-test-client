@@ -6,7 +6,7 @@ bp_request_handler = Blueprint("request_handler", __name__)
 
 
 @bp_request_handler.before_app_request
-async def before_request():
+async def before_request() -> None:
     if not request.headers.get("X-Request-ID"):
         request.headers["X-Request-ID"] = str(uuid.uuid4())
 

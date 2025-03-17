@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeAlias, TypeVar, cast
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
@@ -18,22 +18,24 @@ from requests.exceptions import RequestException
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_function as endpoint_func_util
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_model as endpoint_model_util
 import openapi_test_client.libraries.api.api_functions.utils.pydantic_model as pydantic_model_util
-from openapi_test_client.libraries.api import APIBase
+from openapi_test_client.libraries.api.api_classes import APIBase
 from openapi_test_client.libraries.api.types import EndpointModel
 from openapi_test_client.libraries.common.misc import generate_class_name
 
 if TYPE_CHECKING:
     from common_libs.clients.rest_client import RestClient
 
-    from openapi_test_client.clients import APIClientType
-    from openapi_test_client.libraries.api.api_classes import APIClassType
+    from openapi_test_client.clients import OpenAPIClient
 
 
 __all__ = ["Endpoint", "EndpointFunc", "EndpointHandler", "endpoint"]
 
 
 P = ParamSpec("P")
-OriginalFunc = TypeVar("OriginalFunc")
+R = TypeVar("R")
+_EndpointFunc = TypeVar("_EndpointFunc", bound=Callable[..., RestResponse])  # For making IDE happy
+EndpointFunction: TypeAlias = _EndpointFunc | "EndpointFunc"
+EndpointDecorator: TypeAlias = Callable[[EndpointFunction], EndpointFunction]
 
 logger = get_logger(__name__)
 
@@ -46,7 +48,7 @@ class Endpoint:
     """
 
     tags: tuple[str, ...]
-    api_class: type[APIClassType]
+    api_class: type[APIBase]
     method: str
     path: str
     func_name: str
@@ -65,11 +67,11 @@ class Endpoint:
 
     def __call__(
         self,
-        api_client: APIClientType,
-        *path_params,
+        api_client: OpenAPIClient,
+        *path_params: Any,
         quiet: bool = False,
         with_hooks: bool = True,
-        **params,
+        **params: Any,
     ) -> RestResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
@@ -87,7 +89,8 @@ class Endpoint:
             >>> endpoint = client.Auth.login.endpoint
             >>> r2 = endpoint(client, username="foo", password="bar")
         """
-        endpoint_func: EndpointFunc = getattr(self.api_class(api_client), self.func_name)
+        api_class = self.api_class(api_client)
+        endpoint_func: EndpointFunc = getattr(api_class, self.func_name)
         return endpoint_func(*path_params, quiet=quiet, with_hooks=with_hooks, **params)
 
 
@@ -131,18 +134,16 @@ class endpoint:
     """  # noqa: E501
 
     @staticmethod
-    def get(path: str, **requests_lib_options) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def get(path: str, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate("get", path, use_query_string=True, **requests_lib_options)
+        return endpoint._create("get", path, use_query_string=True, **requests_lib_options)
 
     @staticmethod
-    def post(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def post(path: str, use_query_string: bool = False, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
@@ -151,7 +152,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "post",
             path,
             use_query_string=use_query_string,
@@ -160,8 +161,8 @@ class endpoint:
 
     @staticmethod
     def delete(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+        path: str, use_query_string: bool = False, **requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
         :param path: The endpoint path
@@ -170,7 +171,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "delete",
             path,
             use_query_string=use_query_string,
@@ -178,9 +179,7 @@ class endpoint:
         )
 
     @staticmethod
-    def put(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def put(path: str, use_query_string: bool = False, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
@@ -189,7 +188,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "put",
             path,
             use_query_string=use_query_string,
@@ -198,8 +197,8 @@ class endpoint:
 
     @staticmethod
     def patch(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+        path: str, use_query_string: bool = False, **requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
         :param path: The endpoint path
@@ -208,7 +207,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "patch",
             path,
             use_query_string=use_query_string,
@@ -217,8 +216,8 @@ class endpoint:
 
     @staticmethod
     def options(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+        path: str, use_query_string: bool = False, **requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
         :param path: The endpoint path
@@ -227,7 +226,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "options",
             path,
             use_query_string=use_query_string,
@@ -235,9 +234,7 @@ class endpoint:
         )
 
     @staticmethod
-    def head(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def head(path: str, use_query_string: bool = False, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
@@ -246,7 +243,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "head",
             path,
             use_query_string=use_query_string,
@@ -255,8 +252,8 @@ class endpoint:
 
     @staticmethod
     def trace(
-        path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
+        path: str, use_query_string: bool = False, **requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
         :param path: The endpoint path
@@ -265,7 +262,7 @@ class endpoint:
                                        strings regardless of this option
         :param requests_lib_options: Raw request options passed to the requests library
         """
-        return endpoint._generate(
+        return endpoint._create(
             "trace",
             path,
             use_query_string=use_query_string,
@@ -273,42 +270,46 @@ class endpoint:
         )
 
     @staticmethod
-    def undocumented(obj: EndpointHandler | APIClassType) -> EndpointHandler | APIClassType:
+    def undocumented(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
         """Mark an endpoint as undocumented. If an API class is decorated, all endpoints on the class will be
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
         """
         obj.is_documented = False
-        return obj
+        return cast(EndpointFunction, obj)
 
     @staticmethod
-    def is_public(endpoint_handler: EndpointHandler) -> EndpointHandler | APIClassType:
+    def is_public(obj: EndpointHandler | EndpointFunction) -> EndpointFunction:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
         """
-        endpoint_handler.is_public = True
-        return endpoint_handler
+        obj.is_public = True
+        return cast(EndpointFunction, obj)
 
     @staticmethod
-    def is_deprecated(obj: EndpointHandler | APIClassType) -> EndpointHandler | APIClassType:
+    def is_deprecated(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
         """
         obj.is_deprecated = True
-        return obj
+        return cast(EndpointFunction, obj)
 
     @staticmethod
-    def content_type(content_type: str) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def content_type(content_type: str) -> Callable[..., EndpointFunction]:
         """Explicitly set Content-Type for this endpoint"""
 
-        def decorator_with_arg(obj: EndpointHandler | APIClassType) -> EndpointHandler | APIClassType:
+        def decorator_with_arg(
+            obj: EndpointHandler | EndpointFunction,
+        ) -> EndpointHandler | EndpointFunction:
             obj.content_type = content_type
             return obj
 
-        return decorator_with_arg
+        return cast(Callable[..., EndpointFunction], decorator_with_arg)
 
     @staticmethod
-    def decorator(f: Callable[P, Any]) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def decorator(
+        f: EndpointDecorator | Callable[..., EndpointDecorator],
+    ) -> EndpointDecorator | Callable[..., EndpointDecorator]:
         """Convert a regular decorator to be usable on API functions. This supports both regular decorators and
         decorators with arugments
 
@@ -325,13 +326,14 @@ class endpoint:
         >>>     return wrapper
 
         >>> # Apply the decorator on an API function
-        >>> @my_decorator   # This can be also done as @endpoint.decorate(my_decorator) instead
+        >>> @my_decorator   # This can be also done as @endpoint.decorator(my_decorator) instead
         >>> @endpoint.get("foo/bar")
         >>> def get_foo_bar(self):
         >>>    ...
         """
 
-        def wrapper(*args, **kwargs) -> EndpointHandler | Callable[P, OriginalFunc | EndpointHandler]:
+        @wraps(f)
+        def wrapper(*args: Any, **kwargs: Any) -> EndpointHandler | Callable[[EndpointHandler], EndpointHandler]:
             if not kwargs and args and len(args) == 1 and isinstance(args[0], EndpointHandler):
                 # This is a regular decorator
                 endpoint_handler: EndpointHandler = args[0]
@@ -345,37 +347,34 @@ class endpoint:
 
                 return _wrapper
 
-        return wrapper
+        return cast(EndpointDecorator | Callable[..., EndpointDecorator], wrapper)
 
     @staticmethod
-    def request_wrapper(f: Callable[P, Any]) -> Callable[P, OriginalFunc | EndpointFunc]:
+    def request_wrapper(f: Callable[P, R]) -> Callable[P, R]:
         @wraps(f)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> OriginalFunc | EndpointFunc:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             return f(*args, **kwargs)
 
         return wrapper
 
     @staticmethod
-    def _generate(
-        method: str, path: str, use_query_string: bool = False, **requests_lib_options
-    ) -> Callable[P, OriginalFunc | EndpointFunc]:
-        """Returns a decorator that generates an endpoint handler object, which will return an EndpointFunction object
-        when accessing an API class function
+    def _create(
+        method: str, path: str, use_query_string: bool = False, **requests_lib_options: Any
+    ) -> Callable[..., EndpointFunc]:
+        """Returns an endpoint factory that creates an endpoint handler object, which will return an
+        EndpointFunc object when accessing the associated API class function
         """
 
-        def decorator(f):
-            return cast(
-                EndpointFunc,
-                EndpointHandler(
-                    f,
-                    method,
-                    path,
-                    use_query_string=use_query_string,
-                    **requests_lib_options,
-                ),
+        def endpoit_factory(f: Callable[..., RestResponse]) -> EndpointHandler:
+            return EndpointHandler(
+                f,
+                method,
+                path,
+                use_query_string=use_query_string,
+                **requests_lib_options,
             )
 
-        return decorator
+        return cast(Callable[..., EndpointFunc], endpoit_factory)
 
 
 class EndpointHandler:
@@ -395,12 +394,12 @@ class EndpointHandler:
 
     def __init__(
         self,
-        original_func: Callable[P, RestResponse],
+        original_func: Callable[..., RestResponse],
         method: str,
         path: str,
         use_query_string: bool = False,
-        **requests_lib_options,
-    ):
+        **requests_lib_options: Any,
+    ) -> None:
         self.original_func = original_func
         self.method = method
         self.path = path
@@ -410,9 +409,9 @@ class EndpointHandler:
         self.is_public = False
         self.is_documented = True
         self.is_deprecated = False
-        self.__decorators = []
+        self.__decorators: list[Callable[..., Any]] = []
 
-    def __get__(self, instance: APIClassType | None, owner: type[APIClassType]) -> EndpointFunc:
+    def __get__(self, instance: APIBase | None, owner: type[APIBase]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
         with EndpointHandler._lock:
@@ -420,21 +419,17 @@ class EndpointHandler:
                 endpoint_func_name = (
                     f"{owner.__name__}{generate_class_name(self.original_func.__name__, suffix=EndpointFunc.__name__)}"
                 )
-                endpoint_func_class = type(
-                    endpoint_func_name,
-                    (EndpointFunc,),
-                    {},
-                )
-                endpoint_func = endpoint_func_class(self, instance, owner)
+                EndpointFuncClass = type(endpoint_func_name, (EndpointFunc,), {})
+                endpoint_func = EndpointFuncClass(self, instance, owner)
                 EndpointHandler._endpoint_functions[key] = endpoint_func
         return cast(EndpointFunc, update_wrapper(endpoint_func, self.original_func))
 
     @property
-    def decorators(self) -> list[Callable]:
+    def decorators(self) -> list[Callable[..., Any]]:
         """Returns decorators that should be applied on an endpoint function"""
         return self.__decorators
 
-    def register_decorator(self, *decorator):
+    def register_decorator(self, *decorator: Callable[..., Any]) -> None:
         """Register a decorator that will be applied on an endpoint function"""
         self.__decorators.extend([d for d in decorator])
 
@@ -445,7 +440,7 @@ class EndpointFunc:
     All parameters passed to the original API class function call will be passed through to the __call__()
     """
 
-    def __init__(self, endpoint_handler: EndpointHandler, instance: APIClassType | None, owner: type[APIClassType]):
+    def __init__(self, endpoint_handler: EndpointHandler, instance: APIBase | None, owner: type[APIBase]):
         """Initialize endpoint function"""
         if not issubclass(owner, APIBase):
             raise NotImplementedError(f"Unsupported API class: {owner}")
@@ -453,6 +448,7 @@ class EndpointFunc:
         self.method = endpoint_handler.method
         self.path = endpoint_handler.path
         self.rest_client: RestClient | None
+        self.api_client: OpenAPIClient | None
         if instance:
             self.api_client = instance.api_client
             self.rest_client = self.api_client.rest_client
@@ -463,19 +459,15 @@ class EndpointFunc:
         # Control a retry in a request wrapper to prevent a loop
         self.retried = False
 
-        self._original_func = endpoint_handler.original_func
+        self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
         self._instance = instance
         self._owner = owner
         self._use_query_string = endpoint_handler.use_query_string
         self._requests_lib_options = endpoint_handler.requests_lib_options
 
-        # <API class>.TAGs can be the ABC class's property object until after it is defined in an actual
-        # API class. To make the sorting of endpoint objects during an initialization of API
-        # classes work using (endpoint.tag, endpoint.method, endpoint.path) key, assign an empty
-        # list if TAGs is not defined
-        if isinstance(tags := (instance or owner).TAGs, property):
-            tags = ()
-        self.endpoint = Endpoint(
+        tags = (instance or owner).TAGs
+        assert isinstance(tags, tuple)
+        self.endpoint: Endpoint = Endpoint(  # make mypy happy
             tags,
             owner,
             self.method,
@@ -495,26 +487,26 @@ class EndpointFunc:
             my_class = type(self)
             if request_wrappers := instance.request_wrapper():
                 for request_wrapper in request_wrappers[::-1]:
-                    my_class.__call__ = request_wrapper(my_class.__call__)
+                    my_class.__call__ = request_wrapper(my_class.__call__)  # type: ignore[method-assign]
             for decorator in endpoint_handler.decorators:
                 if isinstance(decorator, partial):
-                    my_class.__call__ = decorator()(my_class.__call__)
+                    my_class.__call__ = decorator()(my_class.__call__)  # type: ignore[method-assign]
                 else:
-                    my_class.__call__ = decorator(my_class.__call__)
+                    my_class.__call__ = decorator(my_class.__call__)  # type: ignore[method-assign]
 
     def __repr__(self) -> str:
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
     def __call__(
         self,
-        *path_params,
+        *path_params: Any,
         quiet: bool = False,
         headers: dict[str, str] | None = None,
         stream: bool | None = None,
         with_hooks: bool | None = True,
         validate: bool | None = None,
-        **params,
-    ) -> RestResponse:
+        **params: Any,
+    ) -> RestResponse | None:
         """Make an API call to the endpoint
 
         :param path_params: Path parameters
@@ -623,17 +615,17 @@ class EndpointFunc:
     def docs(self) -> None:
         """Display OpenAPI spec definition for this endpoint"""
         if api_spec_definition := self.get_usage():
-            print(color(api_spec_definition, color_code=ColorCodes.YELLOW))
+            print(color(api_spec_definition, color_code=ColorCodes.YELLOW))  # noqa: T201
         else:
-            print("Docs not available")
+            print("Docs not available")  # noqa: T201
 
     def with_retry(
         self,
-        *args,
+        *args: Any,
         condition: int | Sequence[int] | Callable[[RestResponse], bool] = lambda r: not r.ok,
         num_retry: int = 1,
         retry_after: float = 5,
-        **kwargs,
+        **kwargs: Any,
     ) -> RestResponse:
         """Make an API call with retry conditions
 
@@ -646,7 +638,7 @@ class EndpointFunc:
         f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
         return f(*args, **kwargs)
 
-    def with_lock(self, *args, lock_name: str | None = None, **kwargs) -> RestResponse:
+    def with_lock(self, *args: Any, lock_name: str | None = None, **kwargs: Any) -> RestResponse:
         """Make an API call with lock
 
         The lock will be applied on the API endpoint function level, which means any other API calls in the same/other
@@ -668,3 +660,8 @@ class EndpointFunc:
         """Get OpenAPI spec definition for the endpoint"""
         if self.api_client and self.endpoint.is_documented:
             return self.api_client.api_spec.get_endpoint_usage(self.endpoint)
+
+
+if TYPE_CHECKING:
+    # For making IDE happy
+    EndpointFunc: TypeAlias = _EndpointFunc | EndpointFunc  # type: ignore[no-redef]

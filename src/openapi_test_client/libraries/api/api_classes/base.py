@@ -2,21 +2,22 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from common_libs.clients.rest_client import RestResponse
 from common_libs.logging import get_logger
 from requests.exceptions import RequestException
 
 if TYPE_CHECKING:
-    from openapi_test_client.clients import APIClientType
+    from openapi_test_client.clients import OpenAPIClient
     from openapi_test_client.libraries.api import Endpoint
 
+T = TypeVar("T", bound="OpenAPIClient")
 
 logger = get_logger(__name__)
 
 
-class APIBase(metaclass=ABCMeta):
+class APIBase(Generic[T], metaclass=ABCMeta):
     """Base API class"""
 
     app_name: str | None = None
@@ -24,7 +25,7 @@ class APIBase(metaclass=ABCMeta):
     is_deprecated: bool = False
     endpoints: list[Endpoint] | None = None
 
-    def __init__(self, api_client: APIClientType):
+    def __init__(self, api_client: T):
         if self.app_name != api_client.app_name:
             raise ValueError(
                 f"app_name for API class ({self.app_name}) and API client ({api_client.app_name}) must match"
@@ -34,13 +35,12 @@ class APIBase(metaclass=ABCMeta):
         self.rest_client = api_client.rest_client
 
     @property
-    @classmethod
     @abstractmethod
-    def TAGs(cls) -> tuple[str, ...]:
+    def TAGs(self) -> tuple[str, ...]:
         """API Tags defined in the swagger doc. Every API class MUST have this attribute"""
         raise NotImplementedError
 
-    def pre_request_hook(self, endpoint: Endpoint, *path_params, **params):
+    def pre_request_hook(self, endpoint: Endpoint, *path_params: Any, **params: Any) -> None:
         """Hook function called before each request
 
         :param endpoint: Endpoint object associated with an endpoint function called
@@ -54,9 +54,9 @@ class APIBase(metaclass=ABCMeta):
         endpoint: Endpoint,
         response: RestResponse | None,
         request_exception: RequestException | None,
-        *path_params,
-        **params,
-    ):
+        *path_params: Any,
+        **params: Any,
+    ) -> None:
         """Hook function called after each request
 
         :param endpoint: Endpoint object associated with an endpoint function called
@@ -67,7 +67,7 @@ class APIBase(metaclass=ABCMeta):
         """
         ...
 
-    def request_wrapper(self) -> list[Callable]:
+    def request_wrapper(self) -> list[Callable[..., Any]]:
         """Decorator(s) to wrap each request call
 
         NOTE:

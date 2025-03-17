@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def check_params(endpoint: Endpoint, params: dict[str, Any]):
+def check_params(endpoint: Endpoint, params: dict[str, Any]) -> None:
     """Check the endpoint parameters
 
      A warning message will be logged if any of the following condition matches:
@@ -51,7 +51,7 @@ def check_params(endpoint: Endpoint, params: dict[str, Any]):
                 logger.warning(f"DEPRECATED: parameter '{param_name}' is deprecated")
 
 
-def validate_params(endpoint: Endpoint, params: dict[str, Any]):
+def validate_params(endpoint: Endpoint, params: dict[str, Any]) -> None:
     """Perform Pydantic validation in strict mode
 
     Both endpoint parameters and param models (nested ones too) will be validated.
@@ -67,7 +67,7 @@ def validate_params(endpoint: Endpoint, params: dict[str, Any]):
     PydanticEndpointModel.validate_as_json(params)
 
 
-def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: bool = False):
+def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: bool = False) -> str:
     """Complete endpoint path with given path variables
 
     :param endpoint: Endpoint obj
@@ -110,7 +110,10 @@ def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: 
 
 
 def is_json_request(
-    endpoint: Endpoint, params: dict[str, Any], requests_lib_options: dict[str, Any], session_headers: dict[str, str]
+    endpoint: Endpoint,
+    params: dict[str, Any],
+    requests_lib_options: dict[str, Any],
+    session_headers: dict[str, str],
 ) -> bool:
     """Check if the endpoint call requires a JSON request
 
@@ -138,11 +141,11 @@ def is_json_request(
 def generate_rest_func_params(
     endpoint: Endpoint,
     endpoint_params: dict[str, JSONType],
-    session_headers: dict[str, str] | None = None,
+    session_headers: dict[str, str],
     quiet: bool = False,
     use_query_string: bool = False,
     is_validation_mode: bool = False,
-    **requests_lib_options,
+    **requests_lib_options: Any,
 ) -> dict[str, JSONType]:
     """Convert params passed to an endpoint function to ones for a low-level rest call function.
     Also set Content-Type header if needed
@@ -158,6 +161,7 @@ def generate_rest_func_params(
     json_ = {}
     data = {}
     query = {}
+    files: dict[str, str | bytes | File] | MultipartFormData
     if is_json := is_json_request(endpoint, endpoint_params, requests_lib_options, session_headers):
         files = {}
     else:
@@ -240,8 +244,11 @@ def generate_rest_func_params(
     # requests lib will not automatically set Content-Type header if the `data` value is string or bytes.
     # We will set the Content-type value using from the OpenAPI specs for this case, unless the header is explicitly
     # set by a user. Otherwise, requests lib will automatically handle this part
-    if (data := rest_func_params.get("data")) and (
-        isinstance(data, str | bytes) and not specified_content_type_header and endpoint.content_type
+    if (
+        (rest_data := rest_func_params.get("data"))
+        and isinstance(rest_data, str | bytes)
+        and not specified_content_type_header
+        and endpoint.content_type
     ):
         rest_func_params.setdefault("headers", {}).update({"Content-Type": endpoint.content_type})
 

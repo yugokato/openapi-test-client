@@ -27,7 +27,7 @@ def create_app(version: int = 1) -> Quart:
     return app
 
 
-def _register_blueprints(app, version: int):
+def _register_blueprints(app: Quart, version: int) -> None:
     from demo_app.api.auth.auth import bp_auth
     from demo_app.api.user.user import bp_user
     from demo_app.handlers.error_handlers import bp_error_handler

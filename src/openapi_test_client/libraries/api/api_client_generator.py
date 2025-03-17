@@ -40,9 +40,8 @@ from openapi_test_client.libraries.common.misc import (
 )
 
 if TYPE_CHECKING:
-    from openapi_test_client.clients import APIClientType
     from openapi_test_client.libraries.api import EndpointFunc
-    from openapi_test_client.libraries.api.api_classes import APIClassType
+    from openapi_test_client.libraries.api.api_classes.base import APIBase
 
 
 logger = get_logger(__name__)
@@ -65,7 +64,7 @@ Do NOT manually update the content.
 
 
 @lru_cache
-def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIClassType]:
+def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIBase]:
     """Generate new base API class file for the given temporary API client"""
     from openapi_test_client.libraries.api import Endpoint
 
@@ -120,13 +119,13 @@ class {base_api_class_name}({APIBase.__name__}):
 
 
 def generate_api_class(
-    api_client: APIClientType,
+    api_client: OpenAPIClient,
     tag: str,
     class_name: str | None = None,
     add_endpoint_functions: bool = True,
     dry_run: bool = False,
     show_generated_code: bool = True,
-) -> type[APIClassType] | tuple[str, Exception]:
+) -> type[APIBase] | tuple[str, Exception] | None:
     """Generate new API class file for the given API tag.
 
     If an exception is thrown during the process, API tag, API class name, and the exception will be returned.
@@ -219,7 +218,7 @@ def generate_api_class(
 
 
 def update_endpoint_functions(
-    api_class: type[APIClassType],
+    api_class: type[APIBase],
     api_spec: dict[str, Any],
     is_new_api_class: bool = False,
     target_endpoints: list[str] | None = None,
@@ -269,7 +268,7 @@ def update_endpoint_functions(
     '''
     from openapi_test_client.libraries.api import endpoint
 
-    print(f"Checking API class: {api_class.__name__}...")
+    print(f"Checking API class: {api_class.__name__}...")  # noqa: T201
     # Regex for API class definition
     regex_api_class = re.compile(rf"class {api_class.__name__}\(\S+{BASE_API_CLASS_NAME_SUFFIX}\):")
     # Regex for TAGs and for individual tag inside TAGs
@@ -306,7 +305,7 @@ def update_endpoint_functions(
     defined_endpoints = []
     param_models = []
 
-    def update_existing_endpoints(target_api_class: type[APIClassType] = api_class):
+    def update_existing_endpoints(target_api_class: type[APIBase] = api_class) -> None:
         """Updated existing endpoint functions"""
         nonlocal modified_api_cls_code
         new_code = current_code = modified_api_cls_code
@@ -343,7 +342,7 @@ def update_endpoint_functions(
 
             endpoint_function: EndpointFunc = getattr(target_api_class, func_name)
             if verbose:
-                print(f"{TAB}- {method.upper()} {path}")
+                print(f"{TAB}- {method.upper()} {path}")  # noqa:T201
 
             # Skip if the endpoint defined was not found in the API spec
             try:
@@ -351,10 +350,10 @@ def update_endpoint_functions(
             except KeyError:
                 if endpoint_function.endpoint.is_documented:
                     err = f"{TAB}Not found: {method.upper()} {path} ({func_name})"
-                    print(color(err, color_code=ColorCodes.RED))
+                    print(color(err, color_code=ColorCodes.RED))  # noqa: T201
                 else:
                     msg = f"{TAB}Skipped undocumented endpoint: {method.upper()} {path} ({func_name})"
-                    print(msg)
+                    print(msg)  # noqa: T201
                 continue
             else:
                 for tag in endpoint_spec.get("tags") or ["default"]:
@@ -425,7 +424,7 @@ def update_endpoint_functions(
 
         # Update TAGs attribute if API spec has a different tag definition
         if api_spec_tags:
-            defined_tags = None
+            defined_tags = []
             tags_in_class = re.search(regex_tags, original_api_cls_code)
             if tags_in_class:
                 defined_tags = re.findall(regex_tag, tags_in_class.group(0))
@@ -447,17 +446,17 @@ def update_endpoint_functions(
         if current_code != new_code:
             modified_api_cls_code = new_code
 
-    def update_missing_endpoints():
+    def update_missing_endpoints() -> None:
         """Add endpoints that haven't been added as function name _unnamed_endpoint_{idx}"""
         nonlocal modified_api_cls_code
         new_code = modified_api_cls_code
-        available_endpoints = []
+        available_endpoints: list[tuple[str, str]] = []
         for path in api_spec["paths"]:
             try:
                 for avl_method in api_spec["paths"][path]:
                     if avl_method in VALID_METHODS:
                         if tags_in_spec := api_spec["paths"][path][avl_method].get("tags") or ["default"]:
-                            if set(tags_in_spec).intersection(set(api_class.TAGs)):
+                            if set(tags_in_spec).intersection(set(api_class.TAGs)):  # type: ignore
                                 available_endpoints.append((avl_method, path))
             except Exception as e:
                 logger.error(f"Encountered an error during parsing api spec for '{path}'", exc_info=e)
@@ -467,7 +466,7 @@ def update_endpoint_functions(
             if not is_new_api_class:
                 new_endpoints_str = "\n".join([f"{TAB}- {meth.upper()} {ep}" for meth, ep in list(undefined_endpoints)])
                 msg = f"{TAB}New endpoints available:\n{new_endpoints_str}"
-                print(color(msg, color_code=ColorCodes.YELLOW))
+                print(color(msg, color_code=ColorCodes.YELLOW))  # noqa: T201
             if add_missing_endpoints:
                 undefined_ep_functions = ""
                 undefined_func_name_prefix = "_unnamed_endpoint_"
@@ -525,7 +524,7 @@ def update_endpoint_functions(
             if api_cls_updated := (original_api_cls_code != modified_api_cls_code):
                 if not is_new_api_class:
                     msg = f"{TAB}Update{' required' if dry_run else 'd'}: {api_cls_file_path}"
-                    print(color(msg, color_code=ColorCodes.YELLOW))
+                    print(color(msg, color_code=ColorCodes.YELLOW))  # noqa:T201
 
                 if show_diff:
                     # Print diff
@@ -553,7 +552,7 @@ def update_endpoint_functions(
             if model_updated := (original_model_code != modified_model_code):
                 # Print diff
                 msg = f"{TAB}Update{' required' if dry_run else 'd'} (models): {model_file_path}"
-                print(color(msg, color_code=ColorCodes.YELLOW))
+                print(color(msg, color_code=ColorCodes.YELLOW))  # noqa:T201
                 if show_diff:
                     diff_code(
                         original_model_code,
@@ -572,18 +571,18 @@ def update_endpoint_functions(
         if all([func_name, method, path]):
             err += f" {func_name} ({method} {path})"
         err += f"\n{tb})\n"
-        print(color(err, color_code=ColorCodes.RED))
+        print(color(err, color_code=ColorCodes.RED))  # noqa :T201
         if api_cls_updated and not dry_run:
             # revert back to original code
             api_cls_file_path.write_text(original_api_cls_code)
         return (api_class.__name__, e)
     else:
         if verbose:
-            print()
+            print()  # noqa:T201
         return api_cls_updated or model_updated
 
 
-def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: bool = True) -> type[APIClientType]:
+def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: bool = True) -> type[OpenAPIClient]:
     """Generate new API client file
 
     NOTE: generate_api_class() must be called first for this to work properly
@@ -620,6 +619,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
         key=lambda x: x.__name__,
     ):
         mod = inspect.getmodule(api_class)
+        assert mod and mod.__file__
         imports_code += f"from .{API_CLASS_DIR_NAME}.{Path(mod.__file__).stem} import {api_class.__name__}\n"
         property_name = api_class.__name__.removesuffix("API")
         api_client_code += (
@@ -652,7 +652,7 @@ def get_client_dir(client_name: str) -> Path:
     return get_package_dir() / API_CLIENTS_DIR.name / client_name
 
 
-def setup_external_directory(client_name: str, base_url: str, env: str = DEFAULT_ENV):
+def setup_external_directory(client_name: str, base_url: str, env: str = DEFAULT_ENV) -> None:
     """Set up external project directory
 
     :param client_name: Client name
@@ -690,11 +690,11 @@ def setup_external_directory(client_name: str, base_url: str, env: str = DEFAULT
     _recursively_add_init_file(api_client_lib_dir, exclude_dirs=("cfg",))
 
 
-def _is_temp_client(api_client: APIClientType) -> bool:
+def _is_temp_client(api_client: OpenAPIClient) -> bool:
     return type(api_client) is OpenAPIClient
 
 
-def _get_base_api_class(api_client: APIClientType) -> type[APIClassType]:
+def _get_base_api_class(api_client: OpenAPIClient) -> type[APIBase]:
     client_file_path = Path(inspect.getabsfile(type(api_client)))
     app_client_dir = client_file_path.parent
     base_api_class_name = generate_class_name(api_client.app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)
@@ -702,8 +702,8 @@ def _get_base_api_class(api_client: APIClientType) -> type[APIClassType]:
     return getattr(mod, base_api_class_name)
 
 
-def _recursively_add_init_file(base_dir: Path, exclude_dirs: tuple[str] = ()):
-    def add_init_file(current_dir: Path):
+def _recursively_add_init_file(base_dir: Path, exclude_dirs: tuple[str, ...] = ()) -> None:
+    def add_init_file(current_dir: Path) -> None:
         if not current_dir.name.startswith("_") and current_dir.name not in exclude_dirs:
             if not (current_dir / "__init__.py").exists():
                 _write_init_file(current_dir)
@@ -714,7 +714,7 @@ def _recursively_add_init_file(base_dir: Path, exclude_dirs: tuple[str] = ()):
     add_init_file(base_dir)
 
 
-def _write_init_file(dir_path: Path, data: str = ""):
+def _write_init_file(dir_path: Path, data: str = "") -> None:
     init_file_path = dir_path / "__init__.py"
     init_file_path.write_text(data)
 
@@ -722,4 +722,7 @@ def _write_init_file(dir_path: Path, data: str = ""):
 @lru_cache
 def _get_package(obj: Any) -> str:
     mod = inspect.getmodule(obj)
-    return mod.__package__
+    assert mod
+    package = mod.__package__
+    assert package
+    return package

@@ -59,7 +59,7 @@ MyParamModel3 = make_dataclass(MyParamModel.__name__, [("bar", int, Unset)], bas
         (Annotated[str | int, "meta"], "Annotated[str | int, 'meta']"),
     ],
 )
-def test_get_type_annotation_as_str(tp: Any, expected_tp_str: str, is_optional: bool, as_list: bool):
+def test_get_type_annotation_as_str(tp: Any, expected_tp_str: str, is_optional: bool, as_list: bool) -> None:
     """Verify that a string version of type annotation can be generated from various annotated types"""
     if (tp in [NoneType, None] or isinstance(tp, str)) and (is_optional or as_list):
         pytest.skip("Not applicable")
@@ -67,7 +67,7 @@ def test_get_type_annotation_as_str(tp: Any, expected_tp_str: str, is_optional: 
     if as_list:
         if get_origin(tp) is Annotated:
             inner_type = get_args(tp)[0]
-            tp = Annotated[list[inner_type], *tp.__metadata__]
+            tp = Annotated[list[inner_type], *tp.__metadata__]  # type: ignore[valid-type]
             expected_tp_str = re.sub(r"Annotated\[([^,]+)", r"Annotated[list[\1]", expected_tp_str)
         else:
             tp = list[tp]
@@ -116,7 +116,7 @@ def test_get_type_annotation_as_str(tp: Any, expected_tp_str: str, is_optional: 
         (Optional[Annotated[list[str], "meta"]], str),
     ],
 )
-def test_get_base_type(tp: Any, expected_type: Any):
+def test_get_base_type(tp: Any, expected_type: Any) -> None:
     """Verify that the base type can be identified from various type annotations"""
     assert param_type_util.get_base_type(tp) == expected_type
 
@@ -144,7 +144,7 @@ def test_get_base_type(tp: Any, expected_type: Any):
         (Optional[Annotated[ForwardRef(MyParamModel.__name__), "meta"]], str, Optional[Annotated[str, "meta"]]),
     ],
 )
-def test_replace_baser_type(tp: Any, replace_with: Any, expected_type: Any):
+def test_replace_baser_type(tp: Any, replace_with: Any, expected_type: Any) -> None:
     """Verify that the base type of the type annotation can be replaced with another type"""
     assert param_type_util.replace_base_type(tp, replace_with) == expected_type
 
@@ -184,7 +184,7 @@ def test_replace_baser_type(tp: Any, replace_with: Any, expected_type: Any):
         (Optional[Annotated[list[str], "meta"]], str, False),
     ],
 )
-def test_is_type_of(param_type: Any, type_to_check: Any, is_type_of: bool):
+def test_is_type_of(param_type: Any, type_to_check: Any, is_type_of: bool) -> None:
     """Verify that we can check if a specific Python type falls into an OpenAPI parameter type or a Python type"""
     assert param_type_util.is_type_of(param_type, type_to_check) is is_type_of
 
@@ -204,7 +204,7 @@ def test_is_type_of(param_type: Any, type_to_check: Any, is_type_of: bool):
         (Optional[Annotated[str | int, "meta"]], True),
     ],
 )
-def test_is_optional_type(tp: Any, is_optional_type: bool):
+def test_is_optional_type(tp: Any, is_optional_type: bool) -> None:
     """Verify that we can check whether a given type annotation can be used for an optional parameter type or not
 
     Note: The definiton of optional here means either Optional[] or a union type with None as one of the args
@@ -227,7 +227,7 @@ def test_is_optional_type(tp: Any, is_optional_type: bool):
         (Optional[Annotated[str | int, "meta"]], True),
     ],
 )
-def test_is_union_type(tp: Any, is_union_type: bool):
+def test_is_union_type(tp: Any, is_union_type: bool) -> None:
     """Verify that we can check whether a given type annotation itself is a union type or not
 
     Note: Optional[] is also considered as union
@@ -249,7 +249,7 @@ def test_is_union_type(tp: Any, is_union_type: bool):
         (Optional[int] | Annotated[str, "meta", "deprecated"], True),
     ],
 )
-def test_is_deprecated_param(tp: Any, is_deprecated_param: bool):
+def test_is_deprecated_param(tp: Any, is_deprecated_param: bool) -> None:
     """Verify that we can check whether a given type annotation has `Annotated[]` with "deprecated" in the metadata"""
     assert param_type_util.is_deprecated_param(tp) is is_deprecated_param
 
@@ -270,7 +270,7 @@ def test_is_deprecated_param(tp: Any, is_deprecated_param: bool):
         ),
     ],
 )
-def test_generate_union_type(types: list[Any], expected_type: Any):
+def test_generate_union_type(types: list[Any], expected_type: Any) -> None:
     """Verify that a union type annotation can be generated from multiple type annotations"""
     assert param_type_util.generate_union_type(types) == expected_type
 
@@ -288,7 +288,7 @@ def test_generate_union_type(types: list[Any], expected_type: Any):
         (Optional[Annotated[str, "meta"]], Optional[Annotated[str, "meta"]]),
     ],
 )
-def test_generate_optional_type(tp: Any, expected_type: Any):
+def test_generate_optional_type(tp: Any, expected_type: Any) -> None:
     """Verify that a type annotation can be converted to an optional type with Optional[]"""
     assert param_type_util.generate_optional_type(tp) == expected_type
 
@@ -313,7 +313,7 @@ def test_generate_optional_type(tp: Any, expected_type: Any):
         (Optional[str | int], ["meta"], Optional[Annotated[str | int, "meta"]]),
     ],
 )
-def test_annotate_type(tp: Any, metadata: list[Any], expected_type):
+def test_annotate_type(tp: Any, metadata: list[Any], expected_type: Any) -> None:
     """Verify that a type annotation can be converted to an annotated type with metadata"""
     assert param_type_util.annotate_type(tp, *metadata) == expected_type
 
@@ -336,7 +336,7 @@ def test_annotate_type(tp: Any, metadata: list[Any], expected_type):
         ),
     ],
 )
-def test_add_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any):
+def test_add_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any) -> None:
     """Verify that new metadata can be added to existing ones in the annotated type"""
     assert param_type_util.modify_annotated_metadata(tp, *metadata, action="add") == expected_type
 
@@ -359,7 +359,7 @@ def test_add_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any
         ),
     ],
 )
-def test_remove_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any):
+def test_remove_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any) -> None:
     """Verify that one or more metadata in the annotated type can be removed"""
     assert param_type_util.modify_annotated_metadata(tp, *metadata, action="remove") == expected_type
 
@@ -382,7 +382,7 @@ def test_remove_annotated_metadata(tp: Any, metadata: list[Any], expected_type: 
         ),
     ],
 )
-def test_replace_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any):
+def test_replace_annotated_metadata(tp: Any, metadata: list[Any], expected_type: Any) -> None:
     """Verify that metadata in the annotated type can be replaced with new value(s)"""
     assert param_type_util.modify_annotated_metadata(tp, *metadata, action="replace") == expected_type
 
@@ -408,7 +408,7 @@ def test_replace_annotated_metadata(tp: Any, metadata: list[Any], expected_type:
         ),
     ],
 )
-def test_get_annotated_type(tp: Any, annotated_type: Any):
+def test_get_annotated_type(tp: Any, annotated_type: Any) -> None:
     """Verify that an annotated type that may/may not be nested inside the given type can be retrieved"""
     assert param_type_util.get_annotated_type(tp) == annotated_type
 
@@ -449,7 +449,7 @@ def test_get_annotated_type(tp: Any, annotated_type: Any):
         ),
     ],
 )
-def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any):
+def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
     """Verify that two annotation types acn be merged"""
     assert param_type_util.merge_annotation_types(tp1, tp2) == expected_type
 
@@ -470,7 +470,7 @@ def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any):
         (MyParamModel2, MyParamModel3 | None, MyParamModel2 | None),
     ],
 )
-def test_custom_or_(tp1: Any, tp2: Any, expected_type: Any):
+def test_custom_or_(tp1: Any, tp2: Any, expected_type: Any) -> None:
     """Verify that our custom `or_` function can treat dynamically created ParamModel instances with the same name as
     the same object
     """

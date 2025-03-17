@@ -1,19 +1,11 @@
+from __future__ import annotations
+
 import inspect
 from collections.abc import Sequence
 from dataclasses import asdict
 from functools import reduce
 from types import NoneType, UnionType
-from typing import (
-    Annotated,
-    Any,
-    ForwardRef,
-    Literal,
-    Optional,
-    Union,
-    _AnnotatedAlias,  # type: ignore
-    get_args,
-    get_origin,
-)
+from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional, Union, get_args, get_origin
 
 from common_libs.logging import get_logger
 
@@ -21,6 +13,10 @@ import openapi_test_client.libraries.api.api_functions.utils.param_model as para
 from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamAnnotationType, ParamDef
 from openapi_test_client.libraries.common.constants import BACKSLASH
 from openapi_test_client.libraries.common.misc import dedup
+
+if TYPE_CHECKING:
+    from typing import _AnnotatedAlias  # type: ignore
+
 
 logger = get_logger(__name__)
 
@@ -46,23 +42,23 @@ def get_type_annotation_as_str(tp: Any) -> str:
     elif get_origin(tp) is Annotated:
         orig_type = get_type_annotation_as_str(tp.__origin__)
         metadata_types = ", ".join(get_type_annotation_as_str(m) for m in tp.__metadata__)
-        return f"{Annotated.__name__}[{orig_type}, {metadata_types}]"
+        return f"{Annotated.__name__}[{orig_type}, {metadata_types}]"  # type: ignore[attr-defined]
     elif is_union_type(tp):
         args = get_args(tp)
         if NoneType in args:
             inner_types = [x for x in args if x is not NoneType]
             if len(inner_types) == 1:
-                return f"{Optional.__name__}[{get_type_annotation_as_str(inner_types[0])}]"
+                return f"{Optional.__name__}[{get_type_annotation_as_str(inner_types[0])}]"  # type: ignore[attr-defined]
             else:
                 inner_types_union = " | ".join(get_type_annotation_as_str(x) for x in inner_types)
                 # Note: This is actually Union[tp1, ..., None] in Python, but we annotate this as
                 # Optional[tp1 | ...] in code
-                return f"{Optional.__name__}[{inner_types_union}]"
+                return f"{Optional.__name__}[{inner_types_union}]"  # type: ignore[attr-defined]
         else:
             return " | ".join(get_type_annotation_as_str(x) for x in args)
     elif get_origin(tp) in [list, dict, tuple]:
-        inner_types = ", ".join(get_type_annotation_as_str(t) for t in get_args(tp))
-        return f"{tp.__origin__.__name__}[{inner_types}]"
+        args_str: str = ", ".join(get_type_annotation_as_str(t) for t in get_args(tp))
+        return f"{tp.__origin__.__name__}[{args_str}]"
     elif get_origin(tp) is Literal:
         return repr(tp).replace("typing.", "")
     elif isinstance(tp, Alias | Format):
@@ -85,7 +81,7 @@ def get_type_annotation_as_str(tp: Any) -> str:
 
 def resolve_type_annotation(
     param_name: str,
-    param_def: ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType,
+    param_def: ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType | Any,
     _is_required: bool | None = None,
     _is_array: bool = False,
 ) -> Any:
@@ -120,6 +116,7 @@ def resolve_type_annotation(
         elif param_type in NULL_PARAM_TYPES:
             return None
         elif param_type in LIST_PARAM_TYPES:
+            assert isinstance(param_def, ParamDef | dict)
             assert param_def.is_array
             try:
                 items = param_def["items"]
@@ -164,9 +161,7 @@ def resolve_type_annotation(
         )
     else:
         if enum := param_def.get("enum"):
-            # NOTE: This is not a valid way to use Literal but the actual type annotation we will see in the generated
-            # code will be valid. So ignoring the warning here.
-            type_annotation = Literal[*enum]  # type: ignore
+            type_annotation = Literal[*enum]
         elif isinstance(param_def, ParamDef.UnknownType):
             logger.warning(
                 f"Unable to locate a parameter type for parameter '{param_name}'. Type '{Any}' will be applied.\n"
@@ -197,7 +192,7 @@ def resolve_type_annotation(
         # only. If this check fails, it means the logic is broke somewhere
         if num_optional_types > 1:
             raise RuntimeError(f"{Optional} should not appear more than once: {type_annotation}")
-        if type_annotation.__name__ != Optional.__name__:
+        if type_annotation.__name__ != Optional.__name__:  # type: ignore[attr-defined]
             raise RuntimeError(f"{Optional} should be the outer most type: {type_annotation}")
     return type_annotation
 
@@ -387,7 +382,7 @@ def annotate_type(tp: Any, *metadata: Any) -> Any:
         return Annotated[tp, *metadata]
 
 
-def modify_annotated_metadata(annotated_tp: Any, *metadata, action: Literal["add", "replace", "remove"]) -> Any:
+def modify_annotated_metadata(annotated_tp: Any, *metadata: Any, action: Literal["add", "replace", "remove"]) -> Any:
     """Modify metadata in the annotated type. If the given type is a union of multiple Annotated types, the same
     action will be performed on both.
 
@@ -405,16 +400,16 @@ def modify_annotated_metadata(annotated_tp: Any, *metadata, action: Literal["add
     if action not in ["add", "replace", "remove"]:
         raise ValueError(f"Invalid action: {action}")
 
-    def modify_metadata(tp: Any):
+    def modify_metadata(tp: Any) -> Any:
         if get_origin(tp) is Annotated:
             if action == "add":
                 new_metadata = dedup(*tp.__metadata__, *metadata)
             elif action == "remove":
-                new_metadata = (x for x in tp.__metadata__ if x not in metadata)
+                new_metadata = tuple(x for x in tp.__metadata__ if x not in metadata)
+                if not new_metadata:
+                    raise ValueError("At least one metadata must exist after the action is performed")
             else:
                 new_metadata = dedup(*metadata)
-            if not new_metadata:
-                raise ValueError("At least one metadata must exist after the action is performed")
             return Annotated[get_args(tp)[0], *new_metadata]
         else:
             if is_union_type(tp):
@@ -457,7 +452,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
     def merge_args_per_origin(args: Sequence[Any]) -> tuple[Any, ...]:
         """Merge type annotations per its origiin type"""
         origin_type_order = {Literal: 1, Annotated: 2, Union: 3, UnionType: 4, list: 5, dict: 6, None: 10}
-        args_per_origin = {}
+        args_per_origin: dict[Any, list[Any]] = {}
         for arg in args:
             args_per_origin.setdefault(get_origin(arg), []).append(arg)
         return tuple(
@@ -499,9 +494,9 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
                 key_type2, val_type2 = args2
                 if key_type == key_type2:
                     if val_type == val_type2:
-                        return dict[key_type, val_type]
+                        return dict[key_type, val_type]  # type: ignore[valid-type]
                     else:
-                        return dict[key_type, merge_annotation_types(val_type, val_type2)]
+                        return dict[key_type, merge_annotation_types(val_type, val_type2)]  # type: ignore[valid-type]
                 else:
                     if val_type == val_type2:
                         return dict[generate_union_type((key_type, key_type2)), val_type]

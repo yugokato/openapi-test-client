@@ -5,7 +5,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import (
     MISSING,
     Field,
-    _DataclassParams,  # type: ignore
     asdict,
     astuple,
     dataclass,
@@ -14,7 +13,7 @@ from dataclasses import (
     make_dataclass,
 )
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast
 
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
@@ -23,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, create_model
 from openapi_test_client.libraries.common.json_encoder import CustomJsonEncoder
 
 if TYPE_CHECKING:
+    from dataclasses import _MISSING_TYPE, _DataclassParams  # type: ignore
     from typing import Protocol
 
     from openapi_test_client.libraries.api.api_functions import EndpointFunc
@@ -36,11 +36,11 @@ T = TypeVar("T")
 # to avoid UP007 been reported by ruff for API classes and models, where we currently intentionally use `Optional` to
 # indicate the endpoint/model parameter is optional. We may switch to use our own custom type for this purpose
 # in the future since typing.Optional doesn't actually mean optional, but it just means nullable
-Optional = T | None
+Optional: TypeAlias = T | None
 
 # The sentinel value set as a default value for endpoint body/query parameters and models.
 # Any parameters with this value will not be included in actual API call parameters
-Unset = object()
+Unset: Any = object()
 
 
 class ParamDef(HashableDict):
@@ -123,7 +123,7 @@ class ParamDef(HashableDict):
     ) -> ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType:
         """Convert the parameter object to a ParamDef"""
 
-        def convert(obj: Any):
+        def convert(obj: Any) -> ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType:
             if isinstance(obj, ParamDef | ParamDef.ParamGroup):
                 return obj
             else:
@@ -176,7 +176,7 @@ class PydanticModel(BaseModel):
     model_config: ClassVar = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
     @classmethod
-    def validate_as_json(cls: PydanticModel, data: dict[str, Any]) -> PydanticModel:
+    def validate_as_json(cls: type[PydanticModel], data: dict[str, Any]) -> PydanticModel:
         """Validate parameters as JSON data
 
         :param data: Dictionary data to validate with this model
@@ -189,7 +189,7 @@ class DataclassModel(Protocol):
     """Base class for endpoint/param models"""
 
     if TYPE_CHECKING:
-        __dataclass_fields__: ClassVar[Mapping[str, Field]]
+        __dataclass_fields__: ClassVar[Mapping[str, Field[Any]]]
         __dataclass_params__: ClassVar[_DataclassParams]
         __post_init__: ClassVar[Callable[..., None]]
 
@@ -224,7 +224,7 @@ class DataclassModelField(NamedTuple):
 
     name: str
     type: Any
-    default: Field | type[MISSING] = MISSING
+    default: Field | _MISSING_TYPE | object = MISSING
 
 
 class EndpointModel(DataclassModel):
@@ -236,7 +236,7 @@ class _ParamModelMeta(type):
     _ORIGINAL_CLASS_ATTR_NAME: ClassVar = "_ORIGINAL_CLASS"
     _ORIGINAL_CLASS: ClassVar = None
 
-    def __instancecheck__(cls, instance: Any):
+    def __instancecheck__(cls, instance: Any) -> bool:
         """Overwrite the behavior of isinstance() for param models
 
         Our ParamModel class will dynamically recreate a new dataclass model in __new__() for some cases.
@@ -300,7 +300,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
             For further information visit https://errors.pydantic.dev/2.5/v/missing
     """
 
-    def __new__(cls, **kwargs):
+    def __new__(cls, **kwargs: Any) -> ParamModel | PydanticModel:
         import openapi_test_client.libraries.api.api_functions.utils.pydantic_model as pydantic_model_util
 
         model_fields = cls.__dataclass_fields__
@@ -335,7 +335,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
             # All model fields were specified
             return super().__new__(cls, **kwargs)
 
-    def __setattr__(self, new_field_name: str, field_value: Any):
+    def __setattr__(self, new_field_name: str, field_value: Any) -> None:
         """Dynamically add a new field to the existing param model and sync with dictionary
 
         :param new_field_name: A new field name to be added to the model
@@ -346,13 +346,13 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
         if new_field_name not in model_fields.keys() and not this_recreation:
             existing_fields = [(k, field_obj.type, field(default=None)) for k, field_obj in model_fields.items()]
             new_fields = [(new_field_name, type(field_value), field(default=None))]
-            self.__class__ = ParamModel.recreate(type(self), existing_fields + new_fields)
+            self.__class__ = ParamModel.recreate(type(self), existing_fields + new_fields)  # type: ignore[arg-type, operator]
         super().__setattr__(new_field_name, field_value)
 
         if not this_recreation:
             super().__setitem__(new_field_name, field_value)
 
-    def __delattr__(self, name: str):
+    def __delattr__(self, name: str) -> None:
         """Dynamically remove a field from the existing param model and sync with dictionary
 
         :param name: A name of an existing field to delete from the model
@@ -362,16 +362,16 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
             new_fields = [
                 (k, field_obj.type, field(default=None)) for k, field_obj in model_fields.items() if k != name
             ]
-            self.__class__ = ParamModel.recreate(type(self), new_fields)
+            self.__class__ = ParamModel.recreate(type(self), new_fields)  # type: ignore[arg-type]
             if name in self:
                 super().__delitem__(name)
         else:
             super().__delattr__(name)
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key: str, value: Any) -> None:
         self.__setattr__(key, value)
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> None:
         self.__delattr__(key)
 
     def pop(self, key: str, default: Any = object) -> Any:
@@ -383,7 +383,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
             delattr(self, key)
         return v
 
-    def update(self, other=None, **kwargs):
+    def update(self, other: dict[str, Any] | None = None, **kwargs: Any) -> None:
         if other is not None:
             for k, v in other.items() if isinstance(other, Mapping) else other:
                 setattr(self, k, v)
@@ -402,7 +402,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
     def recreate(
         cls,
         current_class: type[ParamModel],
-        new_fields: list[tuple[str, Any, Field | None]],
+        new_fields: list[tuple[str, Any, Field[Any] | None]],
     ) -> type[ParamModel]:
         """Recreate the model with the new fields
 
@@ -431,11 +431,11 @@ class File(dict, DataclassModel):
     content: str | bytes
     content_type: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__init__(asdict(self))
 
-    def to_tuple(self) -> tuple[str, str | bytes | str]:
-        return astuple(self)  # type: ignore
+    def to_tuple(self) -> tuple[str, str | bytes, str]:
+        return astuple(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -473,15 +473,15 @@ class Constraint(ParamAnnotationType):
     Use it as a metadata of typing.Annotated
     """
 
-    min: int = None
-    max: int = None
-    multiple_of: int = None
-    min_len: int = None
-    max_len: int = None
-    nullable: bool = None
-    pattern: str = None
+    min: int | None = None
+    max: int | None = None
+    multiple_of: int | None = None
+    min_len: int | None = None
+    max_len: int | None = None
+    nullable: bool | None = None
+    pattern: str | None = None
 
     # NOTE: exclusive_minimum/exclusive_maximum are supposed to be a boolean in the OAS 3.x specifications,
     #       but Pydantic currently treats them as an integer
-    exclusive_minimum: int = None
-    exclusive_maximum: int = None
+    exclusive_minimum: int | None = None
+    exclusive_maximum: int | None = None

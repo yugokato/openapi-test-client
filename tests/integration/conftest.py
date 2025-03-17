@@ -4,7 +4,9 @@ import random
 import shutil
 import subprocess
 import time
+from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 import pytest
 import requests
@@ -21,7 +23,7 @@ from tests.integration import helper
 
 
 @pytest.fixture(scope="session")
-def app_port():
+def app_port() -> int:
     if os.environ.get("IS_TOX"):
         return int(os.environ["APP_PORT"])
     else:
@@ -29,7 +31,7 @@ def app_port():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def demo_app_server(app_port):
+def demo_app_server(app_port: int) -> Generator[None, Any, None]:
     script_path = _PACKAGE_DIR.parent / "demo_app" / "main.py"
     args = ["python", str(script_path), "-p", str(app_port)]
     proc = subprocess.Popen(
@@ -63,7 +65,7 @@ def unauthenticated_api_client() -> DemoAppAPIClient:
 
 
 @pytest.fixture(scope="session")
-def api_client() -> DemoAppAPIClient:
+def api_client() -> Generator[DemoAppAPIClient, Any, None]:
     client = DemoAppAPIClient()
     r = client.Auth.login(username="foo", password="bar")
     assert r.ok
@@ -77,7 +79,7 @@ def random_app_name() -> str:
 
 
 @pytest.fixture
-def demo_app_openapi_spec_url(unauthenticated_api_client) -> str:
+def demo_app_openapi_spec_url(unauthenticated_api_client: DemoAppAPIClient) -> str:
     url_cfg = json.loads((_CONFIG_DIR / "urls.json").read_text())
     base_url = url_cfg[unauthenticated_api_client.env][unauthenticated_api_client.app_name]
     doc_path = unauthenticated_api_client.api_spec.doc_path
@@ -103,7 +105,7 @@ def petstore_openapi_spec_url() -> str:
         True,
     ]
 )
-def external_dir(request: SubRequest, random_app_name: str) -> Path | None:
+def external_dir(request: SubRequest, random_app_name: str) -> Generator[Path | None, Any, None]:
     temp_dir_: Path | None = None
     if request.param:
         temp_dir_ = request.getfixturevalue(temp_dir.__name__)
@@ -124,7 +126,9 @@ def external_dir(request: SubRequest, random_app_name: str) -> Path | None:
 
 
 @pytest.fixture
-def temp_app_client(temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str):
+def temp_app_client(
+    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str
+) -> Generator[OpenAPIClient, Any, None]:
     """Temporary demo app API client that will be generated for a test"""
     app_name = f"demo_app_{random.choice(range(1, 1000))}"
     module_dir = temp_dir / "my_clients"
@@ -132,7 +136,7 @@ def temp_app_client(temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec
     args = f"generate -u {demo_app_openapi_spec_url} -a {app_name} --dir {module_dir} --quiet"
     _, stderr = helper.run_command(args)
     if stderr:
-        print(stderr)
+        print(stderr)  # noqa: T201
     assert not stderr
 
     # In real life the env var will be set inside the top-level module's __init__.py when accessing the library.

@@ -20,7 +20,7 @@ def format_code(code: str, remove_unused_imports: bool = True) -> str:
     return run_ruff(code, remove_unused_imports=remove_unused_imports)
 
 
-def parse_code(code: str):
+def parse_code(code: str) -> None:
     """Parse code and check syntax errors"""
     try:
         ast.parse(code)
@@ -29,7 +29,7 @@ def parse_code(code: str):
         raise
 
 
-def diff_code(code1: str, code2: str, fromfile: str = "before", tofile: str = "after"):
+def diff_code(code1: str, code2: str, fromfile: str = "before", tofile: str = "after") -> None:
     """Diff code"""
     for line in difflib.unified_diff(code1.split("\n"), code2.split("\n"), fromfile=fromfile, tofile=tofile):
         if line.startswith("+"):
@@ -38,7 +38,7 @@ def diff_code(code1: str, code2: str, fromfile: str = "before", tofile: str = "a
             color_code = ColorCodes.RED
         else:
             color_code = ColorCodes.DEFAULT
-        print(TAB + color(line.rstrip(), color_code=color_code))
+        print(TAB + color(line.rstrip(), color_code=color_code))  # noqa: T201
 
 
 def run_ruff(code: str, remove_unused_imports: bool = True) -> str:

@@ -3,17 +3,13 @@ from __future__ import annotations
 import inspect
 import itertools
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
 
 from openapi_test_client.libraries.common.misc import import_module_from_file_path
 
 from .base import APIBase
 
-if TYPE_CHECKING:
-    APIClassType = TypeVar("APIClassType", bound=APIBase)
 
-
-def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassType]]:
+def init_api_classes(base_api_class: type[APIBase]) -> list[type[APIBase]]:
     """Initialize API classes and return a list of API classes.
 
     - A list of Endpoint objects for an API class is available via its `endpoints` attribute
@@ -37,6 +33,7 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
     from openapi_test_client.libraries.api.api_functions import EndpointFunc, EndpointHandler
 
     previous_frame = inspect.currentframe().f_back
+    assert previous_frame
     caller_file_path = inspect.getframeinfo(previous_frame).filename
     assert caller_file_path.endswith("__init__.py"), (
         f"API classes must be initialized in __init__.py. Unexpectedly called from {caller_file_path}"
@@ -50,7 +47,7 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
         api_class.endpoints = []
         for attr_name, attr in api_class.__dict__.items():
             if isinstance(attr, EndpointHandler):
-                endpoint_func = getattr(api_class, attr_name)
+                endpoint_func: EndpointFunc = getattr(api_class, attr_name)
                 assert isinstance(endpoint_func, EndpointFunc)
                 api_class.endpoints.append(endpoint_func.endpoint)
 
@@ -59,10 +56,10 @@ def init_api_classes(base_api_class: type[APIClassType]) -> list[type[APIClassTy
         itertools.chain(*(x.endpoints for x in api_classes if x.endpoints)),
         key=lambda x: (x.tags, x.method, x.path),
     )
-    return sorted(api_classes, key=lambda x: x.TAGs)
+    return sorted(api_classes, key=lambda x: x.TAGs)  # type: ignore[arg-type, return-value]
 
 
-def get_api_classes(api_class_dir: Path, base_api_class: type[APIClassType]) -> list[type[APIClassType]]:
+def get_api_classes(api_class_dir: Path, base_api_class: type[APIBase]) -> list[type[APIBase]]:
     """Get all API classes defined under the given API class directory"""
     assert api_class_dir.is_dir()
 

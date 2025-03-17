@@ -8,14 +8,14 @@ from openapi_test_client.libraries.api.api_functions.endpoints import EndpointHa
 
 
 @pytest.mark.parametrize("with_instance", [True, False])
-def test_endpoint_handler(mocker: MockerFixture, api_client: DemoAppAPIClient, with_instance):
+def test_endpoint_handler(mocker: MockerFixture, api_client: DemoAppAPIClient, with_instance: bool) -> None:
     """Verify the basic capability around EndpointHandler"""
 
     class TestAPI(APIBase):
         TAGs = ("Test",)
         app_name = api_client.app_name
 
-        def do_something(self):
+        def do_something(self) -> ...:
             """A fake API function without the @endpoint.<method>(<path>) decorator"""
             ...
 
@@ -25,7 +25,7 @@ def test_endpoint_handler(mocker: MockerFixture, api_client: DemoAppAPIClient, w
     # This is equivalent to applying the @endpoint.<method>(<path>) decorator
     method = "do"
     path = "/something"
-    endpoint_handler = EndpointHandler(TestAPI.do_something, method=method, path=path)  # type: ignore
+    endpoint_handler = EndpointHandler(TestAPI.do_something, method=method, path=path)
 
     # __get__() should return an EndpointFunction obj
     instance = TestAPI(api_client) if with_instance else None

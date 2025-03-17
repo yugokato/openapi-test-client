@@ -5,7 +5,7 @@ import pytest
 from pytest_subtests import SubTests
 
 from openapi_test_client.libraries.api.api_functions.utils.pydantic_model import in_validation_mode
-from openapi_test_client.libraries.api.types import ParamModel
+from openapi_test_client.libraries.api.types import ParamModel, PydanticModel
 
 
 @pytest.mark.parametrize("scenario", ["empty_model", "with_no_fields", "with_partial_fields", "with_all_fields"])
@@ -15,7 +15,7 @@ def test_param_model(
     EmptyParamModel: type[ParamModel],
     RegularParamModel: type[ParamModel],
     InnerParamModel: type[ParamModel],
-):
+) -> None:
     """Verify the functionality around the following ParamModel capabilities
 
     1. Model creation and dynamic recreation logic handled by ParamModel.__new__()
@@ -68,7 +68,9 @@ def test_param_model(
             do_test_delete_field(model, model_class, model_params, scope)
 
 
-def test_param_model_nested(subtests: SubTests, RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel]):
+def test_param_model_nested(
+    subtests: SubTests, RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel]
+) -> None:
     """Verify the above ParamModel functionality also works with nested param models"""
     model_params = {
         "param1": "123",
@@ -110,7 +112,7 @@ def test_param_model_nested(subtests: SubTests, RegularParamModel: type[ParamMod
 @pytest.mark.parametrize("validation_timing", ["create", "update"])
 def test_param_model_validation_mode(
     RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel], validation_timing: str
-):
+) -> None:
     """Verify Pydantic validation in validation mode
 
     The validation should happen at the following timings:
@@ -122,7 +124,7 @@ def test_param_model_validation_mode(
             invalid_model_params = {"param1": 1, "param2": 2, "param3": 3, "undefined_param1": 4}
             with pytest.raises(ValueError) as e:
                 RegularParamModel(**invalid_model_params)
-            print(e.value)
+            print(e.value)  # noqa: T201
             assert f"4 validation errors for {RegularParamModel.__name__}" in str(e.value)
         else:
             valid_model_params = {
@@ -133,11 +135,13 @@ def test_param_model_validation_mode(
             model = RegularParamModel(**valid_model_params)
             with pytest.raises(ValueError) as e:
                 model.param3.inner_param1 = 123
-            print(e.value)
+            print(e.value)  # noqa: T201
             assert f"1 validation error for {RegularParamModel.__name__}" in str(e.value)
 
 
-def do_test_instantiate_model(model_class: type[ParamModel], model_params: dict[str, Any]):
+def do_test_instantiate_model(
+    model_class: type[ParamModel], model_params: dict[str, Any]
+) -> ParamModel | PydanticModel:
     should_be_recreated = set(model_class.__dataclass_fields__.keys()) != set(model_params.keys())
     model = model_class(**model_params)
     assert sorted(model.__dataclass_fields__.keys()) == sorted(model_params.keys())
@@ -154,7 +158,7 @@ def do_test_add_field(
     scope: str,
     field_name: str | None = None,
     field_value: Any = None,
-):
+) -> None:
     if not field_name:
         field_name = f"new_field_{scope}"
     if not field_value:
@@ -177,7 +181,7 @@ def do_test_update_field(
     scope: str,
     field_name: str | None = None,
     field_value: Any = None,
-):
+) -> None:
     if field_name:
         assert field_name in model.__dataclass_fields__.keys()
     else:
@@ -199,7 +203,7 @@ def do_test_delete_field(
     model_params: dict[str, Any],
     scope: str,
     field_name: str | None = None,
-):
+) -> None:
     if field_name:
         assert field_name in model.__dataclass_fields__.keys()
     else:
@@ -213,7 +217,7 @@ def do_test_delete_field(
     check_dataclass_and_dictionary_sync(model, model_params)
 
 
-def check_model(model_obj: ParamModel, model_class: type[ParamModel], should_be_recreated: bool = True):
+def check_model(model_obj: ParamModel, model_class: type[ParamModel], should_be_recreated: bool = True) -> None:
     """Check the basic part of param models, especially making sure our custom __instancecheck__() implementation work
     as expected.
     """
@@ -226,10 +230,10 @@ def check_model(model_obj: ParamModel, model_class: type[ParamModel], should_be_
     assert issubclass(type(model_obj), ParamModel)
 
 
-def check_dataclass_and_dictionary_sync(model_obj: ParamModel, model_params: dict[str, Any]):
+def check_dataclass_and_dictionary_sync(model_obj: ParamModel, model_params: dict[str, Any]) -> None:
     """Check dataclass and dictionary are synced"""
 
-    def check_recursively(m: ParamModel, p: dict[str, Any]):
+    def check_recursively(m: ParamModel, p: dict[str, Any]) -> None:
         assert sorted(m.__dataclass_fields__.keys()) == sorted(p.keys())
         assert dict(m) == p
         assert asdict(m) == p

@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
 from types import MappingProxyType, NoneType, UnionType
-from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional, Union, cast, get_args, get_origin
+from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, cast, get_args, get_origin
 
 import inflect
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
@@ -14,6 +14,7 @@ from common_libs.utils import clean_obj_name
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 import openapi_test_client.libraries.api.types as types_module
+from openapi_test_client.libraries.api.api_classes.base import APIBase
 from openapi_test_client.libraries.api.types import (
     Alias,
     DataclassModel,
@@ -27,10 +28,6 @@ from openapi_test_client.libraries.api.types import (
 )
 from openapi_test_client.libraries.common.constants import TAB
 from openapi_test_client.libraries.common.misc import generate_class_name
-
-if TYPE_CHECKING:
-    from openapi_test_client.libraries.api import APIClassType
-
 
 logger = get_logger(__name__)
 
@@ -92,7 +89,7 @@ def generate_model_name(field_name: str, field_type: str | Any) -> str:
     if model_name in [*get_reserved_model_names(), field_name]:
         model_name += "_"
 
-    return model_name  # type:ignore
+    return model_name
 
 
 @lru_cache
@@ -104,7 +101,7 @@ def get_reserved_model_names() -> list[str]:
         for x in mod.__dict__.values()
         if inspect.isclass(x) and issubclass(x, ParamAnnotationType | DataclassModel)
     ] + ["Unset"]
-    typing_class_names = [x.__name__ for x in [Any, Optional, Annotated, Literal, Union]]
+    typing_class_names = [x.__name__ for x in [Any, Optional, Annotated, Literal, Union]]  # type: ignore[attr-defined]
     return custom_param_annotation_names + typing_class_names
 
 
@@ -138,14 +135,14 @@ def create_model_from_param_def(
             type[ParamModel],
             make_dataclass(
                 model_name,
-                fields,  # type: ignore
+                fields,
                 bases=(ParamModel,),
             ),
         )
 
 
 def generate_imports_code_from_model(
-    api_class: type[APIClassType], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
+    api_class: type[APIBase], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
 ) -> str:
     """Generate imports code from the model
 
@@ -158,21 +155,21 @@ def generate_imports_code_from_model(
     primitive_types = [int, float, str, bool]
     from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME
 
-    def generate_imports_code(obj_type: Any):
+    def generate_imports_code(obj_type: Any) -> str:
         if obj_type not in [*primitive_types, None, NoneType] and not isinstance(obj_type, tuple(primitive_types)):
             if typing_origin := get_origin(obj_type):
                 if typing_origin is Annotated:
-                    module_and_name_pairs.add(("typing", Annotated.__name__))
+                    module_and_name_pairs.add(("typing", Annotated.__name__))  # type: ignore[attr-defined]
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 elif typing_origin is Literal:
-                    module_and_name_pairs.add(("typing", Literal.__name__))
+                    module_and_name_pairs.add(("typing", Literal.__name__))  # type: ignore[attr-defined]
                 elif typing_origin in [list, dict, tuple]:
                     [generate_imports_code(m) for m in [x for x in get_args(obj_type)]]
                 elif typing_origin in [UnionType, Union]:
                     if param_type_util.is_optional_type(obj_type):
                         # NOTE: We will use our alias version of typing.Optional for now
-                        # module_and_name_pairs.add(("typing", Optional.__name__))
-                        module_and_name_pairs.add((types_module.__name__, Optional.__name__))
+                        # module_and_name_pairs.add(("typing", Optional.__name__))  # type: ignore[attr-defined]
+                        module_and_name_pairs.add((types_module.__name__, Optional.__name__))  # type: ignore[attr-defined]
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 else:
                     raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")
@@ -183,7 +180,7 @@ def generate_imports_code_from_model(
                         (
                             f"..{API_MODEL_CLASS_DIR_NAME}.{model_file_name}",
                             # Using the original field type here to detect list or not
-                            generate_model_name(field_name, field_type),
+                            generate_model_name(field_name, field_type),  # type: ignore[arg-type]
                         )
                     )
             else:
@@ -209,7 +206,7 @@ def generate_imports_code_from_model(
     return imports_code
 
 
-def generate_model_code_from_model(api_class: type[APIClassType], model: type[ParamModel]) -> tuple[str, str]:
+def generate_model_code_from_model(api_class: type[APIBase], model: type[ParamModel]) -> tuple[str, str]:
     """Generate dataclass code from the model
 
     :param api_class: The API class the model is for
@@ -242,17 +239,17 @@ def get_param_models(model: type[EndpointModel | ParamModel], recursive: bool = 
     :param recursive: Recursively collect param models
     """
 
-    def collect_param_models(model: type[EndpointModel | ParamModel]):
+    def collect_param_models(model: type[EndpointModel | ParamModel]) -> None:
         for field_name, field_obj in model.__dataclass_fields__.items():
             if has_param_model(field_obj.type):
-                model_name = generate_model_name(field_name, field_obj.type)
+                model_name = generate_model_name(field_name, field_obj.type)  # type: ignore[arg-type]
                 param_def = ParamDef.from_param_obj(field_obj.metadata)
                 param_model = create_model_from_param_def(model_name, param_def)
                 param_models.append(param_model)
                 if recursive:
                     collect_param_models(param_model)
 
-    param_models = []
+    param_models: list[type[ParamModel]] = []
     collect_param_models(model)
     return param_models
 
@@ -288,7 +285,7 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     visited_model_names = set()
     sorted_models_names = []
 
-    def visit(model_name: str):
+    def visit(model_name: str) -> None:
         if model_name not in visited_model_names:
             visited_model_names.add(model_name)
             for nested_model_name in nested_model_names.get(model_name, []):
@@ -302,7 +299,7 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
-def alias_illegal_model_field_names(model_fields: list[DataclassModelField]):
+def alias_illegal_model_field_names(model_fields: list[DataclassModelField]) -> str:
     """Clean illegal model field name and annotate the field type with Alias class
 
     :param model_fields: fields value to be passed to make_dataclass()

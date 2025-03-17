@@ -2,13 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, ParamSpec
+from typing import ParamSpec
 
 from common_libs.clients.rest_client import RestResponse
-
-if TYPE_CHECKING:
-    from openapi_test_client.libraries.api import EndpointFunc
-
 
 P = ParamSpec("P")
 
@@ -30,9 +26,9 @@ def do_something_before_and_after_request(f: Callable[P, RestResponse]) -> Calla
     """
 
     @wraps(f)
-    def wrapper(endpoint_func: EndpointFunc, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> RestResponse:
         # Do something before request
-        r = f(endpoint_func, *args, **kwargs)
+        r = f(*args, **kwargs)
         # Do something after request
         return r
 

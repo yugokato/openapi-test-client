@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -37,7 +38,9 @@ def api_class_or_instance(request: FixtureRequest, api_client: DemoAppAPIClient)
 
 
 @pytest.fixture
-def temp_api_client(temp_dir: Path, mocker: MockerFixture, openapi_specs: dict[str, Any]) -> OpenAPIClient:
+def temp_api_client(
+    temp_dir: Path, mocker: MockerFixture, openapi_specs: dict[str, Any]
+) -> Generator[OpenAPIClient, Any, None]:
     """Temporary API client needed for code generation"""
     app_name = "test_app"
     module_dir = temp_dir / "my_clients"
@@ -78,7 +81,7 @@ def RegularParamModel(InnerParamModel: type[ParamModel]) -> type[ParamModel]:
     class Model(ParamModel):
         param1: str = Unset
         param2: str = Unset
-        param3: InnerParamModel = Unset
+        param3: InnerParamModel = Unset  # type: ignore[valid-type]
 
     return Model
 

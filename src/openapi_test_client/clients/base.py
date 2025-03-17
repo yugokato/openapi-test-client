@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
-from typing import TYPE_CHECKING
+from typing import Any, TypeVar
 
 from common_libs.clients.rest_client import RestClient
 from common_libs.logging import get_logger
@@ -12,11 +12,9 @@ from openapi_test_client import DEFAULT_ENV, get_config_dir
 from openapi_test_client.libraries.api.api_spec import OpenAPISpec
 from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
 
-if TYPE_CHECKING:
-    from openapi_test_client.clients import APIClientType
-
-
 logger = get_logger(__name__)
+
+T = TypeVar("T", bound="OpenAPIClient")
 
 
 class OpenAPIClient:
@@ -50,11 +48,11 @@ class OpenAPIClient:
         return self._base_url
 
     @base_url.setter
-    def base_url(self, url: str):
+    def base_url(self, url: str) -> None:
         self._base_url = url
 
-    @staticmethod
-    def get_client(app_name: str, **init_options) -> APIClientType:
+    @classmethod
+    def get_client(cls: type[T], app_name: str, **init_options: Any) -> T:
         """Get API client for the app
 
         :param app_name: App name
@@ -68,13 +66,13 @@ class OpenAPIClient:
 
         client_module_name = get_module_name_by_file_path(client_file)
         mod = importlib.import_module(client_module_name)
-        clients = [
+        client_classes: list[type[T]] = [
             x
             for x in mod.__dict__.values()
             if inspect.isclass(x) and issubclass(x, OpenAPIClient) and x is not OpenAPIClient
         ]
-        if len(clients) != 1:
+        if len(client_classes) != 1:
             raise RuntimeError(f"Unable to locate the API client for {app_name} from {mod}")
 
-        api_client: type[APIClientType] = clients[0]
-        return api_client(**init_options)
+        APIClientClass = client_classes[0]
+        return APIClientClass(**init_options)

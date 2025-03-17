@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from common_libs.clients.rest_client import RestResponse
 from requests.exceptions import RequestException
@@ -24,9 +24,9 @@ class DemoAppBaseAPI(APIBase):
         endpoint: Endpoint,
         response: RestResponse | None,
         request_exception: RequestException | None,
-        *path_params,
-        **params,
-    ):
+        *path_params: Any,
+        **params: Any,
+    ) -> None:
         super().post_request_hook(endpoint, response, request_exception, *path_params, **params)
         if response and response.ok:
             if endpoint in self.api_client.Auth.endpoints:

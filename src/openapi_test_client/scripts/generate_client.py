@@ -92,7 +92,7 @@ from openapi_test_client.libraries.api import api_client_generator as generator
 from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.api.api_classes import APIClassType
+    from openapi_test_client.libraries.api.api_classes.base import APIBase
 
 logger = get_logger(__name__)
 
@@ -101,7 +101,7 @@ API_CLIENTS_DIR = get_package_dir() / "clients"
 EXISTING_CLIENT_NAMES = [x.name for x in API_CLIENTS_DIR.iterdir() if x.is_dir() and not x.name.startswith("__")]
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="action", required=True, help="Action to take")
     subparser_generate = subparsers.add_parser("generate", help="Generate a new API client from an OpenAPI spec URL")
@@ -111,7 +111,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def _parse_generate_args(parser: argparse.ArgumentParser):
+def _parse_generate_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-e",
         "--env",
@@ -159,7 +159,7 @@ def _parse_generate_args(parser: argparse.ArgumentParser):
     )
 
 
-def _parse_update_args(parser: argparse.ArgumentParser):
+def _parse_update_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--env",
         dest="env",
@@ -258,7 +258,7 @@ def _parse_update_args(parser: argparse.ArgumentParser):
     )
 
 
-def generate_client(args: argparse.Namespace):
+def generate_client(args: argparse.Namespace) -> None:
     """Generate a new API client from OpenAPI spec URL"""
     matched = re.match(r"(https?://[^/]+)/(.+)", args.url)
     if not matched:
@@ -338,18 +338,18 @@ def generate_client(args: argparse.Namespace):
             logger.info(success_msg)
 
 
-def update_client(args: argparse.Namespace):
+def update_client(args: argparse.Namespace) -> None:
     """Update an existing API client based on the current OpenAPI spec"""
     api_client = OpenAPIClient.get_client(args.client_app_name, env=args.env)
     api_classes = _get_api_classes(args.client_app_name)
     api_spec = api_client.api_spec.get_api_spec()
     assert api_spec
 
-    api_classes_undefined = []
+    api_tags_undefined: list[str] = []
     all_documented_tags = [x["name"] for x in api_spec["tags"] if x["name"]]
-    all_defined_tags = list(chain.from_iterable([x.TAGs for x in api_classes]))
+    all_defined_tags: list[str] = list(chain.from_iterable([x.TAGs for x in api_classes]))  # type: ignore[arg-type]
     update_required = []
-    failed_results = []
+    failed_results: list[tuple[str, Exception]] = []
 
     done = False
     if args.tag:
@@ -360,20 +360,20 @@ def update_client(args: argparse.Namespace):
             )
         elif args.tag not in all_defined_tags:
             # Generate a new API class file for this tag
-            result = generator.generate_api_class(
+            generate_result = generator.generate_api_class(
                 api_client,
                 args.tag,
                 add_endpoint_functions=not args.ignore_undefined_endpoints,
                 dry_run=args.dry_run,
             )
-            if isinstance(result, tuple):
-                failed_results.append(result)
+            if isinstance(generate_result, tuple):
+                failed_results.append(generate_result)
             done = True
 
     if not done:
         for cls in api_classes:
             if not args.tag or args.tag in cls.TAGs:
-                result = generator.update_endpoint_functions(
+                update_result = generator.update_endpoint_functions(
                     cls,
                     api_spec,
                     dry_run=args.dry_run,
@@ -383,22 +383,23 @@ def update_client(args: argparse.Namespace):
                     update_param_models_only=args.update_param_models_only,
                     verbose=False,
                 )
-                if result is True:
+                if update_result is True:
                     update_required.append(cls)
-                elif isinstance(result, tuple):
-                    failed_results.append(result)
+                elif isinstance(update_result, tuple):
+                    failed_results.append(update_result)
 
         if not args.tag:
-            defined_tags = [
-                x.strip() for x in chain(*[x.TAGs for x in api_classes if not isinstance(x.TAGs, property)])
+            defined_tags = [  # type: ignore[var-annotated]
+                x.strip()
+                for x in chain(*[x.TAGs for x in api_classes if not isinstance(x.TAGs, property)])  # type: ignore[arg-type]
             ]
             undefined_tags = set(all_documented_tags).difference(set(defined_tags))
             if undefined_tags:
-                api_classes_undefined.extend(undefined_tags)
+                api_tags_undefined.extend(undefined_tags)
 
-        if api_classes_undefined and not any([args.tag, args.endpoints, args.api_classes, args.api_functions]):
+        if api_tags_undefined and not any([args.tag, args.endpoints, args.api_classes, args.api_functions]):
             if args.add_api_classes:
-                for tag in api_classes_undefined:
+                for tag in api_tags_undefined:
                     generator.generate_api_class(
                         api_client,
                         tag,
@@ -407,10 +408,10 @@ def update_client(args: argparse.Namespace):
                     )
             else:
                 logger.warning(
-                    f"API class(es) need to be added for the following TAG(s):\n{list_items(api_classes_undefined)}"
+                    f"API class(es) need to be added for the following TAG(s):\n{list_items(api_tags_undefined)}"
                 )
 
-        print()
+        print()  # noqa: T201
         if args.dry_run and update_required:
             logger.warning(
                 f"The following API class(es) have one or more API functions that need to be updated\n"
@@ -421,14 +422,14 @@ def update_client(args: argparse.Namespace):
             _log_errors(args.action, failed_results)
 
 
-def _get_api_classes(app: str) -> list[type[APIClassType]]:
+def _get_api_classes(app: str) -> list[type[APIBase]]:
     mod = importlib.import_module(
         f"{get_module_name_by_file_path(API_CLIENTS_DIR)}.{app}.{generator.API_CLASS_DIR_NAME}"
     )
     return mod.API_CLASSES
 
 
-def _log_errors(action: str, failed_results: list[tuple[str, Exception]]):
+def _log_errors(action: str, failed_results: list[tuple[str, Exception]]) -> None:
     error_details = []
     for failed_result in failed_results:
         api_class_name, e = failed_result
@@ -446,7 +447,7 @@ def _log_errors(action: str, failed_results: list[tuple[str, Exception]]):
         raise Exception(f"{err}\n{list_items(error_details)}")
 
 
-def main():
+def main() -> None:
     args = parse_args()
     if args.action == "generate":
         generate_client(args)

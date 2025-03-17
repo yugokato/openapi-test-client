@@ -1,4 +1,4 @@
-from collections.abc import MutableMapping
+from collections.abc import Iterator, MutableMapping
 from typing import Any
 
 from openapi_test_client.libraries.api.types import File
@@ -17,7 +17,7 @@ class MultipartFormData(MutableMapping):
     """
 
     def __init__(self, **files: File | dict[str, str | bytes | Any]):
-        self._files = dict(
+        self._files: dict[str, tuple[str, str | bytes, str]] = dict(
             {
                 param_name: (file.to_tuple() if isinstance(file, File) else tuple(file.values()))
                 for (param_name, file) in files.items()
@@ -35,10 +35,10 @@ class MultipartFormData(MutableMapping):
                 ),
             )
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> tuple[str, str | bytes, str]:
         return self._files[key]
 
-    def __setitem__(self, key: str, value: File | dict[str, Any] | Any):
+    def __setitem__(self, key: str, value: File | dict[str, Any] | Any) -> None:
         if isinstance(value, File):
             self._files[key] = value.to_tuple()
         elif isinstance(value, dict):
@@ -46,13 +46,13 @@ class MultipartFormData(MutableMapping):
         else:
             self._files[key] = value
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         del self._files[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._files)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._files)
 
     def to_dict(self) -> dict[str, tuple[str, str | bytes, str] | Any]:

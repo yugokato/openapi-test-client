@@ -6,18 +6,22 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from common_libs.logging import get_logger
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
 
 
+logger = get_logger("openapi_test_client")
+
+
 def run_command(args: str) -> tuple[str, str]:
     """Run openapi-client command with given command args"""
     cmd = f"openapi-client {args}"
-    print(f"Running command: {cmd}")
+    logger.info(f"Running command: {cmd}")
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
     stdout, stderr = proc.communicate()
-    print(stdout)
+    print(stdout)  # noqa: T201
     return stdout, stderr
 
 
@@ -27,7 +31,7 @@ def do_test_invalid_params(
     validation_mode: bool,
     invalid_params: dict[str, Any],
     num_expected_errors: int,
-):
+) -> None:
     """Test the endpoint with invalid parameters
 
     When validation mode is enabled, the client side should raise ValueError.
@@ -38,7 +42,7 @@ def do_test_invalid_params(
         r = endpoint_func(**invalid_params, validate=validation_mode)
 
     if validation_mode:
-        print(e.value)
+        print(e.value)  # noqa: T201
         assert (
             f"Request parameter validation failed.\n"
             f"{num_expected_errors} validation error{'s' if num_expected_errors > 1 else ''} for "

@@ -13,7 +13,7 @@ from common_libs.logging import get_logger
 from openapi_test_client.libraries.common.constants import VALID_METHODS
 
 if TYPE_CHECKING:
-    from openapi_test_client.clients import APIClientType
+    from openapi_test_client.clients import OpenAPIClient
     from openapi_test_client.libraries.api import Endpoint
 
 logger = get_logger(__name__)
@@ -22,17 +22,17 @@ logger = get_logger(__name__)
 class OpenAPISpec:
     """Class to handle OpenAPI specs"""
 
-    def __init__(self, api_client: APIClientType, doc_path: str):
+    def __init__(self, api_client: OpenAPIClient, doc_path: str):
         self.api_client = api_client
         self.doc_path = doc_path
-        self._spec = None
+        self._spec: dict[str, Any] | None = None
 
     @lru_cache
     def get_api_spec(self, url: str | None = None) -> dict[str, Any] | None:
         """Return OpenAPI spec"""
         if self._spec is None:
             if url:
-                doc_path = url.rsplit("/", 1)
+                doc_path = url.rsplit("/", 1)[0]
             else:
                 url = f"{self.api_client.base_url}/{self.doc_path}"
                 doc_path = self.doc_path
@@ -69,6 +69,7 @@ class OpenAPISpec:
         :param endpoint: Endpoint object
         """
         if self.get_api_spec():
+            assert self._spec
             method = endpoint.method
             path = endpoint.path
             try:
@@ -139,7 +140,7 @@ class OpenAPISpec:
                     remove_circular_ref(item)
             return copy.deepcopy(reference)
 
-        def resolve_recursive(reference: Any, schemas_seen: list[str] | None = None):
+        def resolve_recursive(reference: Any, schemas_seen: list[str] | None = None) -> Any:
             if schemas_seen is None:
                 schemas_seen = []
             if isinstance(reference, dict):
@@ -152,7 +153,7 @@ class OpenAPISpec:
                         schema = "/".join(ref_keys)
                         is_circular_ref = schema in schemas_seen
                         try:
-                            resolved_value = reduce(lambda d, k: d[k], ref_keys, api_spec)
+                            resolved_value: dict[str, Any] | list[Any] = reduce(lambda d, k: d[k], ref_keys, api_spec)
                         except KeyError as e:
                             logger.warning(f"SKIPPED: Unable to resolve '$ref' for '{new_reference}' (KeyError: {e})")
                         else:
@@ -185,7 +186,7 @@ class OpenAPISpec:
     def _adjust_spec(api_spec: dict[str, Any]) -> dict[str, Any]:
         """Adjust the shape of the API specs for our library to work better"""
 
-        def adjust_path_params(path_obj: dict[str, Any]):
+        def adjust_path_params(path_obj: dict[str, Any]) -> None:
             """Move the path level "parameters" obj to under each path method level"""
             if "parameters" in path_obj:
                 for key in path_obj:
@@ -196,7 +197,7 @@ class OpenAPISpec:
                 del path_obj["parameters"]
 
         def adjust_recursive(
-            reference: Any, is_property: bool | None = None, required_params: tuple[str] = ()
+            reference: Any, is_property: bool | None = None, required_params: tuple[str, ...] = ()
         ) -> dict[str, Any]:
             """Adjust specs
 
@@ -256,7 +257,7 @@ class OpenAPISpec:
     def _collect_endpoint_tags(resolved_api_spec: dict[str, Any]) -> list[str]:
         collected_tags = []
 
-        def collect(obj):
+        def collect(obj: Any) -> None:
             if isinstance(obj, dict):
                 tags = obj.get("tags")
                 if tags and isinstance(tags, list) and all(isinstance(t, str) for t in tags):

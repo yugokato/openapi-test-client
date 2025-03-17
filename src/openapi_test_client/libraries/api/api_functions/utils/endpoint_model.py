@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import json
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import MISSING, field, make_dataclass
 from typing import TYPE_CHECKING, Any, cast
@@ -83,7 +83,7 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
         type[EndpointModel],
         make_dataclass(
             model_name,
-            fields,  # type: ignore
+            fields,
             bases=(EndpointModel,),
             namespace={"content_type": content_type, "endpoint_func": endpoint_func},
             kw_only=True,
@@ -132,7 +132,7 @@ def _parse_parameter_objects(
     parameter_objects: list[dict[str, Any]],
     path_param_fields: list[DataclassModelField],
     body_or_query_param_fields: list[DataclassModelField],
-):
+) -> None:
     """Parse parameter objects
 
     https://swagger.io/specification/#parameter-object
@@ -211,7 +211,7 @@ def _parse_request_body_object(
     # TODO: Support multiple content types
     content_type = next(iter(contents))
 
-    def parse_schema_obj(obj: dict[str, Any]):
+    def parse_schema_obj(obj: dict[str, Any]) -> list[dict[str, Any]] | None:
         # This part has some variations, and sometimes not consistent
         if not (properties := obj.get("properties", {})):
             schema_type = obj.get("type")
@@ -245,7 +245,7 @@ def _parse_request_body_object(
                 if _is_file_param(content_type, param_def):
                     param_type = File
                     if not param_def.is_required:
-                        param_type = param_type | None
+                        param_type = param_type | None  # type: ignore[assignment]
                     _add_body_or_query_param_field(
                         body_or_query_param_fields, param_name, param_type, param_obj=param_obj
                     )
@@ -286,8 +286,8 @@ def _add_body_or_query_param_field(
     param_fields: list[DataclassModelField],
     param_name: str,
     param_type_annotation: Any,
-    param_obj: Mapping[str, Any] | dict[str, Any] | Sequence[dict[str, Any]] | None = None,
-):
+    param_obj: Mapping[str, Any] | dict[str, Any] | None = None,
+) -> None:
     if param_name not in [x[0] for x in param_fields]:
         param_fields.append(
             DataclassModelField(param_name, param_type_annotation, default=field(default=Unset, metadata=param_obj))

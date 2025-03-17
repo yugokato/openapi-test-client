@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
@@ -20,11 +20,8 @@ from openapi_test_client.libraries.api.types import ParamModel
 from openapi_test_client.libraries.common.misc import reload_obj
 from tests.unit import helper
 
-if TYPE_CHECKING:
-    from openapi_test_client.libraries.api.api_classes import APIClassType
 
-
-def test_generate_base_api_class_code(temp_api_client: OpenAPIClient):
+def test_generate_base_api_class_code(temp_api_client: OpenAPIClient) -> None:
     """Verify code generation of new base API class works"""
     app_name = temp_api_client.app_name
     NewBaseAPIClass = generate_base_api_class(temp_api_client)
@@ -39,7 +36,7 @@ def test_generate_base_api_class_code(temp_api_client: OpenAPIClient):
 @pytest.mark.parametrize("add_endpoint_functions", [False, True])
 def test_generate_api_class_code(
     temp_api_client: OpenAPIClient, openapi_specs: dict[str, Any], add_endpoint_functions: bool
-):
+) -> None:
     """Verify code generation of new API class works
 
     When add_endpoint_functions option is given, the API class code should include associated API functions and
@@ -87,7 +84,9 @@ def test_generate_api_class_code(
 
 
 @pytest.mark.parametrize("update_type", ["missing_endpoints", "target_endpoint", "ignore_endpoint", "param_model_only"])
-def test_update_endpoint_function_code(temp_api_client: OpenAPIClient, openapi_specs: dict[str, Any], update_type: str):
+def test_update_endpoint_function_code(
+    temp_api_client: OpenAPIClient, openapi_specs: dict[str, Any], update_type: str
+) -> None:
     """Verify code generation for updating endpoint functions works"""
     api_class_name = "TestSomethingAPI"
 
@@ -173,7 +172,7 @@ def test_update_endpoint_function_code(temp_api_client: OpenAPIClient, openapi_s
         assert model_param_to_delete not in Metadata.__dataclass_fields__
 
 
-def test_generate_api_client_code(temp_api_client: OpenAPIClient, mocker: MockerFixture):
+def test_generate_api_client_code(temp_api_client: OpenAPIClient, mocker: MockerFixture) -> None:
     """Verify code generation of new API client works
 
     NOTE: This test requires at least one API class generation to be done first
@@ -189,19 +188,20 @@ def test_generate_api_client_code(temp_api_client: OpenAPIClient, mocker: Mocker
     assert (Path(inspect.getfile(NewAPIClient)).parent / "__init__.py").exists()
 
     # Initializa the client and check both API classes are accessible
-    api_client = NewAPIClient()  # type: ignore
+    api_client = NewAPIClient()
     assert api_client.app_name == temp_api_client.app_name
     assert hasattr(api_client, "TestSomething1")
     assert hasattr(api_client, "TestSomething2")
-    assert isinstance(api_client.TestSomething1, NewAPIClass1)  # type: ignore
-    assert isinstance(api_client.TestSomething2, NewAPIClass2)  # type: ignore
+    assert isinstance(api_client.TestSomething1, NewAPIClass1)
+    assert isinstance(api_client.TestSomething2, NewAPIClass2)
 
     # Make an API request using a mocked RestAPI client function call
     rest_client = api_client.rest_client
+    assert hasattr(NewAPIClass1, "_unnamed_endpoint_1")
     mock = mocker.patch(
         f"{rest_client.__module__}.{type(rest_client).__name__}._{NewAPIClass1._unnamed_endpoint_1.method}"
     )
-    api_client.TestSomething1._unnamed_endpoint_1()  # type: ignore
+    api_client.TestSomething1._unnamed_endpoint_1()
     mock.assert_called_once()
 
 
@@ -209,7 +209,7 @@ def do_generate_api_class(
     temp_api_client: OpenAPIClient,
     api_class_name: str,
     add_endpoint_functions: bool = True,
-) -> type[APIClassType]:
+) -> type[APIBase]:
     result = generate_api_class(temp_api_client, "Test", api_class_name, add_endpoint_functions=add_endpoint_functions)
     assert not isinstance(result, tuple), "API class generation failed"
     return result

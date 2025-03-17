@@ -26,3 +26,8 @@ repos:
       entry: ruff format
       language: system
       types: [ python ]
+    - id: mypy
+      name: mypy
+      entry: mypy src
+      pass_filenames: false
+      language: system

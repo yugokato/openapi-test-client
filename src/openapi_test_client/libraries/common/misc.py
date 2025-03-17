@@ -83,26 +83,28 @@ def import_module_with_new_code(new_code: str, path_or_obj: Path | Any) -> Modul
     return mod
 
 
-def reload_obj(obj: T) -> T:
+def reload_obj(obj: type[T]) -> T:
     """Reload object
 
     Use this to reflect the inline code changes on the object
     """
-    mod = importlib.reload(inspect.getmodule(obj))
+    mod = inspect.getmodule(obj)
+    assert mod is not None
+    mod = importlib.reload(mod)
     return getattr(mod, obj.__name__)
 
 
-def reload_all_modules(root_dir: Path):
+def reload_all_modules(root_dir: Path) -> None:
     """Recursively reload all modules under the given directory
 
     :param root_dir: The root directory to start module reoloading from
     """
 
-    def reload(file_or_dir: Path):
+    def reload(file_or_dir: Path) -> None:
         mod = import_module_from_file_path(file_or_dir)
         importlib.reload(mod)
 
-    def reload_recursively(file_or_dir: Path):
+    def reload_recursively(file_or_dir: Path) -> None:
         if file_or_dir.name.startswith("_"):
             return
 

@@ -1,6 +1,7 @@
 import inspect
 import ipaddress
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import Field as DataclassField
 from datetime import date, datetime, time, timedelta
@@ -61,7 +62,7 @@ def is_validation_mode() -> bool:
 
 
 @contextmanager
-def in_validation_mode():
+def in_validation_mode() -> Generator[None, Any, None]:
     """Temporarily enable validation mode"""
     if not is_validation_mode():
         os.environ["VALIDATION_MODE"] = "true"
@@ -91,7 +92,7 @@ def generate_pydantic_model_field(
     if param_type_util.is_union_type(model_field.type):
         dataclass_field_types = get_args(model_field.type)
     else:
-        dataclass_field_types = [model_field.type]
+        dataclass_field_types = (model_field.type,)
 
     pydantic_field_types = []
     for dataclass_field_type in dataclass_field_types:
@@ -121,7 +122,7 @@ def generate_pydantic_model_field(
             # following constraint will be ignored (Pydantic doesn't allow extra options to be added to a Field object).
             # We will completely rely on Pydantic's validation logic in this case.
             if constraint := filter_annotated_metadata(annotated_type, Constraint):
-                const = {}
+                const: dict[str, Any] = {}
                 if param_type_util.is_type_of(base_type, str):
                     if constraint.min_len:
                         const.update(min_length=constraint.min_len)
@@ -169,7 +170,8 @@ def generate_pydantic_model_field(
                 base_type = param_type_util.get_base_type(dataclass_field_type)
                 if not param_type_util.is_type_of(base_type, list):
                     dataclass_field_type = param_type_util.replace_base_type(
-                        dataclass_field_type, base_type | list[base_type]
+                        dataclass_field_type,
+                        base_type | list[base_type],  # type: ignore[valid-type]
                     )
         pydantic_field_types.append(dataclass_field_type)
 

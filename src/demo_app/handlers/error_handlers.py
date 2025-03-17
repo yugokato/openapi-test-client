@@ -1,10 +1,11 @@
 import json
 from dataclasses import dataclass
+from typing import Any
 
 from quart import Blueprint, Response, jsonify, make_response, request
 from quart import current_app as app
 from quart_schema import RequestSchemaValidationError
-from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import BadRequest, NotFound, Unauthorized
 
 bp_error_handler = Blueprint("error_handler", __name__)
 
@@ -12,18 +13,18 @@ bp_error_handler = Blueprint("error_handler", __name__)
 @dataclass
 class Error:
     code: int
-    message: str
+    message: Any
     request_id: str
 
 
 @bp_error_handler.app_errorhandler(400)
-async def handle_bad_request_error(error) -> Response:
+async def handle_bad_request_error(error: BadRequest) -> Response:
     err = Error(code=400, message=str(error), request_id=request.headers["X-Request-ID"])
     return await make_response(jsonify({"error": err}), 400)
 
 
 @bp_error_handler.app_errorhandler(401)
-async def handle_unauthorized_request(error) -> Response:
+async def handle_unauthorized_request(error: Unauthorized) -> Response:
     err = Error(code=401, message="Login required", request_id=request.headers["X-Request-ID"])
     return await make_response(jsonify({"error": err}), 401)
 
