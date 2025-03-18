@@ -75,8 +75,8 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
     # Some OpenAPI specs define a parameter name using characters we can't use as a python variable name.
     # We will use the cleaned name as the model field and annotate it as `Annotated[field_type, Alias(<original_val>)]`
     # When calling an endpoint function, the actual name will be automatically resolved in the payload/query parameters
-    param_model_util.alias_illegal_model_field_names(path_param_fields)
-    param_model_util.alias_illegal_model_field_names(body_or_query_param_fields)
+    param_model_util.alias_illegal_model_field_names(model_name, path_param_fields)
+    param_model_util.alias_illegal_model_field_names(model_name, body_or_query_param_fields)
 
     fields = path_param_fields + body_or_query_param_fields
     return cast(

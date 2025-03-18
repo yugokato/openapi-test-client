@@ -468,6 +468,7 @@ def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
         (MyParamModel, MyParamModel2 | None, MyParamModel | None),
         (MyParamModel2 | None, MyParamModel3, MyParamModel2 | None),
         (MyParamModel2, MyParamModel3 | None, MyParamModel2 | None),
+        (MyParamModel, ForwardRef(MyParamModel.__name__), MyParamModel),
     ],
 )
 def test_custom_or_(tp1: Any, tp2: Any, expected_type: Any) -> None:

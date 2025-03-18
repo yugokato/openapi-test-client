@@ -69,6 +69,20 @@ def get_param_model(annotated_type: Any) -> type[ParamModel] | ForwardRef | list
             return base_type
 
 
+def get_param_model_name(param_model: type[ParamModel] | ForwardRef) -> str:
+    """Get the model name
+
+    :param param_model: Param model. This can be a forward ref
+    """
+    if not is_param_model(param_model):
+        raise ValueError(f"{param_model} is not a param model")
+
+    if isinstance(param_model, ForwardRef):
+        return param_model.__forward_arg__
+    else:
+        return param_model.__name__
+
+
 @lru_cache
 def generate_model_name(field_name: str, field_type: str | Any) -> str:
     """Generate model name from the given field
@@ -130,7 +144,7 @@ def create_model_from_param_def(
             )
             for inner_param_name, inner_param_obj in param_def.get("properties", {}).items()
         ]
-        alias_illegal_model_field_names(fields)
+        alias_illegal_model_field_names(model_name, fields)
         return cast(
             type[ParamModel],
             make_dataclass(
@@ -299,9 +313,10 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
-def alias_illegal_model_field_names(model_fields: list[DataclassModelField]) -> str:
+def alias_illegal_model_field_names(model_name: str, model_fields: list[DataclassModelField]) -> None:
     """Clean illegal model field name and annotate the field type with Alias class
 
+    :param model_name: Model name
     :param model_fields: fields value to be passed to make_dataclass()
     """
 
@@ -315,7 +330,7 @@ def alias_illegal_model_field_names(model_fields: list[DataclassModelField]) -> 
         else:
             name = clean_obj_name(name)
             # NOTE: The escaping of kwargs is already is handled in endpoint model
-            reserved_param_names = [*get_supported_request_parameters(), "validate"]
+            reserved_param_names = ["self", "validate", *get_supported_request_parameters()]
             if name in get_reserved_model_names() + reserved_param_names:
                 # The field name conflicts with one of reserved names
                 name += "_"

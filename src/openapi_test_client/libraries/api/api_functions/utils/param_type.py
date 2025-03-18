@@ -463,6 +463,11 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
             for args_ in args_per_origin.values()
         )
 
+    if isinstance(tp1, str):
+        tp1 = ForwardRef(tp1)
+    if isinstance(tp2, str):
+        tp2 = ForwardRef(tp2)
+
     origin = get_origin(tp1)
     origin2 = get_origin(tp2)
     if origin or origin2:
@@ -528,7 +533,11 @@ def or_(x: Any, y: Any) -> Any:
     >>> reduce(or_, [Model1 | None, Model2])
     __main__.MyModel | None
     """
-    if param_model_util.is_param_model(x) and param_model_util.is_param_model(y) and x.__name__ == y.__name__:
+    if (
+        param_model_util.is_param_model(x)
+        and param_model_util.is_param_model(y)
+        and param_model_util.get_param_model_name(x) == param_model_util.get_param_model_name(y)
+    ):
         return x
     else:
         is_x_union = is_union_type(x)
