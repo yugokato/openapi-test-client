@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
+import sys
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
@@ -20,9 +22,31 @@ def run_command(args: str) -> tuple[str, str]:
     cmd = f"openapi-client {args}"
     logger.info(f"Running command: {cmd}")
     proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
-    stdout, stderr = proc.communicate()
-    print(stdout)  # noqa: T201
-    return stdout, stderr
+    if os.environ["IS_CAPTURING_OUTPUT"] == "true":
+        stdout, stderr = proc.communicate()
+        print(stdout)  # noqa: T201
+        # if stderr:
+        #     print(stderr)
+        return stdout, stderr
+    else:
+        return stream_output(proc)
+
+
+def stream_output(proc: subprocess.Popen) -> tuple[str, str]:
+    stdout_lines = []
+    stderr_lines = []
+    for line in proc.stdout:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        stdout_lines.append(line)
+
+    for line in proc.stderr:
+        # sys.stderr.write(line)
+        # sys.stderr.flush()
+        stderr_lines.append(line)
+
+    proc.wait()
+    return "".join(stdout_lines), "".join(stderr_lines)
 
 
 def do_test_invalid_params(

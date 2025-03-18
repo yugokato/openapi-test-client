@@ -24,12 +24,7 @@ from tests.integration.conftest import demo_app_openapi_spec_url, petstore_opena
     "url",
     [lazy_fixture(demo_app_openapi_spec_url.__name__), lazy_fixture(petstore_openapi_spec_url.__name__)],
 )
-def test_generate_client(
-    url: str,
-    random_app_name: str,
-    dry_run: bool,
-    external_dir: Path | None,
-) -> None:
+def test_generate_client(url: str, random_app_name: str, dry_run: bool, external_dir: Path | None) -> None:
     """Check that a new API client can be generated with the "generate" command.
 
     This test covers the following two different use cases for the location of the generated client modules

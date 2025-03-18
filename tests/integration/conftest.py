@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 import requests
 from _pytest.fixtures import SubRequest
+from pytest import FixtureRequest
 from pytest_mock import MockerFixture
 
 from demo_app.main import DEFAULT_PORT
@@ -127,7 +128,7 @@ def external_dir(request: SubRequest, random_app_name: str) -> Generator[Path | 
 
 @pytest.fixture
 def temp_app_client(
-    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str
+    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str, should_steram_cmd_output: bool
 ) -> Generator[OpenAPIClient, Any, None]:
     """Temporary demo app API client that will be generated for a test"""
     app_name = f"demo_app_{random.choice(range(1, 1000))}"
@@ -135,8 +136,6 @@ def temp_app_client(
 
     args = f"generate -u {demo_app_openapi_spec_url} -a {app_name} --dir {module_dir} --quiet"
     _, stderr = helper.run_command(args)
-    if stderr:
-        print(stderr)  # noqa: T201
     assert not stderr
 
     # In real life the env var will be set inside the top-level module's __init__.py when accessing the library.
@@ -147,3 +146,8 @@ def temp_app_client(
     yield OpenAPIClient.get_client(app_name)
 
     shutil.rmtree(temp_dir)
+
+
+@pytest.fixture(autouse=True)
+def _steram_cmd_output(request: FixtureRequest):
+    os.environ["IS_CAPTURING_OUTPUT"] = str(request.config.option.capture != "no").lower()
