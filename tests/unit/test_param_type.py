@@ -6,7 +6,15 @@ from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
 import pytest
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
-from openapi_test_client.libraries.api.types import Alias, Constraint, Format, Optional, ParamModel, Unset
+from openapi_test_client.libraries.api.types import (
+    Alias,
+    Constraint,
+    Format,
+    Optional,
+    ParamModel,
+    UncacheableLiteralArg,
+    Unset,
+)
 
 
 class MyClass: ...
@@ -37,7 +45,9 @@ MyParamModel3 = make_dataclass(MyParamModel.__name__, [("bar", int, Unset)], bas
         (dict, "dict"),
         (dict[str, Any], "dict[str, Any]"),
         (Literal[None], "Literal[None]"),
+        (Literal[UncacheableLiteralArg(None)], "Literal[None]"),
         (Literal["1", "2"], "Literal['1', '2']"),
+        (Literal[UncacheableLiteralArg("1"), UncacheableLiteralArg("2")], "Literal['1', '2']"),
         (MyClass, MyClass.__name__),
         (MyParamModel, MyParamModel.__name__),
         (ForwardRef(MyParamModel.__name__), MyParamModel.__name__),
@@ -182,6 +192,9 @@ def test_replace_baser_type(tp: Any, replace_with: Any, expected_type: Any) -> N
         (list[str], str, False),
         (Annotated[list[str], "meta"], str, False),
         (Optional[Annotated[list[str], "meta"]], str, False),
+        (Optional[Annotated[Literal[1], "meta"]], Optional, True),
+        (Optional[Annotated[Literal[1], "meta"]], Annotated, True),
+        (Optional[Annotated[Literal[1], "meta"]], Literal, True),
     ],
 )
 def test_is_type_of(param_type: Any, type_to_check: Any, is_type_of: bool) -> None:
@@ -291,6 +304,24 @@ def test_generate_union_type(types: list[Any], expected_type: Any) -> None:
 def test_generate_optional_type(tp: Any, expected_type: Any) -> None:
     """Verify that a type annotation can be converted to an optional type with Optional[]"""
     assert param_type_util.generate_optional_type(tp) == expected_type
+
+
+@pytest.mark.parametrize("uncacheable", [True, False])
+def test_generate_literal_type(uncacheable: bool) -> None:
+    """Verify that a literal type annotation can be generated with/without the typing module's caching mechanism"""
+    args1 = ["1", "2", "2", "3"]
+    args2 = ["3", "2", "1", "2"]
+    tp1 = param_type_util.generate_literal_type(*args1, uncacheable=uncacheable)
+    tp2 = param_type_util.generate_literal_type(*args2, uncacheable=uncacheable)
+    if uncacheable:
+        assert tp1 != tp2
+        assert repr(Optional[tp1]) == "typing.Optional[typing.Literal['1', '2', '3']]"
+        assert repr(Optional[tp2]) == "typing.Optional[typing.Literal['3', '2', '1']]"
+    else:
+        # NOTE: This is the default behavior of typing.Literal
+        assert Literal[*args1] == tp1 == tp2
+        assert repr(Optional[tp1]) == "typing.Optional[typing.Literal['1', '2', '3']]"
+        assert repr(Optional[tp2]) == "typing.Optional[typing.Literal['1', '2', '3']]"
 
 
 @pytest.mark.parametrize(
@@ -451,7 +482,11 @@ def test_get_annotated_type(tp: Any, annotated_type: Any) -> None:
 )
 def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
     """Verify that two annotation types acn be merged"""
-    assert param_type_util.merge_annotation_types(tp1, tp2) == expected_type
+    if get_origin(tp1) is Literal or get_origin(tp2) is Literal:
+        assert param_type_util.merge_annotation_types(tp1, tp2) != expected_type
+        assert repr(param_type_util.merge_annotation_types(tp1, tp2)) == repr(expected_type)
+    else:
+        assert param_type_util.merge_annotation_types(tp1, tp2) == expected_type
 
 
 @pytest.mark.parametrize(

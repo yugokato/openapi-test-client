@@ -10,12 +10,20 @@ from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional,
 from common_libs.logging import get_logger
 
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
-from openapi_test_client.libraries.api.types import Alias, Constraint, Format, ParamAnnotationType, ParamDef
+from openapi_test_client.libraries.api.types import (
+    Alias,
+    Constraint,
+    Format,
+    ParamAnnotationType,
+    ParamDef,
+    UncacheableLiteralArg,
+)
+from openapi_test_client.libraries.api.types import Optional as Optional_
 from openapi_test_client.libraries.common.constants import BACKSLASH
 from openapi_test_client.libraries.common.misc import dedup
 
 if TYPE_CHECKING:
-    from typing import _AnnotatedAlias  # type: ignore
+    from typing import _AnnotatedAlias, _LiteralGenericAlias  # type: ignore[attr-defined]
 
 
 logger = get_logger(__name__)
@@ -161,7 +169,7 @@ def resolve_type_annotation(
         )
     else:
         if enum := param_def.get("enum"):
-            type_annotation = Literal[*enum]
+            type_annotation = generate_literal_type(*enum)
         elif isinstance(param_def, ParamDef.UnknownType):
             logger.warning(
                 f"Param '{param_name}': Unable to locate a parameter type in the following parameter object. "
@@ -248,11 +256,11 @@ def replace_base_type(tp: Any, new_type: Any, replace_container_type: bool = Fal
         args = get_args(tp)
         if is_union_type(tp):
             if is_optional_type(tp):
-                return Optional[replace_base_type(args[0], new_type)]  # noqa: UP007
+                return generate_optional_type(replace_base_type(args[0], new_type))
             else:
                 return replace_base_type(args, new_type)
         elif origin_type is Annotated:
-            return Annotated[replace_base_type(tp.__origin__, new_type), *tp.__metadata__]
+            return annotate_type(replace_base_type(tp.__origin__, new_type), *tp.__metadata__)
         elif origin_type in [list, tuple]:
             if replace_container_type:
                 return new_type
@@ -290,7 +298,7 @@ def is_type_of(param_type: str | Any, type_to_check: Any) -> bool:
             # Add if needed
             raise NotImplementedError
     elif origin_type := get_origin(param_type):
-        if origin_type is type_to_check:
+        if (origin_type is type_to_check) or (origin_type is Union and type_to_check in [Optional, Optional_]):
             return True
         elif origin_type is Annotated:
             return is_type_of(param_type.__origin__, type_to_check)
@@ -345,23 +353,23 @@ def generate_union_type(type_annotations: Sequence[Any]) -> Any:
 
 
 def generate_optional_type(tp: Any) -> Any:
-    """Convert the type annotation to Optional[tp]
-
-    Wrap the type with `Optional[]`, but using `Union` with None instead as there seems to be a cache issue
-    where `Optional[Literal['val1', 'val2']]` with change the order of Literal parameters due to the cache.
-
-    eg. The issue seen in Python 3.11
-    >>> t1 = Literal["foo", "bar"]
-    >>> Optional[t1]
-    typing.Optional[typing.Literal['foo', 'bar']]
-    >>> t2 = Literal["bar", "foo"]
-    >>> Optional[t2]
-    typing.Optional[typing.Literal['foo', 'bar']]  <--- HERE
-    """
+    """Convert the type annotation to Optional[tp]"""
     if is_optional_type(tp):
         return tp
     else:
-        return Union[tp, None]  # noqa: UP007
+        return Optional[tp]  # noqa: UP007
+
+
+def generate_literal_type(*args: Any, uncacheable: bool = True) -> _LiteralGenericAlias:
+    """Generate a Literal type annotation using given args
+
+    :param args: Literal args
+    :param uncacheable: Make this Literal type uncacheable
+    """
+    if uncacheable:
+        cacheable_args = tuple(arg.obj if isinstance(arg, UncacheableLiteralArg) else arg for arg in args)
+        args = tuple(UncacheableLiteralArg(arg) for arg in dedup(*cacheable_args))
+    return Literal[*args]
 
 
 def annotate_type(tp: Any, *metadata: Any) -> Any:
@@ -378,7 +386,7 @@ def annotate_type(tp: Any, *metadata: Any) -> Any:
         return modify_annotated_metadata(tp, *metadata, action="add")
     elif is_optional_type(tp):
         inner_type = generate_union_type([x for x in get_args(tp) if x is not NoneType])
-        return Optional[annotate_type(inner_type, *metadata)]  # noqa: UP007
+        return generate_optional_type(annotate_type(inner_type, *metadata))
     else:
         return Annotated[tp, *metadata]
 
@@ -411,7 +419,7 @@ def modify_annotated_metadata(annotated_tp: Any, *metadata: Any, action: Literal
                     raise ValueError("At least one metadata must exist after the action is performed")
             else:
                 new_metadata = dedup(*metadata)
-            return Annotated[get_args(tp)[0], *new_metadata]
+            return annotate_type(get_args(tp)[0], *new_metadata)
         else:
             if is_union_type(tp):
                 return generate_union_type([modify_metadata(arg) for arg in get_args(tp)])
@@ -478,7 +486,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
             # stop using set here
             combined_args = dedup(*args1, *args2)
             if origin is Literal:
-                return Literal[*combined_args]
+                return generate_literal_type(*combined_args)
             elif origin is Annotated:
                 # If two Annotated types have different set of ParamAnnotationType objects in metadata, treat them as
                 # different types as a union type. Otherwise merge them
@@ -492,7 +500,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
                 ) or not (annotation_types1 or annotation_types2):
                     combined_type = merge_annotation_types(get_args(tp1)[0], get_args(tp2)[0])
                     combined_metadata = dedup(*tp1.__metadata__, *tp2.__metadata__)
-                    return Annotated[combined_type, *combined_metadata]
+                    return annotate_type(combined_type, *combined_metadata)
                 else:
                     return generate_union_type([tp1, tp2])
             elif origin is dict:
@@ -509,7 +517,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
             elif origin is list:
                 return list[generate_union_type(merge_args_per_origin(combined_args))]
             elif origin in [Union, UnionType]:
-                return Union[*merge_args_per_origin(combined_args)]
+                return generate_union_type(merge_args_per_origin(combined_args))
 
         # TODO: Needs improvements to cover more cases
         if is_optional_type(tp1):

@@ -485,3 +485,47 @@ class Constraint(ParamAnnotationType):
     #       but Pydantic currently treats them as an integer
     exclusive_minimum: int | None = None
     exclusive_maximum: int | None = None
+
+
+class UncacheableLiteralArg:
+    """Make args for typing.Literal uncacheable
+
+    Due to the default cache mechanism implemented in the typing module, the order of arguments for the generated
+    Literal type annotation can be unexpected if there's a cache. This behavior causes our dynamic code generation
+    unstable if API specs define more than one param objects that have the exact same enum values but in different
+    orders. Wrapping each Literal arg value with this class ensures the cached behavior will not happen during the code
+    generation.
+
+    eg.
+    1. The default behavior of typing module with cache
+    >>> from typing import Literal, Optional
+    >>> t1 = Literal["foo", "bar"]
+    >>> Optional[t1]
+    typing.Optional[typing.Literal['foo', 'bar']]
+    >>> t2 = Literal["bar", "foo"]
+    >>> Optional[t2]
+    typing.Optional[typing.Literal['foo', 'bar']]   <--- HERE (Unexpected order due to the cached result)
+
+    2. Uncached behavior
+    >>> t1 = Literal[UncacheableLiteralArg("foo"), UncacheableLiteralArg("bar")]
+    >>> Optional[t1]
+    typing.Optional[typing.Literal['foo', 'bar']]
+    >>> t2 = Literal[UncacheableLiteralArg("bar"), UncacheableLiteralArg("foo")]
+    >>> Optional[t2]
+    typing.Optional[typing.Literal['bar', 'foo']]   <--- HERE (Expected order)
+    """
+
+    def __init__(self, obj: Any):
+        self.obj = obj
+
+    def __repr__(self) -> str:
+        return repr(self.obj)
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, UncacheableLiteralArg):
+            return self.obj == other.obj
+        else:
+            return self.obj == other
+
+    def __hash__(self) -> int:
+        return id(self)

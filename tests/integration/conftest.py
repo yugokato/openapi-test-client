@@ -149,5 +149,5 @@ def temp_app_client(
 
 
 @pytest.fixture(autouse=True)
-def _steram_cmd_output(request: FixtureRequest):
+def _steram_cmd_output(request: FixtureRequest) -> None:
     os.environ["IS_CAPTURING_OUTPUT"] = str(request.config.option.capture != "no").lower()
