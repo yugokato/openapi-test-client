@@ -101,12 +101,15 @@ def resolve_type_annotation(
     :param _is_array: Indicates that this parameter is a list type
     """
 
-    def resolve(param_type: str, param_format: str | None = None) -> Any:
+    def resolve(param_type: str | Sequence[str], param_format: str | None = None) -> Any:
         """Resolve type annotation
 
         NOTE: Some OpenAPI spec use a wrong param type value (eg. string v.s. str).
               We handle these scenarios accordingly
         """
+        if isinstance(param_type, (list | tuple | set)):
+            return generate_union_type([resolve(t, param_format=param_format) for t in param_type])
+
         if param_type in STR_PARAM_TYPES:
             if param_format:
                 return annotate_type(str, Format(param_format))

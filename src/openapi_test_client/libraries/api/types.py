@@ -71,7 +71,7 @@ class ParamDef(HashableDict):
             )
 
     @property
-    def type(self) -> str:
+    def type(self) -> str | list[str, ...]:
         return self["type"]
 
     @property
