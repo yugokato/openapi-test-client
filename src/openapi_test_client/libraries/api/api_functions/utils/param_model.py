@@ -121,20 +121,27 @@ def get_reserved_model_names() -> list[str]:
 
 @lru_cache
 def create_model_from_param_def(
-    model_name: str, param_def: ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType
+    model_name: str,
+    param_def: ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType,
+    _root: ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType | None = None,
 ) -> type[ParamModel]:
     """Create a model for the parameter from OpenAPI parameter definition
 
     :param model_name: The model name
     :param param_def: ParamDef generated from an OpenAPI parameter object
+    :param _root: For internal use only. The root param def object set when called recursively.
+                  This makes sure that lru_cache works with the same models with different versions
     """
+    if _root is None:
+        _root = param_def
+
     if not isinstance(param_def, ParamDef | ParamDef.ParamGroup | ParamDef.UnknownType):
         raise ValueError(f"Invalid param_def type: {type(param_def)}")
 
     if isinstance(param_def, ParamDef) and param_def.is_array and "items" in param_def:
-        return create_model_from_param_def(model_name, param_def["items"])
+        return create_model_from_param_def(model_name, param_def["items"], _root=_root)
     elif isinstance(param_def, ParamDef.ParamGroup):
-        return _merge_models([create_model_from_param_def(model_name, p) for p in param_def])
+        return _merge_models([create_model_from_param_def(model_name, p, _root=_root) for p in param_def])
     else:
         fields = [
             DataclassModelField(

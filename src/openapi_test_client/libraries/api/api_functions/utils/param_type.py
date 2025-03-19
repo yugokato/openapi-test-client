@@ -547,9 +547,12 @@ def or_(x: Any, y: Any) -> Any:
             if is_y_union:
                 return reduce(or_, (*get_args(x), *get_args(y)))
             elif param_model_util.is_param_model(y):
-                param_model_names_in_x = [x.__name__ for x in get_args(x) if param_model_util.is_param_model(x)]
-                if y.__name__ in param_model_names_in_x:
+                param_model_names_in_x = [
+                    param_model_util.get_param_model_name(x) for x in get_args(x) if param_model_util.is_param_model(x)
+                ]
+                if param_model_util.get_param_model_name(y) in param_model_names_in_x:
                     return x
         elif is_y_union:
             return reduce(or_, (x, *get_args(y)))
+
     return x | y
