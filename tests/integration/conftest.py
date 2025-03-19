@@ -128,7 +128,7 @@ def external_dir(request: SubRequest, random_app_name: str) -> Generator[Path | 
 
 @pytest.fixture
 def temp_app_client(
-    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str, should_steram_cmd_output: bool
+    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str
 ) -> Generator[OpenAPIClient, Any, None]:
     """Temporary demo app API client that will be generated for a test"""
     app_name = f"demo_app_{random.choice(range(1, 1000))}"

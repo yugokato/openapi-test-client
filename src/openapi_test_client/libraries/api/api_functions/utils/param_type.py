@@ -164,8 +164,9 @@ def resolve_type_annotation(
             type_annotation = Literal[*enum]
         elif isinstance(param_def, ParamDef.UnknownType):
             logger.warning(
-                f"Unable to locate a parameter type for parameter '{param_name}'. Type '{Any}' will be applied.\n"
-                f"Unknown parameter object: {param_def.param_obj}"
+                f"Param '{param_name}': Unable to locate a parameter type in the following parameter object. "
+                f"Type '{Any}' will be applied:\n"
+                f"{param_def.param_obj}"
             )
             type_annotation = Any
         else:

@@ -168,10 +168,10 @@ def generate_api_class(
         base_class = _get_base_api_class(api_client)
     api_dir = app_client_dir / API_CLASS_DIR_NAME
     api_class_file_path = api_dir / f"{class_file_name.lower()}.py"
-    logger.warning(
+    logger.info(
         f"Generating a new API class file:\n"
         f"- API class name: {class_name} (tag={tag})\n"
-        f"- file path: {api_class_file_path}"
+        f"- file path: {api_class_file_path}",
     )
     if api_class_file_path.exists():
         raise RuntimeError(f"{api_class_file_path} exists")
@@ -301,13 +301,13 @@ def update_endpoint_functions(
         original_model_code = format_code(model_file_path.read_text(), remove_unused_imports=False)
     else:
         original_model_code = ""
-    method = path = func_name = None
+    method = path = func_name = ""
     defined_endpoints = []
     param_models = []
 
     def update_existing_endpoints(target_api_class: type[APIBase] = api_class) -> None:
         """Updated existing endpoint functions"""
-        nonlocal modified_api_cls_code
+        nonlocal modified_api_cls_code, method, path, func_name
         new_code = current_code = modified_api_cls_code
         api_spec_tags = set()
 
@@ -351,7 +351,7 @@ def update_endpoint_functions(
                 if endpoint_function.endpoint.is_documented:
                     err = f"{TAB}Not found: {method.upper()} {path} ({func_name})"
                     print(color(err, color_code=ColorCodes.RED))  # noqa: T201
-                else:
+                elif verbose:
                     msg = f"{TAB}Skipped undocumented endpoint: {method.upper()} {path} ({func_name})"
                     print(msg)  # noqa: T201
                 continue
@@ -522,12 +522,13 @@ def update_endpoint_functions(
             original_api_cls_code = original_model_code = ""
         if not update_param_models_only:
             if api_cls_updated := (original_api_cls_code != modified_api_cls_code):
-                if not is_new_api_class:
-                    msg = f"{TAB}Update{' required' if dry_run else 'd'}: {api_cls_file_path}"
-                    print(color(msg, color_code=ColorCodes.YELLOW))  # noqa:T201
-
                 if show_diff:
                     # Print diff
+                    if is_new_api_class:
+                        logger.info(f"Generated API class code: {api_cls_file_path}")
+                    else:
+                        msg = f"{TAB}Update{' required' if dry_run else 'd'}: {api_cls_file_path}"
+                        print(color(msg, color_code=ColorCodes.YELLOW))  # noqa:T201
                     diff_code(
                         original_api_cls_code,
                         modified_api_cls_code,
@@ -540,6 +541,8 @@ def update_endpoint_functions(
                     api_cls_file_path.write_text(modified_api_cls_code)
 
         if param_models:
+            if verbose:
+                logger.info(f"Checking param models for {api_class.__name__}...")
             modified_model_code = (
                 f"from dataclasses import dataclass\n\nfrom {ParamModel.__module__} import {ParamModel.__name__}\n\n"
             )
@@ -551,9 +554,12 @@ def update_endpoint_functions(
 
             if model_updated := (original_model_code != modified_model_code):
                 # Print diff
-                msg = f"{TAB}Update{' required' if dry_run else 'd'} (models): {model_file_path}"
-                print(color(msg, color_code=ColorCodes.YELLOW))  # noqa:T201
                 if show_diff:
+                    if is_new_api_class:
+                        logger.info(f"Generated param models: {model_file_path}")
+                    else:
+                        msg = f"{TAB}Update{' required' if dry_run else 'd'} (models): {model_file_path}"
+                        print(color(msg, color_code=ColorCodes.YELLOW))  # noqa:T201
                     diff_code(
                         original_model_code,
                         modified_model_code,
@@ -565,12 +571,14 @@ def update_endpoint_functions(
                     model_file_path.parent.mkdir(parents=True, exist_ok=True)
                     model_file_path.write_text(modified_model_code)
     except Exception as e:
-        # This should not happen
+        # An error during code generation
         tb = traceback.format_exc()
-        err = f"Failed to update {api_cls_file_path}:"
-        if all([func_name, method, path]):
-            err += f" {func_name} ({method} {path})"
-        err += f"\n{tb})\n"
+        err = f"Failed to update code:\n - File {api_cls_file_path}"
+        if func_name:
+            err += f"\n - Function: {func_name}"
+        if method and path:
+            err += f"\n - Endpoint: {method.upper()} {path}"
+        err += f"\n - Error details:\n{tb}\n"
         print(color(err, color_code=ColorCodes.RED))  # noqa :T201
         if api_cls_updated and not dry_run:
             # revert back to original code
@@ -590,7 +598,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     :param temp_api_client: Temporary API client
     :param show_generated_code: Show generated client code
     """
-    logger.warning(f"Generating a new API client for {temp_api_client.app_name}")
+    logger.info(f"Generating a new API client for {temp_api_client.app_name}")
     assert _is_temp_client(temp_api_client)
     app_name = temp_api_client.app_name
     base_api_class = generate_base_api_class(temp_api_client)

@@ -438,12 +438,12 @@ def _log_errors(action: str, failed_results: list[tuple[str, Exception]]) -> Non
             tb = tb.tb_next
         error_details.append(
             f"API class: {api_class_name}\n"
-            f"Error: {type(e).__name__}: {e}\n"
-            f"File: {tb.tb_frame.f_code.co_filename} (lineno={tb.tb_lineno})"
+            f"File: {tb.tb_frame.f_code.co_filename} (lineno={tb.tb_lineno})\n"
+            f"Error: {type(e).__name__}: {e}"
         )
     err = f"Failed to {action} code for the following API class(es). Please fix the issue and rerun the script."
     logger.error(err + "\n" + list_items(error_details))
-    if os.environ["PYTEST_CURRENT_TEST"]:
+    if os.environ.get("PYTEST_CURRENT_TEST"):
         raise Exception(f"{err}\n{list_items(error_details)}")
 
 

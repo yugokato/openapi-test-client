@@ -39,6 +39,7 @@ def diff_code(code1: str, code2: str, fromfile: str = "before", tofile: str = "a
         else:
             color_code = ColorCodes.DEFAULT
         print(TAB + color(line.rstrip(), color_code=color_code))  # noqa: T201
+    print()  # noqa: T201
 
 
 def run_ruff(code: str, remove_unused_imports: bool = True) -> str:

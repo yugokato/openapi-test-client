@@ -313,10 +313,10 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
-def alias_illegal_model_field_names(model_name: str, model_fields: list[DataclassModelField]) -> None:
+def alias_illegal_model_field_names(location: str, model_fields: list[DataclassModelField]) -> None:
     """Clean illegal model field name and annotate the field type with Alias class
 
-    :param model_name: Model name
+    :param location: Location where the field is seen. This is used for logging purpose
     :param model_fields: fields value to be passed to make_dataclass()
     """
 
@@ -362,7 +362,9 @@ def alias_illegal_model_field_names(model_name: str, model_fields: list[Dataclas
         for i, model_field in enumerate(model_fields):
             if (alias_name := make_alias(model_field.name, model_field.type)) != model_field.name:
                 if isinstance(model_field.default, Field) and model_field.default.metadata:
-                    logger.warning(f"Converted parameter name '{model_field.name}' to '{alias_name}'")
+                    logger.warning(
+                        f"[{location}]: The parameter name '{model_field.name}' was aliased to '{alias_name}'"
+                    )
                 new_fields = (
                     alias_name,
                     param_type_util.annotate_type(model_field.type, Alias(model_field.name)),

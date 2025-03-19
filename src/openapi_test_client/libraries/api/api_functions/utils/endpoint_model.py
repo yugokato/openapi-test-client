@@ -40,7 +40,21 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
         if parameter_objects := operation_obj.get("parameters"):
             _parse_parameter_objects(method, parameter_objects, path_param_fields, body_or_query_param_fields)
         if request_body := operation_obj.get("requestBody"):
-            content_type = _parse_request_body_object(request_body, body_or_query_param_fields)
+            try:
+                content_type = _parse_request_body_object(request_body, body_or_query_param_fields)
+            except Exception:
+                logger.warning(f"Unable to parse the following requestBody obj:\n{request_body}")
+                raise
+
+        expected_path_params = re.findall(r"{([^}]+)}", path)
+        documented_path_params = [x[0] for x in path_param_fields]
+        if undocumented_path_params := [x for x in expected_path_params if x not in documented_path_params]:
+            logger.warning(f"{method.upper()} {path}: Found undocumented path parameters: {undocumented_path_params}")
+            # Some OpenAPI specs don't properly document path parameters at all, or path parameters could be documented
+            # as incorrect "in" like "query". We fix this by adding the missing path parameters, and remove them from
+            # body/query params if any
+            path_param_fields = [DataclassModelField(x, str) for x in expected_path_params]
+            body_or_query_param_fields = [x for x in body_or_query_param_fields if x[0] not in expected_path_params]
     else:
         # Generate model fields from the function signature
         sig = inspect.signature(endpoint_func._original_func)
@@ -54,19 +68,6 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
                 # keyword arguments (body/query parameters)
                 _add_body_or_query_param_field(body_or_query_param_fields, name, param_obj.annotation)
 
-    if hasattr(endpoint_func, "endpoint"):
-        method = endpoint_func.endpoint.method
-        path = endpoint_func.endpoint.path
-        expected_path_params = re.findall(r"{([^}]+)}", path)
-        documented_path_params = [x[0] for x in path_param_fields]
-        if undocumented_path_params := [x for x in expected_path_params if x not in documented_path_params]:
-            logger.warning(f"{method.upper()} {path}: Found undocumented path parameters: {undocumented_path_params}")
-            # Some OpenAPI specs don't properly document path parameters at all, or path parameters could be documented
-            # as incorrect "in" like "query". We fix this by adding the missing path parameters, and remove them from
-            # body/query params if any
-            path_param_fields = [DataclassModelField(x, str) for x in expected_path_params]
-            body_or_query_param_fields = [x for x in body_or_query_param_fields if x[0] not in expected_path_params]
-
     # Address the case where a path param name conflicts with body/query param name
     for i, (field_name, field_type, _) in enumerate(path_param_fields):
         if field_name in [x[0] for x in body_or_query_param_fields]:
@@ -75,8 +76,9 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
     # Some OpenAPI specs define a parameter name using characters we can't use as a python variable name.
     # We will use the cleaned name as the model field and annotate it as `Annotated[field_type, Alias(<original_val>)]`
     # When calling an endpoint function, the actual name will be automatically resolved in the payload/query parameters
-    param_model_util.alias_illegal_model_field_names(model_name, path_param_fields)
-    param_model_util.alias_illegal_model_field_names(model_name, body_or_query_param_fields)
+    endpoint = f"{endpoint_func.method.upper()} {endpoint_func.path}"
+    param_model_util.alias_illegal_model_field_names(endpoint, path_param_fields)
+    param_model_util.alias_illegal_model_field_names(endpoint, body_or_query_param_fields)
 
     fields = path_param_fields + body_or_query_param_fields
     return cast(
@@ -211,7 +213,7 @@ def _parse_request_body_object(
     # TODO: Support multiple content types
     content_type = next(iter(contents))
 
-    def parse_schema_obj(obj: dict[str, Any]) -> list[dict[str, Any]] | None:
+    def parse_schema_obj(obj: dict[str, Any]) -> list[dict[str, Any] | list[dict[str, Any]]] | None:
         # This part has some variations, and sometimes not consistent
         if not (properties := obj.get("properties", {})):
             schema_type = obj.get("type")
@@ -235,8 +237,12 @@ def _parse_request_body_object(
             ):
                 # The API directly takes data that is not form-encoded (eg. send tar binary data)
                 properties = {"data": schema_obj}
+            elif obj == {}:
+                # Empty schema
+                properties = {}
             else:
-                raise NotImplementedError(f"Unsupported request body:\n{json.dumps(obj, indent=4, default=str)}")
+                # An example from actual OpenAPI spec: {"content": {"application/json": {"schema": {"type": 'string"}}
+                raise NotImplementedError(f"Unsupported schema obj:\n{json.dumps(obj, indent=4, default=str)}")
 
         for param_name in properties:
             param_obj = properties[param_name]
