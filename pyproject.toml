@@ -26,20 +26,20 @@ classifiers = [
 dependencies = [
     "common-libs[client]@git+https://github.com/yugokato/common-libs",
     "inflect==7.0.0",
-    "phonenumbers==8.13.45",
-    "pydantic-extra-types==2.9.0",
-    "pydantic[email]==2.9.2",
-    "PyYAML==6.0.1",
-    "ruff==0.11.0"
+    "phonenumbers==9.0.1",
+    "pydantic[email]==2.10.6",
+    "pydantic-extra-types==2.10.3",
+    "PyYAML==6.0.2",
+    "ruff==0.11.2"
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["common-libs[dev]"]
 app = [
-    "Quart==0.19.9",
-    "quart-auth==0.10.1",
-    "quart-schema[pydantic]==0.20.0",
+    "Quart==0.20.0",
+    "quart-auth==0.11.0",
+    "quart-schema[pydantic]==0.21.0",
 ]
 test = [
     "common-libs[test]",
