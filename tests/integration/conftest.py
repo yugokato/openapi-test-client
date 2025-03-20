@@ -136,7 +136,7 @@ def temp_app_client(
 
     args = f"generate -u {demo_app_openapi_spec_url} -a {app_name} --dir {module_dir} --quiet"
     _, stderr = helper.run_command(args)
-    assert not stderr
+    assert not stderr, stderr
 
     # In real life the env var will be set inside the top-level module's __init__.py when accessing the library.
     # This is needed for the library to determine if the generated client is an external one.

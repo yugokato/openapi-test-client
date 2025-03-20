@@ -37,7 +37,7 @@ def test_generate_client(url: str, random_app_name: str, dry_run: bool, external
     if dry_run:
         args += " -d"
     _, stderr = helper.run_command(args)
-    assert not stderr
+    assert not stderr, stderr
 
     if not dry_run:
         # Attempt to generate another client with the same name
@@ -52,7 +52,7 @@ def test_generate_client(url: str, random_app_name: str, dry_run: bool, external
             # Generate another client in the same external directory. This is allowed
             args = f"generate -u {url} -a {random_app_name}_2 --dir {external_dir}"
             _, stderr = helper.run_command(args)
-            assert not stderr
+            assert not stderr, stderr
 
             # Attempt to generate another client in another location. We don't allow this scenario
             args = f"generate -u {url} -a {random_app_name} --dir {external_dir}_new"
@@ -135,9 +135,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
     if dry_run:
         args += " -d"
     _, stderr = helper.run_command(args)
-    if stderr:
-        print(stderr)  # noqa: T201
-    assert not stderr
+    assert not stderr, stderr
 
     if dry_run or (option and option.startswith(("-i ", "--ignore "))):
         # Code should not be actually updated
