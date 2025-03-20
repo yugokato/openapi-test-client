@@ -90,14 +90,14 @@ def generate_model_name(field_name: str, field_type: str | Any) -> str:
     :param field_name: Dataclass field name
     :param field_type: OpenAPI parameter type or dataclass field type
     """
-    model_name = generate_class_name(field_name)
+    model_name = generate_class_name(clean_model_field_name(field_name))
     # NOTE: You may need to add a custom blacklist/rules for your app in here to ignore words that inflect library
     # doesn't handle well.
     # Eg. The word "bps" (Bits per second) is not a plural word, but inflect thinks it is and incorrectly generates
     # its singular noun as "bp"
     if param_type_util.is_type_of(field_type, list) and (singular_noun := inflect.engine().singular_noun(model_name)):
         # Change the plural model name to the singular word
-        model_name = singular_noun
+        model_name = cast(str, singular_noun)
 
     # Adjust the model name if it happens to conflict with class names we might import, or with the field_name itself
     if model_name in [*get_reserved_model_names(), field_name]:
@@ -320,6 +320,18 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
     return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
+@lru_cache
+def clean_model_field_name(name: str) -> str:
+    """Returns an alias name if the given name is illegal as a model field name"""
+    name = clean_obj_name(name)
+    # NOTE: The escaping of kwargs is already is handled in endpoint model
+    reserved_param_names = ["self", "validate", *get_supported_request_parameters()]
+    if name in get_reserved_model_names() + reserved_param_names:
+        # The field name conflicts with one of reserved names
+        name += "_"
+    return name
+
+
 def alias_illegal_model_field_names(location: str, model_fields: list[DataclassModelField]) -> None:
     """Clean illegal model field name and annotate the field type with Alias class
 
@@ -335,33 +347,14 @@ def alias_illegal_model_field_names(location: str, model_fields: list[DataclassM
         ):
             return name
         else:
-            name = clean_obj_name(name)
-            # NOTE: The escaping of kwargs is already is handled in endpoint model
-            reserved_param_names = ["self", "validate", *get_supported_request_parameters()]
-            if name in get_reserved_model_names() + reserved_param_names:
-                # The field name conflicts with one of reserved names
-                name += "_"
-
+            name = clean_model_field_name(name)
             if param_models := get_param_model(param_type):
-                # There seems to be an issue with the `Annotated` cache behavior. AttributeError will be thrown on
-                # importing the model when the following conditions are all met:
-                # - The model field is annotated with `Annotated`
-                # - The origin type of `Annotated` is another param model, or union of param models (nested model)
-                # - The model field name is identical to one of the annotated model names
-                # eg.
-                #
-                # @dataclass
-                # class NestedModel(ParamModel):
-                #     param: str = Unset
-                #
-                # @dataclass
-                # class Model(ParamModel):
-                #     NestedModel: Annotated[NestedModel, "test"] = Unset
-                #
+                # There seems to be some known issues when the field name clashes with the type annotation name.
+                # We change the field name in this case
+                # eg. https://docs.pydantic.dev/2.10/errors/usage_errors/#unevaluable-type-annotation
                 if not isinstance(param_models, list):
                     param_models = [param_models]
-                if any(name == (m.__forward_arg__ if isinstance(m, ForwardRef) else m.__name__) for m in param_models):
-                    # This meets the above issue conditions
+                if any(name == get_param_model_name(m) for m in param_models):
                     name += "_"
             return name
 

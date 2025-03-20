@@ -33,7 +33,7 @@ STR_PARAM_TYPES = ["string", "str"]
 INT_PARAM_TYPES = ["integer", "int", "int64", "number"]
 BOOL_PARAM_TYPES = ["boolean", "bool"]
 LIST_PARAM_TYPES = ["array"]
-NULL_PARAM_TYPES = ["null"]
+NULL_PARAM_TYPES = ["null", None]
 
 
 def get_type_annotation_as_str(tp: Any) -> str:
@@ -199,7 +199,7 @@ def resolve_type_annotation(
             # Optional parameter
             type_annotation = generate_optional_type(type_annotation)
 
-    if num_optional_types := repr(type_annotation).count("Optional"):
+    if num_optional_types := repr(type_annotation).count("Optional["):
         # Sanity check for Optional type. If it is annotated with `Optional`, we want it to appear as the origin type
         # only. If this check fails, it means the logic is broke somewhere
         if num_optional_types > 1:

@@ -140,66 +140,69 @@ def _parse_parameter_objects(
     https://swagger.io/specification/#parameter-object
     """
     for param_obj in deepcopy(parameter_objects):
-        param_name = param_obj["name"]
-        try:
-            param_location = param_obj["in"]
-            param_def = ParamDef.from_param_obj(param_obj)
-            # In case path parameters are incorrectly documented as required: false, we force make them required as path
-            # parameters will always be required for our client
-            is_required = True if param_location == "path" else None
-            param_type_annotation = param_type_util.resolve_type_annotation(
-                param_name, param_def, _is_required=is_required
-            )
-            if param_location in ["header", "cookies"]:
-                # We currently don't support these
-                continue
-            elif param_location == "path":
-                if param_name not in [x[0] for x in path_param_fields]:
-                    # Handle duplicates. Some API specs incorrectly document duplicated parameters
-                    path_param_fields.append(DataclassModelField(param_name, param_type_annotation))
-            elif param_location == "query":
-                if method.upper() != "GET":
-                    # Annotate query params for non GET endpoints
-                    param_type_annotation = param_type_util.annotate_type(param_type_annotation, "query")
+        # NOTE: param_obj will be empty here if its $ref wasn't successfully resolved. We will ignore these
+        if param_obj:
+            param_name = ""
+            try:
+                param_name = param_obj["name"]
+                param_location = param_obj["in"]
+                param_def = ParamDef.from_param_obj(param_obj)
+                # In case path parameters are incorrectly documented as required: false, we force make them required as
+                # path parameters will always be required for our client
+                is_required = True if param_location == "path" else None
+                param_type_annotation = param_type_util.resolve_type_annotation(
+                    param_name, param_def, _is_required=is_required
+                )
+                if param_location in ["header", "cookies"]:
+                    # We currently don't support these
+                    continue
+                elif param_location == "path":
+                    if param_name not in [x[0] for x in path_param_fields]:
+                        # Handle duplicates. Some API specs incorrectly document duplicated parameters
+                        path_param_fields.append(DataclassModelField(param_name, param_type_annotation))
+                elif param_location == "query":
+                    if method.upper() != "GET":
+                        # Annotate query params for non GET endpoints
+                        param_type_annotation = param_type_util.annotate_type(param_type_annotation, "query")
 
-                if "schema" in param_obj:
-                    # defined as model. We unpack the model details
-                    schema_obj = param_obj["schema"]
-                    if "items" in schema_obj:
-                        schema_obj = schema_obj["items"]
+                    if "schema" in param_obj:
+                        # defined as model. We unpack the model details
+                        schema_obj = param_obj["schema"]
+                        if "items" in schema_obj:
+                            schema_obj = schema_obj["items"]
 
-                    if "properties" in schema_obj:
-                        properties = schema_obj["properties"]
+                        if "properties" in schema_obj:
+                            properties = schema_obj["properties"]
 
-                        for k, v in properties.items():
-                            if "name" not in properties[k]:
-                                properties[k]["name"] = k
-                            properties[k]["in"] = param_location
+                            for k, v in properties.items():
+                                if "name" not in properties[k]:
+                                    properties[k]["name"] = k
+                                properties[k]["in"] = param_location
 
-                        # Replace the param objects and parse it again
-                        parameter_objects.clear()
-                        parameter_objects.extend(properties.values())
-                        _parse_parameter_objects(
-                            method, parameter_objects, path_param_fields, body_or_query_param_fields
-                        )
+                            # Replace the param objects and parse it again
+                            parameter_objects.clear()
+                            parameter_objects.extend(properties.values())
+                            _parse_parameter_objects(
+                                method, parameter_objects, path_param_fields, body_or_query_param_fields
+                            )
+                        else:
+                            _add_body_or_query_param_field(
+                                body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
+                            )
+
                     else:
                         _add_body_or_query_param_field(
                             body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
                         )
-
                 else:
-                    _add_body_or_query_param_field(
-                        body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
-                    )
-            else:
-                raise NotImplementedError(f"Unsupported param 'in': {param_location}")
-        except Exception:
-            logger.error(
-                "Encountered an error while processing a param object in 'parameters':\n"
-                f"- param name: {param_name}\n"
-                f"- param object: {param_obj}"
-            )
-            raise
+                    raise NotImplementedError(f"Unsupported param 'in': {param_location}")
+            except Exception:
+                logger.error(
+                    "Encountered an error while processing a param object in 'parameters':\n"
+                    f"- param name: {param_name}\n"
+                    f"- param object: {param_obj}"
+                )
+                raise
 
 
 def _parse_request_body_object(

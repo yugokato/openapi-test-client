@@ -363,7 +363,7 @@ def update_endpoint_functions(
                 endpoint_spec.get("summary")
                 or endpoint_spec.get("description")
                 or "No summary or description is available for this API"
-            )
+            ).replace('"', '\\"')
             is_deprecated_api = endpoint_spec.get("deprecated", False)
             is_public_api = endpoint_spec.get("security") == []
 

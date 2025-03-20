@@ -54,7 +54,7 @@ def get_module_name_by_file_path(file_path: Path) -> str:
         assert is_external_project()
         # Accessing the package file from an external location
         file_path_from_package_dir = _PACKAGE_DIR.name + str(file_path).rsplit(_PACKAGE_DIR.name)[-1]
-    return file_path_from_package_dir.replace(os.sep, ".").replace(".py", "")
+    return file_path_from_package_dir.replace(os.sep, ".").removesuffix(".py")
 
 
 def import_module_from_file_path(file_path: Path) -> ModuleType:
