@@ -44,14 +44,8 @@ def test_get_users(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
-def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
+def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool, image_data: bytes) -> None:
     """Check basic client/server functionality of upload user image API"""
-    image_data = (
-        # https://evanhahn.com/worlds-smallest-png/
-        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
-        b"\x00\x00\x00\x01\x00\x00\x00\x01\x01\x00\x00\x00\x007n\xf9$\x00\x00\x00\nIDATx"
-        b"\x01c`\x00\x00\x00\x02\x00\x01su\x01\x18\x00\x00\x00\x00IEND\xaeB`\x82"
-    )
     file = File(filename="test_image.png", content=image_data, content_type="image/png")
     r = api_client.Users.upload_image(file=file, description="test image", validate=validation_mode)
     assert r.status_code == 201

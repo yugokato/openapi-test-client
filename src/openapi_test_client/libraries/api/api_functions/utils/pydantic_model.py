@@ -1,10 +1,10 @@
+import datetime
 import inspect
 import ipaddress
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import Field as DataclassField
-from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from types import EllipsisType
 from typing import Any, TypeVar, get_args
@@ -12,9 +12,7 @@ from uuid import UUID
 
 from pydantic import (
     AnyHttpUrl,
-    Base64Bytes,
     Base64Str,
-    Base64UrlBytes,
     Base64UrlStr,
     EmailStr,
     Field,
@@ -27,7 +25,7 @@ from pydantic_extra_types.phone_numbers import PhoneNumber
 
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
-from openapi_test_client.libraries.api.types import Constraint, DataclassModel, EndpointModel, Format, ParamModel
+from openapi_test_client.libraries.api.types import Constraint, DataclassModel, EndpointModel, File, Format, ParamModel
 
 T = TypeVar("T")
 
@@ -35,15 +33,15 @@ T = TypeVar("T")
 # TODO: Update this if needed
 PARAM_FORMAT_AND_TYPE_MAP = {
     "uuid": UUID,
-    "date-time": datetime,
-    "date": date,
-    "time": time,
-    "duration": timedelta,
-    "binary": bytes,
+    "date-time": datetime.datetime,
+    "date": datetime.date,
+    "time": datetime.time,
+    "duration": datetime.timedelta,
+    "binary": bytes | File,
     "byte": bytes,
     "path": Path,
-    "base64": Base64Str | Base64Bytes,
-    "base64url": Base64UrlStr | Base64UrlBytes,
+    "base64": Base64Str,
+    "base64url": Base64UrlStr,
     "email": EmailStr,
     "name-email": NameEmail,
     "uri": AnyHttpUrl,

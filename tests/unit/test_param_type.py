@@ -109,6 +109,7 @@ def test_get_type_annotation_as_str(tp: Any, expected_tp_str: str, is_optional: 
         (str | int, str | int),
         (str | None, str),
         (str | int | None, str | int),
+        (Annotated[str, Constraint(min_len=5)] | Annotated[int, Constraint(min=5)], str | int),
         (list[str], str),
         (list[dict[str, Any]], dict[str, Any]),
         (Annotated[str, "meta"], str),
@@ -225,6 +226,7 @@ def test_is_optional_type(tp: Any, is_optional_type: bool) -> None:
     assert param_type_util.is_optional_type(tp) is is_optional_type
 
 
+@pytest.mark.parametrize("exclude_optional", [False, True])
 @pytest.mark.parametrize(
     ("tp", "is_union_type"),
     [
@@ -240,12 +242,16 @@ def test_is_optional_type(tp: Any, is_optional_type: bool) -> None:
         (Optional[Annotated[str | int, "meta"]], True),
     ],
 )
-def test_is_union_type(tp: Any, is_union_type: bool) -> None:
+def test_is_union_type(tp: Any, is_union_type: bool, exclude_optional: bool) -> None:
     """Verify that we can check whether a given type annotation itself is a union type or not
 
     Note: Optional[] is also considered as union
     """
-    assert param_type_util.is_union_type(tp) is is_union_type
+    if exclude_optional:
+        is_union = is_union_type and NoneType not in get_args(tp)
+    else:
+        is_union = is_union_type
+    assert param_type_util.is_union_type(tp, exclude_optional=exclude_optional) is is_union
 
 
 @pytest.mark.parametrize(

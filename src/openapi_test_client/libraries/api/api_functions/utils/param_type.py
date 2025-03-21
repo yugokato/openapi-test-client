@@ -327,13 +327,18 @@ def is_optional_type(tp: Any) -> bool:
             return False
 
 
-def is_union_type(tp: Any) -> bool:
+def is_union_type(tp: Any, exclude_optional: bool = False) -> bool:
     """Check if the type annotation is a Union type
 
     :param tp: Type annotation
+    :param exclude_optional: Exclude Optional[] type
     """
     origin_type = get_origin(tp)
-    return origin_type in [Union, UnionType]
+    is_union = origin_type in [Union, UnionType]
+    if exclude_optional:
+        return is_union and NoneType not in get_args(tp)
+    else:
+        return is_union
 
 
 def is_deprecated_param(tp: Any) -> bool:
