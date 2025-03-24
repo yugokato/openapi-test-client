@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, ParamSpec, TypeAlias, TypeVar, cast
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
@@ -33,7 +34,14 @@ __all__ = ["Endpoint", "EndpointFunc", "EndpointHandler", "endpoint"]
 
 P = ParamSpec("P")
 R = TypeVar("R")
-_EndpointFunc = TypeVar("_EndpointFunc", bound=Callable[..., RestResponse])  # For making IDE happy
+
+
+_EndpointFunc = TypeVar(
+    # TODO: Remove this
+    # A workaound for https://youtrack.jetbrains.com/issue/PY-57765
+    "_EndpointFunc",
+    bound=Callable[..., RestResponse],
+)
 EndpointFunction: TypeAlias = _EndpointFunc | "EndpointFunc"
 EndpointDecorator: TypeAlias = Callable[[EndpointFunction], EndpointFunction]
 
@@ -108,7 +116,7 @@ class endpoint:
         >>>
         >>> class AuthAPI(DemoAppBaseAPI):
         >>>     @endpoint.post("/v1/login")
-        >>>     def login(self, *, username: str = Unset, password: str = Unset, **params):
+        >>>     def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
         >>>         ...
         >>>
         >>> client = DemoAppAPIClient()
@@ -274,7 +282,11 @@ class endpoint:
         """Mark an endpoint as undocumented. If an API class is decorated, all endpoints on the class will be
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
+
+        :param obj: Endpoint handler or API class
+        NOTE: EndpointFunction type was added for mypy only
         """
+        assert isinstance(obj, EndpointHandler) or (inspect.isclass(obj) and issubclass(obj, APIBase))
         obj.is_documented = False
         return cast(EndpointFunction, obj)
 
@@ -282,7 +294,11 @@ class endpoint:
     def is_public(obj: EndpointHandler | EndpointFunction) -> EndpointFunction:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
+
+        :param obj: Endpoint handler
+        NOTE: EndpointFunction type was added for mypy only
         """
+        assert isinstance(obj, EndpointHandler)
         obj.is_public = True
         return cast(EndpointFunction, obj)
 
@@ -290,21 +306,27 @@ class endpoint:
     def is_deprecated(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
+
+        :param obj: Endpoint handler or API class
+        NOTE: EndpointFunction type was added for mypy only
         """
+        assert isinstance(obj, EndpointHandler) or (inspect.isclass(obj) and issubclass(obj, APIBase))
         obj.is_deprecated = True
         return cast(EndpointFunction, obj)
 
     @staticmethod
     def content_type(content_type: str) -> Callable[..., EndpointFunction]:
-        """Explicitly set Content-Type for this endpoint"""
+        """Explicitly set Content-Type for this endpoint
 
-        def decorator_with_arg(
-            obj: EndpointHandler | EndpointFunction,
-        ) -> EndpointHandler | EndpointFunction:
-            obj.content_type = content_type
-            return obj
+        :param content_type: Content type to explicitly set
+        """
 
-        return cast(Callable[..., EndpointFunction], decorator_with_arg)
+        def wrapper(endpoint_handler: EndpointHandler) -> EndpointHandler:
+            assert isinstance(endpoint_handler, EndpointHandler)
+            endpoint_handler.content_type = content_type
+            return endpoint_handler
+
+        return cast(Callable[..., EndpointFunction], wrapper)
 
     @staticmethod
     def decorator(
@@ -332,17 +354,16 @@ class endpoint:
         >>>    ...
         """
 
-        @wraps(f)
         def wrapper(*args: Any, **kwargs: Any) -> EndpointHandler | Callable[[EndpointHandler], EndpointHandler]:
             if not kwargs and args and len(args) == 1 and isinstance(args[0], EndpointHandler):
                 # This is a regular decorator
                 endpoint_handler: EndpointHandler = args[0]
-                endpoint_handler.register_decorator(f)
+                endpoint_handler.register_decorator(cast(EndpointDecorator, f))
                 return endpoint_handler
             else:
                 # The decorator takes arguments
                 def _wrapper(endpoint_handler: EndpointHandler) -> EndpointHandler:
-                    endpoint_handler.register_decorator(partial(f, *args, **kwargs))
+                    endpoint_handler.register_decorator(cast(EndpointDecorator, partial(f, *args, **kwargs)))
                     return endpoint_handler
 
                 return _wrapper
@@ -405,11 +426,13 @@ class EndpointHandler:
         self.path = path
         self.use_query_string = use_query_string
         self.requests_lib_options = requests_lib_options
-        self.content_type = None  # Will be set by @endpoint.content_type decorator (or application/json by default)
+
+        # Will be set via @endpoint.<decorator_name>
+        self.content_type: str | None = None  # application/json by default
         self.is_public = False
         self.is_documented = True
         self.is_deprecated = False
-        self.__decorators: list[Callable[..., Any]] = []
+        self.__decorators: list[EndpointDecorator] = []
 
     def __get__(self, instance: APIBase | None, owner: type[APIBase]) -> EndpointFunc:
         """Return an EndpointFunc object"""
@@ -421,17 +444,28 @@ class EndpointHandler:
                 )
                 EndpointFuncClass = type(endpoint_func_name, (EndpointFunc,), {})
                 endpoint_func = EndpointFuncClass(self, instance, owner)
-                EndpointHandler._endpoint_functions[key] = endpoint_func
-        return cast(EndpointFunc, update_wrapper(endpoint_func, self.original_func))
+                EndpointHandler._endpoint_functions[key] = update_wrapper(endpoint_func, self.original_func)
+        return cast(EndpointFunc, endpoint_func)
 
     @property
-    def decorators(self) -> list[Callable[..., Any]]:
+    def decorators(self) -> list[EndpointDecorator]:
         """Returns decorators that should be applied on an endpoint function"""
         return self.__decorators
 
-    def register_decorator(self, *decorator: Callable[..., Any]) -> None:
+    def register_decorator(self, *decorator: EndpointDecorator) -> None:
         """Register a decorator that will be applied on an endpoint function"""
         self.__decorators.extend([d for d in decorator])
+
+
+def requires_instance(f: Callable[Concatenate[EndpointFunc, P], R]) -> Callable[Concatenate[EndpointFunc, P], R]:
+    @wraps(f)
+    def wrapper(self: EndpointFunc, *args: P.args, **kwargs: P.kwargs) -> R:
+        if self._instance is None:
+            func_name = self._original_func.__name__ if f.__name__ == "__call__" else f.__name__
+            raise TypeError(f"You can not access {func_name}() directly through the {self._owner.__name__} class.")
+        return f(self, *args, **kwargs)
+
+    return wrapper
 
 
 class EndpointFunc:
@@ -459,9 +493,9 @@ class EndpointFunc:
         # Control a retry in a request wrapper to prevent a loop
         self.retried = False
 
+        self._instance: APIBase | None = instance
+        self._owner: type[APIBase] = owner
         self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
-        self._instance = instance
-        self._owner = owner
         self._use_query_string = endpoint_handler.use_query_string
         self._requests_lib_options = endpoint_handler.requests_lib_options
 
@@ -497,6 +531,7 @@ class EndpointFunc:
     def __repr__(self) -> str:
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
+    @requires_instance
     def __call__(
         self,
         *path_params: Any,
@@ -506,7 +541,7 @@ class EndpointFunc:
         with_hooks: bool | None = True,
         validate: bool | None = None,
         **params: Any,
-    ) -> RestResponse | None:
+    ) -> RestResponse:
         """Make an API call to the endpoint
 
         :param path_params: Path parameters
@@ -619,6 +654,7 @@ class EndpointFunc:
         else:
             print("Docs not available")  # noqa: T201
 
+    @requires_instance
     def with_retry(
         self,
         *args: Any,
@@ -638,6 +674,7 @@ class EndpointFunc:
         f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
         return f(*args, **kwargs)
 
+    @requires_instance
     def with_lock(self, *args: Any, lock_name: str | None = None, **kwargs: Any) -> RestResponse:
         """Make an API call with lock
 
@@ -664,4 +701,5 @@ class EndpointFunc:
 
 if TYPE_CHECKING:
     # For making IDE happy
+    # TODO: Remove this
     EndpointFunc: TypeAlias = _EndpointFunc | EndpointFunc  # type: ignore[no-redef]
