@@ -129,14 +129,12 @@ def generate_pydantic_model_field(
                     if constraint.pattern:
                         const.update(pattern=constraint.pattern)
                 elif param_type_util.is_type_of(base_type, int):
-                    # TODO: Update the logic around exclusive_minimum/exclusive_maximum once Pydantic starts treating
-                    #  them as a boolean
-                    if constraint.exclusive_minimum:
-                        const.update(gt=constraint.exclusive_minimum)
+                    if constraint.exclusive_min:
+                        const.update(gt=constraint.exclusive_min)
                     else:
                         const.update(ge=constraint.min)
-                    if constraint.exclusive_maximum:
-                        const.update(lt=constraint.exclusive_maximum)
+                    if constraint.exclusive_max:
+                        const.update(lt=constraint.exclusive_max)
                     else:
                         const.update(le=constraint.max)
                     if constraint.multiple_of:

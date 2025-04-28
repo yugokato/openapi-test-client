@@ -61,8 +61,8 @@ class ParamDef(HashableDict):
             self.constraint = Constraint(
                 min=self.get("minimum"),
                 max=self.get("maximum"),
-                exclusive_minimum=self.get("exclusiveMinimum"),
-                exclusive_maximum=self.get("exclusiveMaximum"),
+                exclusive_min=self.get("exclusiveMinimum"),
+                exclusive_max=self.get("exclusiveMaximum"),
                 multiple_of=self.get("multipleOf"),
                 min_len=self.get("minLength"),
                 max_len=self.get("maxLength"),
@@ -71,7 +71,7 @@ class ParamDef(HashableDict):
             )
 
     @property
-    def type(self) -> str | list[str, ...]:
+    def type(self) -> str | list[str]:
         return self["type"]
 
     @property
@@ -475,16 +475,13 @@ class Constraint(ParamAnnotationType):
 
     min: int | None = None
     max: int | None = None
+    exclusive_min: int | None = None
+    exclusive_max: int | None = None
     multiple_of: int | None = None
     min_len: int | None = None
     max_len: int | None = None
     nullable: bool | None = None
     pattern: str | None = None
-
-    # NOTE: exclusive_minimum/exclusive_maximum are supposed to be a boolean in the OAS 3.x specifications,
-    #       but Pydantic currently treats them as an integer
-    exclusive_minimum: int | None = None
-    exclusive_maximum: int | None = None
 
 
 class UncacheableLiteralArg:
