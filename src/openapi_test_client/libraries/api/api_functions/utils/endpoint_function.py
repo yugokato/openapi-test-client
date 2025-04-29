@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def check_params(endpoint: Endpoint, params: dict[str, Any]) -> None:
+def check_params(
+    endpoint: Endpoint, params: dict[str, Any], requests_lib_options: dict[str, Any] | None = None
+) -> None:
     """Check the endpoint parameters
 
      A warning message will be logged if any of the following condition matches:
@@ -31,10 +33,17 @@ def check_params(endpoint: Endpoint, params: dict[str, Any]) -> None:
 
     :param endpoint: Endpoint obj
     :param params: Request parameters
+    :param requests_lib_options: Raw requests library options passed to Session.request()
     """
+    if requests_lib_options:
+        allowed_requests_params = get_supported_request_parameters()
+        unexpected_requests_params = set((requests_lib_options or {}).keys()).difference(allowed_requests_params)
+        if unexpected_requests_params:
+            raise RuntimeError(f"Invalid requests library option(s):\n{list_items(unexpected_requests_params)}")
+
     if endpoint.is_documented:
         dataclass_fields = endpoint.model.__dataclass_fields__
-        expected_params = set(list(dataclass_fields.keys()) + get_supported_request_parameters())
+        expected_params = set(dataclass_fields.keys())
         unexpected_params = set(params.keys()).difference(expected_params)
         if unexpected_params:
             msg = (

@@ -8,7 +8,6 @@ from types import MappingProxyType, NoneType, UnionType
 from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, cast, get_args, get_origin
 
 import inflect
-from common_libs.clients.rest_client.utils import get_supported_request_parameters
 from common_libs.logging import get_logger
 from common_libs.utils import clean_obj_name
 
@@ -324,12 +323,19 @@ def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]
 def clean_model_field_name(name: str) -> str:
     """Returns an alias name if the given name is illegal as a model field name"""
     name = clean_obj_name(name)
-    # NOTE: The escaping of kwargs is already is handled in endpoint model
-    reserved_param_names = ["self", "validate", *get_supported_request_parameters()]
-    if name in get_reserved_model_names() + reserved_param_names:
+    if name in get_reserved_model_names() + get_reserved_param_names():
         # The field name conflicts with one of reserved names
         name += "_"
     return name
+
+
+@lru_cache
+def get_reserved_param_names() -> list[str]:
+    """Get list of reserved parameter names that will conflict with the endpoint function's __call__ method"""
+    from openapi_test_client.libraries.api import EndpointFunc
+
+    sig_params = inspect.signature(EndpointFunc.__call__).parameters
+    return [k for k, v in sig_params.items() if v.kind == v.KEYWORD_ONLY]
 
 
 def alias_illegal_model_field_names(location: str, model_fields: list[DataclassModelField]) -> None:

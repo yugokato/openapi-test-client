@@ -431,7 +431,8 @@ A function can take API path parameters and query/body parameters as arguments, 
 defined as positional-only arguments, and other parameters are always defined as keyword-only arguments with a default 
 value of `Unset`. Any parameters with this sentinel value will be excluded from the actual API call parameters.   
 Additionally, it will always have `**kwargs` for supporting making a call with any undocumented 
-parameters and/or with raw `requests` library options (eg. `timeout`, `headers`, etc) if you need to. 
+endpoint parameters, as well as with some internal endpoint function call options such as `requests_lib_options`, 
+which takes raw `requests` library options (eg. `timeout`, `headers`, etc) passed to `Session.request()` if you need to. 
 
 > [!NOTE]
 > Parameters defined as optional in the OpenAPI spec will be annotated with `Optional[]` in the function signature, but 

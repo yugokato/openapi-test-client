@@ -78,14 +78,18 @@ class Endpoint:
         api_client: OpenAPIClient,
         *path_params: Any,
         quiet: bool = False,
+        validate: bool = False,
         with_hooks: bool = True,
+        requests_lib_options: dict[str, Any] | None = None,
         **params: Any,
     ) -> RestResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
         :param path_params: Path parameters
         :param quiet: A flag to suppress API request/response log
+        :param validate: Validate the request parameter in Pydantic strict mode
         :param with_hooks: Invoke pre/post request hooks
+        :param requests_lib_options: Raw request options passed to the requests library's Session.request()
         :param params: Request body or query parameters
 
         Example:
@@ -99,7 +103,14 @@ class Endpoint:
         """
         api_class = self.api_class(api_client)
         endpoint_func: EndpointFunc = getattr(api_class, self.func_name)
-        return endpoint_func(*path_params, quiet=quiet, with_hooks=with_hooks, **params)
+        return endpoint_func(
+            *path_params,
+            quiet=quiet,
+            with_hooks=with_hooks,
+            validate=validate,
+            requests_lib_options=requests_lib_options,
+            **params,
+        )
 
 
 class endpoint:
@@ -142,34 +153,36 @@ class endpoint:
     """  # noqa: E501
 
     @staticmethod
-    def get(path: str, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
+    def get(path: str, **default_requests_lib_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
-        return endpoint._create("get", path, use_query_string=True, **requests_lib_options)
+        return endpoint._create("get", path, use_query_string=True, **default_requests_lib_options)
 
     @staticmethod
-    def post(path: str, use_query_string: bool = False, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
+    def post(
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "post",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
     def delete(
-        path: str, use_query_string: bool = False, **requests_lib_options: Any
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
     ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
@@ -177,35 +190,37 @@ class endpoint:
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "delete",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
-    def put(path: str, use_query_string: bool = False, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
+    def put(
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "put",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
     def patch(
-        path: str, use_query_string: bool = False, **requests_lib_options: Any
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
     ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
@@ -213,18 +228,18 @@ class endpoint:
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "patch",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
     def options(
-        path: str, use_query_string: bool = False, **requests_lib_options: Any
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
     ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
@@ -232,35 +247,37 @@ class endpoint:
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "options",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
-    def head(path: str, use_query_string: bool = False, **requests_lib_options: Any) -> Callable[..., EndpointFunction]:
+    def head(
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "head",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
     def trace(
-        path: str, use_query_string: bool = False, **requests_lib_options: Any
+        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
     ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
@@ -268,13 +285,13 @@ class endpoint:
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param requests_lib_options: Raw request options passed to the requests library
+        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
         """
         return endpoint._create(
             "trace",
             path,
             use_query_string=use_query_string,
-            **requests_lib_options,
+            **default_requests_lib_options,
         )
 
     @staticmethod
@@ -380,7 +397,7 @@ class endpoint:
 
     @staticmethod
     def _create(
-        method: str, path: str, use_query_string: bool = False, **requests_lib_options: Any
+        method: str, path: str, use_query_string: bool = False, **default_requests_lib_options: Any
     ) -> Callable[..., EndpointFunc]:
         """Returns an endpoint factory that creates an endpoint handler object, which will return an
         EndpointFunc object when accessing the associated API class function
@@ -392,7 +409,7 @@ class endpoint:
                 method,
                 path,
                 use_query_string=use_query_string,
-                **requests_lib_options,
+                **default_requests_lib_options,
             )
 
         return cast(Callable[..., EndpointFunc], endpoit_factory)
@@ -419,13 +436,13 @@ class EndpointHandler:
         method: str,
         path: str,
         use_query_string: bool = False,
-        **requests_lib_options: Any,
+        **default_requests_lib_options: Any,
     ) -> None:
         self.original_func = original_func
         self.method = method
         self.path = path
         self.use_query_string = use_query_string
-        self.requests_lib_options = requests_lib_options
+        self.default_requests_lib_options = default_requests_lib_options
 
         # Will be set via @endpoint.<decorator_name>
         self.content_type: str | None = None  # application/json by default
@@ -497,7 +514,7 @@ class EndpointFunc:
         self._owner: type[APIBase] = owner
         self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
-        self._requests_lib_options = endpoint_handler.requests_lib_options
+        self._requests_lib_options = endpoint_handler.default_requests_lib_options
 
         tags = (instance or owner).TAGs
         assert isinstance(tags, tuple)
@@ -536,22 +553,18 @@ class EndpointFunc:
         self,
         *path_params: Any,
         quiet: bool = False,
-        headers: dict[str, str] | None = None,
-        stream: bool | None = None,
-        with_hooks: bool | None = True,
         validate: bool | None = None,
+        with_hooks: bool | None = True,
+        requests_lib_options: dict[str, Any] | None = None,
         **params: Any,
     ) -> RestResponse:
         """Make an API call to the endpoint
 
         :param path_params: Path parameters
         :param quiet: A flag to suppress API request/response log
-        :param headers: Temporary headers to add to the request
-        :param stream: Control the value of "stream" parameter passed to the underlying requests lib.
-                       Explicitly passing True or False will override the value defined for an
-                       API function definition (requests_lib_options), if there is any
-        :param with_hooks: Invoke pre/post request hooks
         :param validate: Validate the request parameter in Pydantic strict mode
+        :param with_hooks: Invoke pre/post request hooks
+        :param requests_lib_options: Raw request options passed to the requests library's Session.request()
         :param params: Request body or query parameters
         """
         if validate is None:
@@ -571,7 +584,7 @@ class EndpointFunc:
 
         # Check if parameters used are expected for the endpoint. If not, it is an indication that the API function is
         # not up-to-date.
-        endpoint_func_util.check_params(self.endpoint, params)
+        endpoint_func_util.check_params(self.endpoint, params, requests_lib_options=requests_lib_options)
 
         if validate:
             # Perform Pydantic validation in strict mode against parameters
@@ -593,7 +606,15 @@ class EndpointFunc:
             # Call the original function first to make sure any custom function logic (if implemented) is executed.
             # If it returns a RestResponse obj, we will use it. If nothing is returned (the default behavior),
             # we will automatically make an API call
-            r = self._original_func(self._instance, *path_params, **params)
+            kwargs: dict[str, Any] = {}
+            # Undocumented endpoints manually added/updated by users might not always have **kwargs like the regular
+            # endpoints updated/managed by our script. To avoid an error by giving unexpected keyword argument, we pass
+            # paramters for rest client only when the user explicitly requests them
+            if requests_lib_options:
+                kwargs.update(requests_lib_options=requests_lib_options)
+            if quiet:
+                kwargs.update(quiet=quiet)
+            r = self._original_func(self._instance, *path_params, **params, **kwargs)
             if r is not None:
                 if not isinstance(r, RestResponse):
                     raise RuntimeError(
@@ -603,12 +624,10 @@ class EndpointFunc:
                     )
             else:
                 # use the copy since we cache the request function
-                requests_lib_options = deepcopy(self._requests_lib_options)
-                if stream is not None:
-                    requests_lib_options.update(stream=stream)
-                if headers is not None:
-                    requests_lib_options.update(headers=headers)
-                if requests_lib_options.get("stream"):
+                raw_requests_lib_options = deepcopy(self._requests_lib_options)
+                if requests_lib_options:
+                    raw_requests_lib_options.update(requests_lib_options)
+                if raw_requests_lib_options.get("stream"):
                     logger.info("stream=True was specified")
                 rest_func = getattr(self.rest_client, f"_{self.method}")
                 rest_func_params = endpoint_func_util.generate_rest_func_params(
@@ -618,7 +637,7 @@ class EndpointFunc:
                     quiet=quiet,
                     use_query_string=self._use_query_string,
                     is_validation_mode=validate,
-                    **requests_lib_options,
+                    **raw_requests_lib_options,
                 )
                 r = rest_func(completed_path, **rest_func_params)
             return r
