@@ -12,7 +12,7 @@ from common_libs.logging import get_logger
 
 from openapi_test_client.libraries.api.api_functions.utils import param_model as param_model_util
 from openapi_test_client.libraries.api.api_functions.utils import param_type as param_type_util
-from openapi_test_client.libraries.api.types import DataclassModelField, EndpointModel, File, ParamDef, Unset
+from openapi_test_client.libraries.api.types import DataclassModelField, EndpointModel, File, Kwargs, ParamDef, Unset
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
@@ -122,10 +122,11 @@ def generate_func_signature_in_str(model: type[EndpointModel]) -> str:
     if has_path_var and not positional_only_added:
         signatures.append("/")
 
+    kwargs_arg = "**kwargs"
+    kwargs_type = f"Unpack[{Kwargs.__name__}]"
     if any("kwargs:" in s for s in signatures):
-        signatures.append("**kwargs_: Any")
-    else:
-        signatures.append("**kwargs: Any")
+        kwargs_arg = kwargs_arg + "_"
+    signatures.append(f"{kwargs_arg}: {kwargs_type}")
     return ", ".join(signatures)
 
 

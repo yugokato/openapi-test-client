@@ -13,7 +13,7 @@ from dataclasses import (
     make_dataclass,
 )
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypedDict, TypeVar, cast
 
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
@@ -41,6 +41,15 @@ Optional: TypeAlias = T | None
 # The sentinel value set as a default value for endpoint body/query parameters and models.
 # Any parameters with this value will not be included in actual API call parameters
 Unset: Any = object()
+
+
+class Kwargs(TypedDict, total=False):
+    """For annotating the `kwargs` param in endpoint functions (PEP 692)"""
+
+    quiet: bool
+    validate: bool
+    with_hooks: bool
+    requests_lib_options: dict[str, Any]
 
 
 class ParamDef(HashableDict):

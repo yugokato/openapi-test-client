@@ -89,7 +89,7 @@ openapi-client generate -u <url> -a <app_name> [--dir <directory>]
 `directory`: A directory path to save the generated client modules. The specified directory will become the top-level 
 module for accessing all your clients. (This is optional if your project was cloned from the original repository)
 
-<img src="images/generate.gif" width="750"/>
+<img src="images/generate.gif" width="800"/>
 
 To generate another client for a different app, simply run the same command with the same `--dir` value, but with new 
 `-u` and `-a` values. 
@@ -109,7 +109,7 @@ openapi-client update -c <client_name>
 ```
 `client_name`: The name of the client assigned at the client generation step
 
-<img src="images/update.gif" width="750"/>
+<img src="images/update.gif" width="800"/>
 
 This update functionality primarily focuses on reflecting the latest OpenAPI specs. It will only touch the following areas: 
 - Existing API class tag
@@ -235,7 +235,7 @@ By default, each auto-generated API function will look like a stub function with
 ```python
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     """Login"""
     ...
 ```
@@ -278,7 +278,7 @@ def my_decorator(f):
 @my_decorator
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     """Login"""
     ...
 ```
@@ -404,11 +404,13 @@ Then the API class and functions will be generated like this:
 ```python
 # openapi_test_client/clients/demo_app/api/auth.py
 
+from typing import Unpack
+
 from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
-from openapi_test_client.libraries.api.types import Unset
+from openapi_test_client.libraries.api.types import Kwargs, Unset
 
 
 class AuthAPI(DemoAppBaseAPI):
@@ -416,13 +418,13 @@ class AuthAPI(DemoAppBaseAPI):
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")
-    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
+    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Login"""
         ...
 
     @endpoint.is_public
     @endpoint.get("/v1/auth/logout")
-    def logout(self, **kwargs: Any) -> RestResponse:
+    def logout(self, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Logout"""
         ...
 
@@ -610,13 +612,13 @@ eg.
 ```python
 # openapi_test_client/clients/demo_app/api/users.py
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Unpack
 
 from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
-from openapi_test_client.libraries.api.types import Constraint, Format, Optional, Unset
+from openapi_test_client.libraries.api.types import Constraint, Format, Kwargs, Optional, Unset
 
 from ..models.users import Metadata
 
@@ -633,7 +635,7 @@ class UsersAPI(DemoAppBaseAPI):
         email: Annotated[str, Format("email")] = Unset,
         role: Literal["admin", "viewer", "support"] = Unset,
         metadata: Optional[Metadata] = Unset,
-        **kwargs: Any,
+        **kwargs: Unpack[Kwargs],
     ) -> RestResponse:
         """Create a new user"""
         ...

@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
 from types import MappingProxyType, NoneType, UnionType
-from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, cast, get_args, get_origin
+from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack, cast, get_args, get_origin
 
 import inflect
 from common_libs.logging import get_logger
@@ -20,6 +20,7 @@ from openapi_test_client.libraries.api.types import (
     DataclassModelField,
     EndpointModel,
     File,
+    Kwargs,
     ParamAnnotationType,
     ParamDef,
     ParamModel,
@@ -113,8 +114,8 @@ def get_reserved_model_names() -> list[str]:
         x.__name__
         for x in mod.__dict__.values()
         if inspect.isclass(x) and issubclass(x, ParamAnnotationType | DataclassModel)
-    ] + ["Unset"]
-    typing_class_names = [x.__name__ for x in [Any, Optional, Annotated, Literal, Union]]  # type: ignore[attr-defined]
+    ] + ["Unset", Kwargs.__name__]
+    typing_class_names = [x.__name__ for x in [Any, Optional, Annotated, Literal, Union, Unpack]]  # type: ignore[attr-defined]
     return custom_param_annotation_names + typing_class_names
 
 
@@ -170,7 +171,10 @@ def generate_imports_code_from_model(
     :param model: A dataclass obj
     :param exclude_nested_models: Skip imports for nested models (to avoid define imports for models in the same file)
     """
-    imports_code = "from typing import Any\n"
+    if issubclass(model, EndpointModel):
+        imports_code = f"from typing import Unpack\nfrom {Kwargs.__module__} import {Kwargs.__name__}\n"
+    else:
+        imports_code = ""
     module_and_name_pairs = set()
     primitive_types = [int, float, str, bool]
     from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME
