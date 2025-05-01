@@ -81,7 +81,7 @@ class Endpoint:
         validate: bool = False,
         with_hooks: bool = True,
         requests_lib_options: dict[str, Any] | None = None,
-        **params: Any,
+        **body_or_query_params: Any,
     ) -> RestResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
@@ -90,7 +90,7 @@ class Endpoint:
         :param validate: Validate the request parameter in Pydantic strict mode
         :param with_hooks: Invoke pre/post request hooks
         :param requests_lib_options: Raw request options passed to the requests library's Session.request()
-        :param params: Request body or query parameters
+        :param body_or_query_params: Request body or query parameters
 
         Example:
             >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
@@ -109,7 +109,7 @@ class Endpoint:
             with_hooks=with_hooks,
             validate=validate,
             requests_lib_options=requests_lib_options,
-            **params,
+            **body_or_query_params,
         )
 
 
@@ -556,7 +556,7 @@ class EndpointFunc:
         validate: bool | None = None,
         with_hooks: bool | None = True,
         requests_lib_options: dict[str, Any] | None = None,
-        **params: Any,
+        **body_or_query_params: Any,
     ) -> RestResponse:
         """Make an API call to the endpoint
 
@@ -565,7 +565,7 @@ class EndpointFunc:
         :param validate: Validate the request parameter in Pydantic strict mode
         :param with_hooks: Invoke pre/post request hooks
         :param requests_lib_options: Raw request options passed to the requests library's Session.request()
-        :param params: Request body or query parameters
+        :param body_or_query_params: Request body or query parameters
         """
         if validate is None:
             validate = pydantic_model_util.is_validation_mode()
@@ -584,12 +584,12 @@ class EndpointFunc:
 
         # Check if parameters used are expected for the endpoint. If not, it is an indication that the API function is
         # not up-to-date.
-        endpoint_func_util.check_params(self.endpoint, params, requests_lib_options=requests_lib_options)
+        endpoint_func_util.check_params(self.endpoint, body_or_query_params, requests_lib_options=requests_lib_options)
 
         if validate:
             # Perform Pydantic validation in strict mode against parameters
             try:
-                endpoint_func_util.validate_params(self.endpoint, params)
+                endpoint_func_util.validate_params(self.endpoint, path_params, body_or_query_params)
             except ValidationError as e:
                 raise ValueError(
                     color(f"Request parameter validation failed.\n{e}", color_code=ColorCodes.RED)
@@ -597,11 +597,11 @@ class EndpointFunc:
 
         # pre-request hook
         if with_hooks:
-            self._instance.pre_request_hook(self.endpoint, *path_params, **params)
+            self._instance.pre_request_hook(self.endpoint, *path_params, **body_or_query_params)
 
         # Make a request
         r = None
-        request_exception = None
+        exception = None
         try:
             # Call the original function first to make sure any custom function logic (if implemented) is executed.
             # If it returns a RestResponse obj, we will use it. If nothing is returned (the default behavior),
@@ -614,7 +614,7 @@ class EndpointFunc:
                 kwargs.update(requests_lib_options=requests_lib_options)
             if quiet:
                 kwargs.update(quiet=quiet)
-            r = self._original_func(self._instance, *path_params, **params, **kwargs)
+            r = self._original_func(self._instance, *path_params, **body_or_query_params, **kwargs)
             if r is not None:
                 if not isinstance(r, RestResponse):
                     raise RuntimeError(
@@ -632,7 +632,7 @@ class EndpointFunc:
                 rest_func = getattr(self.rest_client, f"_{self.method}")
                 rest_func_params = endpoint_func_util.generate_rest_func_params(
                     self.endpoint,
-                    params,
+                    body_or_query_params,
                     self.rest_client.session.headers,
                     quiet=quiet,
                     use_query_string=self._use_query_string,
@@ -642,7 +642,7 @@ class EndpointFunc:
                 r = rest_func(completed_path, **rest_func_params)
             return r
         except RequestException as e:
-            request_exception = e
+            exception = e
             raise
         except (Exception, KeyboardInterrupt):
             with_hooks = False
@@ -651,7 +651,7 @@ class EndpointFunc:
         finally:
             if with_hooks:
                 try:
-                    self._instance.post_request_hook(self.endpoint, r, request_exception, *path_params, **params)
+                    self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
                 except AssertionError:
                     raise
                 except Exception as e:

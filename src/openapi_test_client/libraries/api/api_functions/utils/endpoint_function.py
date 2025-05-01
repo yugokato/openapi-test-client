@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections import OrderedDict
+from dataclasses import MISSING
 from typing import TYPE_CHECKING, Any, get_args
 
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
@@ -60,7 +61,7 @@ def check_params(
                 logger.warning(f"DEPRECATED: parameter '{param_name}' is deprecated")
 
 
-def validate_params(endpoint: Endpoint, params: dict[str, Any]) -> None:
+def validate_params(endpoint: Endpoint, path_params: tuple[Any, ...], body_or_query_params: dict[str, Any]) -> None:
     """Perform Pydantic validation in strict mode
 
     Both endpoint parameters and param models (nested ones too) will be validated.
@@ -70,10 +71,13 @@ def validate_params(endpoint: Endpoint, params: dict[str, Any]) -> None:
           See: https://docs.pydantic.dev/latest/concepts/strict_mode/#type-coercions-in-strict-mode
 
     :param endpoint: Endpoint obj
-    :param params: Request parameters
+    :param path_params: Request path parameters
+    :param body_or_query_params: Request body or query parameters
     """
+    path_param_names = (k for k, v in endpoint.model.__dataclass_fields__.items() if v.default is MISSING)
+    binded_path_params = OrderedDict(zip(path_param_names, path_params))
     PydanticEndpointModel = endpoint.model.to_pydantic()
-    PydanticEndpointModel.validate_as_json(params)
+    PydanticEndpointModel.validate_as_json({**binded_path_params, **body_or_query_params})
 
 
 def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: bool = False) -> str:

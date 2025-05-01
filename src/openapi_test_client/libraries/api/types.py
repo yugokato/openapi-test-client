@@ -214,9 +214,7 @@ class DataclassModel(Protocol):
 
         model_fields = {}
         for field_name, field_obj in cls.__dataclass_fields__.items():
-            if field_obj.default is not MISSING:
-                model_fields[field_name] = pydantic_model_util.generate_pydantic_model_field(cls, field_obj)
-
+            model_fields[field_name] = pydantic_model_util.generate_pydantic_model_field(cls, field_obj)
         return cast(
             type[PydanticModel],
             create_model(
