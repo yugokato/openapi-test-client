@@ -268,6 +268,8 @@ def update_endpoint_functions(
     '''
     from openapi_test_client.libraries.api import endpoint
 
+    has_root_security = bool(api_spec.get("security"))
+
     print(f"Checking API class: {api_class.__name__}...")  # noqa: T201
     # Regex for API class definition
     regex_api_class = re.compile(rf"class {api_class.__name__}\(\S+{BASE_API_CLASS_NAME_SUFFIX}\):")
@@ -365,7 +367,8 @@ def update_endpoint_functions(
                 or "No summary or description is available for this API"
             ).replace('"', '\\"')
             is_deprecated_api = endpoint_spec.get("deprecated", False)
-            is_public_api = endpoint_spec.get("security") == []
+            requires_auth = endpoint_spec.get("security")
+            is_public_api = (has_root_security and requires_auth == []) or (not has_root_security and not requires_auth)
 
             endpoint_model = endpoint_model_util.create_endpoint_model(endpoint_function, api_spec=api_spec)
             content_type = endpoint_model.content_type
