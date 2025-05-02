@@ -6,6 +6,8 @@ from openapi_test_client.clients.demo_app.models.users import Metadata, Preferen
 from openapi_test_client.libraries.api.types import File
 from tests.integration import helper
 
+pytestmark = pytest.mark.xdist_group("integration/api")
+
 
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:

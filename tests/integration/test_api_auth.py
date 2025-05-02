@@ -3,6 +3,8 @@ import pytest
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from tests.integration import helper
 
+pytestmark = pytest.mark.xdist_group("integration/api")
+
 
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool) -> None:

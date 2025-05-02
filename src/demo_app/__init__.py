@@ -29,6 +29,7 @@ def create_app(version: int = 1) -> Quart:
 
 def _register_blueprints(app: Quart, version: int) -> None:
     from demo_app.api.auth.auth import bp_auth
+    from demo_app.api.default import bp_default
     from demo_app.api.user.user import bp_user
     from demo_app.handlers.error_handlers import bp_error_handler
     from demo_app.handlers.request_handlers import bp_request_handler
@@ -38,6 +39,7 @@ def _register_blueprints(app: Quart, version: int) -> None:
     bp_api.register_blueprint(bp_user, name=bp_user.name)
 
     app.register_blueprint(bp_api, name=bp_api.name)
+    app.register_blueprint(bp_default, name=bp_default.name)
     app.register_blueprint(bp_request_handler, name=bp_request_handler.name)
     app.register_blueprint(bp_error_handler, name=bp_error_handler.name)
 

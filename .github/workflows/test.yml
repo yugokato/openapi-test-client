@@ -52,4 +52,4 @@ jobs:
         uv pip install --system -e .[test]
     - name: Run pytest
       run: |
-        pytest tests -v
+        pytest tests -n auto

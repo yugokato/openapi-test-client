@@ -2,8 +2,6 @@ import json
 import os
 import random
 import shutil
-import subprocess
-import time
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
@@ -11,53 +9,23 @@ from typing import Any
 import pytest
 import requests
 from _pytest.fixtures import SubRequest
-from pytest import FixtureRequest
+from pytest import FixtureRequest, TempPathFactory
 from pytest_mock import MockerFixture
 
-from demo_app.main import DEFAULT_PORT
-from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, ENV_VAR_PACKAGE_DIR, logger
+from openapi_test_client import ENV_VAR_PACKAGE_DIR
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.libraries.api.api_client_generator import get_client_dir
 from tests.conftest import temp_dir
 from tests.integration import helper
-
-
-@pytest.fixture(scope="session")
-def app_port() -> int:
-    if os.environ.get("IS_TOX"):
-        return int(os.environ["APP_PORT"])
-    else:
-        return DEFAULT_PORT
+from tests.integration.helper import URL_CONFIG_PATH, DemoAppLifecycleManager
 
 
 @pytest.fixture(scope="session", autouse=True)
-def demo_app_server(app_port: int) -> Generator[None, Any, None]:
-    script_path = _PACKAGE_DIR.parent / "demo_app" / "main.py"
-    args = ["python", str(script_path), "-p", str(app_port)]
-    proc = subprocess.Popen(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf-8",
-    )
-    time.sleep(2)
-    if proc.poll():
-        logger.error(proc.stderr.read())
-    assert not proc.poll(), proc.stdout.read()
-
-    if os.environ.get("IS_TOX"):
-        # For tox parallel testing, modify the original URL config for demo_app to match with the actual app port
-        url_cfg = json.loads((_CONFIG_DIR / "urls.json").read_text())
-        url = url_cfg["dev"]["demo_app"]
-        if not url.endswith(f":{app_port}"):
-            url_cfg["dev"]["demo_app"] = url.replace(f":{DEFAULT_PORT}", f":{app_port}")
-            (_CONFIG_DIR / "urls.json").write_text(json.dumps(url_cfg))
-
-    yield
-    proc.terminate()
-    stdout, stderr = proc.communicate()
-    logger.info(f"Server logs:\n{stderr or stdout}")
+def demo_app_server(request: FixtureRequest, tmp_path_factory: TempPathFactory) -> Generator[None, Any, None]:
+    with DemoAppLifecycleManager(tmp_path_factory) as app_manager:
+        app_manager.wait_for_app_ready()
+        yield
 
 
 @pytest.fixture
@@ -81,7 +49,7 @@ def random_app_name() -> str:
 
 @pytest.fixture
 def demo_app_openapi_spec_url(unauthenticated_api_client: DemoAppAPIClient) -> str:
-    url_cfg = json.loads((_CONFIG_DIR / "urls.json").read_text())
+    url_cfg = json.loads(URL_CONFIG_PATH.read_text())
     base_url = url_cfg[unauthenticated_api_client.env][unauthenticated_api_client.app_name]
     doc_path = unauthenticated_api_client.api_spec.doc_path
     return f"{base_url}/{doc_path}"
@@ -131,7 +99,7 @@ def temp_app_client(
     temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str
 ) -> Generator[OpenAPIClient, Any, None]:
     """Temporary demo app API client that will be generated for a test"""
-    app_name = f"demo_app_{random.choice(range(1, 1000))}"
+    app_name = f"{DemoAppLifecycleManager.app_name}_{random.choice(range(1, 1000))}"
     module_dir = temp_dir / "my_clients"
 
     args = f"generate -u {demo_app_openapi_spec_url} -a {app_name} --dir {module_dir} --quiet"
