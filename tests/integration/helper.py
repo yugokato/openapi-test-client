@@ -17,7 +17,7 @@ from filelock import FileLock
 from pytest import TempPathFactory
 from requests.exceptions import ConnectionError
 
-from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, logger
+from openapi_test_client import _CONFIG_DIR, logger
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
@@ -87,8 +87,7 @@ class DemoAppLifecycleManager:
         return url_cfg["dev"][DemoAppLifecycleManager.app_name]
 
     def start_app(self) -> None:
-        script_path = _PACKAGE_DIR.parent / self.app_name / "main.py"
-        args = ["python", str(script_path), "-p", str(self.port)]
+        args = ["quart", "-A", self.app_name, "run", "--port", str(self.port)]
         self.proc = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
@@ -102,7 +101,7 @@ class DemoAppLifecycleManager:
 
     def stop_app(self) -> None:
         if self.proc:
-            logger.warning("Stopping the app...")
+            logger.info("Stopping the app...")
             self.proc.terminate()
             stdout, stderr = self.proc.communicate()
             logger.info(f"App logs:\n{stderr or stdout}")
@@ -111,8 +110,8 @@ class DemoAppLifecycleManager:
         return len([f for f in self.xdist_session_dir.iterdir() if f.name.startswith("gw")])
 
     def wait_for_app_to_start(self) -> None:
-        logger.warning(f"Waiting for the app to start with port {self.port}...")
-        wait_until(is_port_in_use, func_args=(self.port,), stop_condition=lambda x: x is True, timeout=5)
+        logger.info(f"Waiting for the app to start with port {self.port}...")
+        wait_until(is_port_in_use, func_args=(self.port,), stop_condition=lambda x: x is True, interval=0.5, timeout=5)
 
     def wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
@@ -122,13 +121,13 @@ class DemoAppLifecycleManager:
                 return False
 
         self.wait_for_app_to_start()
-        logger.warning("Waiting for app to become ready...")
-        wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=1, timeout=5)
+        logger.info("Waiting for app to become ready...")
+        wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=0.5, timeout=5)
 
     def wait_for_all_workers_to_complete(self, timeout: float = 60 * 60) -> None:
-        logger.warning("Waiting for all xdist workers to complete tests...")
+        logger.info("Waiting for all xdist workers to complete tests...")
         wait_until(self.get_num_active_workers, stop_condition=lambda x: x == 0, timeout=timeout)
-        logger.warning("All xdist workers completed tests")
+        logger.info("All xdist workers completed tests")
 
 
 def run_command(args: str) -> tuple[str, str]:
