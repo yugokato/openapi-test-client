@@ -17,7 +17,7 @@ from filelock import FileLock
 from pytest import TempPathFactory
 from requests.exceptions import ConnectionError
 
-from openapi_test_client import _CONFIG_DIR, logger
+from openapi_test_client import _CONFIG_DIR, _PACKAGE_DIR, logger
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
@@ -35,7 +35,7 @@ class DemoAppLifecycleManager:
     app_name = "demo_app"
 
     def __init__(self, tmp_path_factory: TempPathFactory):
-        if os.environ.get("IS_TOX"):
+        if self.is_tox:
             self.port = int(os.environ["APP_PORT"])
         else:
             self.port = int(self.base_url.split(":")[-1])
@@ -57,7 +57,7 @@ class DemoAppLifecycleManager:
         if self.is_starter:
             try:
                 self.start_app()
-                if os.environ.get("IS_TOX"):
+                if self.is_tox:
                     # For tox parallel testing, modify the original URL config to match with the actual app port
                     if not self.base_url.endswith(f":{self.port}"):
                         url_cfg = json.loads(URL_CONFIG_PATH.read_text())
@@ -82,12 +82,17 @@ class DemoAppLifecycleManager:
         return self.worker_id.startswith("gw")
 
     @property
+    def is_tox(self) -> bool:
+        return os.environ.get("IS_TOX") == "true"
+
+    @property
     def base_url(self) -> str:
         url_cfg = json.loads(URL_CONFIG_PATH.read_text())
         return url_cfg["dev"][DemoAppLifecycleManager.app_name]
 
     def start_app(self) -> None:
-        args = ["quart", "-A", self.app_name, "run", "--port", str(self.port)]
+        app_dir = _PACKAGE_DIR.parent / "demo_app"
+        args = ["fastapi", "run", app_dir, "--port", str(self.port)]
         self.proc = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
@@ -111,18 +116,18 @@ class DemoAppLifecycleManager:
 
     def wait_for_app_to_start(self) -> None:
         logger.info(f"Waiting for the app to start with port {self.port}...")
-        wait_until(is_port_in_use, func_args=(self.port,), stop_condition=lambda x: x is True, interval=0.5, timeout=5)
+        wait_until(is_port_in_use, func_args=(self.port,), stop_condition=lambda x: x is True, interval=0.5, timeout=10)
 
     def wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
             try:
-                return requests.get(self.base_url).ok
+                return requests.get(f"{self.base_url}/healthcheck").ok
             except ConnectionError:
                 return False
 
         self.wait_for_app_to_start()
         logger.info("Waiting for app to become ready...")
-        wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=0.5, timeout=5)
+        wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=0.5, timeout=10)
 
     def wait_for_all_workers_to_complete(self, timeout: float = 60 * 60) -> None:
         logger.info("Waiting for all xdist workers to complete tests...")
