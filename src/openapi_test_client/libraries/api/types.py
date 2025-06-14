@@ -353,7 +353,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
         if new_field_name not in model_fields.keys() and not this_recreation:
             existing_fields = [(k, field_obj.type, field(default=None)) for k, field_obj in model_fields.items()]
             new_fields = [(new_field_name, type(field_value), field(default=None))]
-            self.__class__ = ParamModel.recreate(type(self), existing_fields + new_fields)  # type: ignore[arg-type, operator]
+            self.__class__ = ParamModel.recreate(type(self), existing_fields + new_fields)  # type: ignore[arg-type]
         super().__setattr__(new_field_name, field_value)
 
         if not this_recreation:
