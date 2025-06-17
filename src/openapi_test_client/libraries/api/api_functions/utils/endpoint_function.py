@@ -183,8 +183,9 @@ def generate_rest_func_params(
     rest_func_params: dict[str, Any] = dict(quiet=quiet, **requests_lib_options)
     specified_content_type_header = _get_specified_content_type_header(requests_lib_options, session_headers)
     for param_name, param_value in endpoint_params.items():
-        if param_name in ["json", "data", "files"]:
-            rest_func_params[param_name] = param_value
+        if param_name == "requests_lib_options":
+            for k, v in requests_lib_options.items():
+                rest_func_params[k] = v
         else:
             if field_obj := dataclass_fields.get(param_name):
                 # Check Annotated metadata
