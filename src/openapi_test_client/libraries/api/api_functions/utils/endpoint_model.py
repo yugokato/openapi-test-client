@@ -221,15 +221,15 @@ def _parse_request_body_object(
         # This part has some variations, and sometimes not consistent
         if not (properties := obj.get("properties", {})):
             schema_type = obj.get("type")
-            if obj.get("items") and schema_type == "array":
-                # The top-level array object is an exceptional case where it needs to be sent with our rest
-                # client's _<method>() function whereas the main scenario of our endpoint parameters are
-                # always presented as a dictionary. We add this endpoint parameter as a `json` so that our
-                # endpoint library will know how to handle this parameter.
-                properties = {"json": {"type": schema_type}}
-            elif schema_type == "object":
+            if (
+                # The top-level array object is an exceptional case where it needs to be sent as `json` using the raw
+                # requests lib option.
+                (obj.get("items") and schema_type == "array")
+                or
                 # Irregular case. This endpoint allows ANY parameters (our **kwargs will handle this)
-                properties = []
+                schema_type == "object"
+            ):
+                properties = {}
             elif "oneOf" in obj:
                 return [parse_schema_obj(x) for x in obj["oneOf"]]
             elif "anyOf" in obj:
