@@ -30,7 +30,7 @@ dependencies = [
     "pydantic[email]==2.10.6",
     "pydantic-extra-types==2.10.3",
     "PyYAML==6.0.2",
-    "ruff==0.11.2"
+    "ruff>=0.12.0,<0.13.0"
 ]
 dynamic = ["version"]
 
@@ -80,12 +80,13 @@ select = [
     "W",    # pycodestyle warning
 ]
 ignore = [
-    "E731",
-    "E741",
-    "F403",
-    "PIE790",
-    "PLC0206",
-    "PLW2901",
+    "E731",     # lambda-assignment
+    "E741",     # ambiguous-variable-name
+    "F403",     # undefined-local-with-import-star
+    "PIE790",   # unnecessary-placeholder
+    "PLC0206",  # dict-index-missing-items
+    "PLC0415",  # import-outside-top-level
+    "PLW2901",  # redefined-loop-name
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -49,7 +49,7 @@ logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
-class Endpoint:
+class Endpoint:  # noqa: PLW1641
     """An Endpoint class to hold various endpoint data associated to an API class function
 
     This is accessible via an EndpointFunc object (see docstrings of the `endpoint` class below).

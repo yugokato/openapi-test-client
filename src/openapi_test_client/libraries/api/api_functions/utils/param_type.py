@@ -365,7 +365,7 @@ def generate_optional_type(tp: Any) -> Any:
     if is_optional_type(tp):
         return tp
     else:
-        return Optional[tp]  # noqa: UP007
+        return Optional_[tp]
 
 
 def generate_literal_type(*args: Any, uncacheable: bool = True) -> _LiteralGenericAlias:
