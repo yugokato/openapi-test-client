@@ -199,7 +199,7 @@ def generate_imports_code_from_model(
                     raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")
             elif has_param_model(obj_type):
                 if not exclude_nested_models:
-                    api_cls_module, model_file_name = api_class.__module__.rsplit(".", 1)
+                    _, model_file_name = api_class.__module__.rsplit(".", 1)
                     module_and_name_pairs.add(
                         (
                             f"..{API_MODEL_CLASS_DIR_NAME}.{model_file_name}",
