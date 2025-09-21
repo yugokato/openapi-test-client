@@ -427,7 +427,7 @@ class EndpointHandler:
     """
 
     # cache endpoint function objects
-    _endpoint_functions: ClassVar = {}
+    _endpoint_functions: ClassVar[dict[tuple[str, APIBase | None, type[APIBase]], EndpointFunc]] = {}
     _lock = RLock()
 
     def __init__(
@@ -461,8 +461,10 @@ class EndpointHandler:
                 )
                 EndpointFuncClass = type(endpoint_func_name, (EndpointFunc,), {})
                 endpoint_func = EndpointFuncClass(self, instance, owner)
-                EndpointHandler._endpoint_functions[key] = update_wrapper(endpoint_func, self.original_func)
-        return cast(EndpointFunc, endpoint_func)
+                EndpointHandler._endpoint_functions[key] = cast(
+                    EndpointFunc, update_wrapper(endpoint_func, self.original_func)
+                )
+        return endpoint_func
 
     @property
     def decorators(self) -> list[EndpointDecorator]:
