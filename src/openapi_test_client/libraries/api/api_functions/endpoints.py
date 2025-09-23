@@ -38,7 +38,7 @@ R = TypeVar("R")
 
 _EndpointFunc = TypeVar(
     # TODO: Remove this
-    # A workaound for https://youtrack.jetbrains.com/issue/PY-57765
+    # A workaround for https://youtrack.jetbrains.com/issue/PY-57765
     "_EndpointFunc",
     bound=Callable[..., RestResponse],
 )
@@ -403,7 +403,7 @@ class endpoint:
         EndpointFunc object when accessing the associated API class function
         """
 
-        def endpoit_factory(f: Callable[..., RestResponse]) -> EndpointHandler:
+        def endpoint_factory(f: Callable[..., RestResponse]) -> EndpointHandler:
             return EndpointHandler(
                 f,
                 method,
@@ -412,7 +412,7 @@ class endpoint:
                 **default_requests_lib_options,
             )
 
-        return cast(Callable[..., EndpointFunc], endpoit_factory)
+        return cast(Callable[..., EndpointFunc], endpoint_factory)
 
 
 class EndpointHandler:
