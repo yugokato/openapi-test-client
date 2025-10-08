@@ -20,6 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Software Development :: Testing",
 ]
@@ -27,8 +28,8 @@ dependencies = [
     "common-libs[client]@git+https://github.com/yugokato/common-libs",
     "inflect==7.0.0",
     "phonenumbers==9.0.1",
-    "pydantic[email]==2.10.6",
-    "pydantic-extra-types==2.10.3",
+    "pydantic[email]==2.12.0",
+    "pydantic-extra-types==2.10.5",
     "PyYAML==6.0.2",
     "ruff>=0.14.0,<0.15.0"
 ]

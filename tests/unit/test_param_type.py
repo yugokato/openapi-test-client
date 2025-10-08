@@ -1,4 +1,5 @@
 import re
+import sys
 from dataclasses import dataclass, make_dataclass
 from types import NoneType
 from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
@@ -319,15 +320,24 @@ def test_generate_literal_type(uncacheable: bool) -> None:
     args2 = ["3", "2", "1", "2"]
     tp1 = param_type_util.generate_literal_type(*args1, uncacheable=uncacheable)
     tp2 = param_type_util.generate_literal_type(*args2, uncacheable=uncacheable)
+
     if uncacheable:
         assert tp1 != tp2
-        assert repr(Optional[tp1]) == "typing.Optional[typing.Literal['1', '2', '3']]"
-        assert repr(Optional[tp2]) == "typing.Optional[typing.Literal['3', '2', '1']]"
     else:
-        # NOTE: This is the default behavior of typing.Literal
         assert Literal[*args1] == tp1 == tp2
-        assert repr(Optional[tp1]) == "typing.Optional[typing.Literal['1', '2', '3']]"
-        assert repr(Optional[tp2]) == "typing.Optional[typing.Literal['1', '2', '3']]"
+
+    if sys.version_info >= (3, 14, 0):
+        # There is a change around Union and repr() in 3.14
+        # https://docs.python.org/3/whatsnew/3.14.html#typing
+        assert repr(Optional[tp1]) == "typing.Literal['1', '2', '3'] | None"
+        assert repr(Optional[tp2]) == "typing.Literal['3', '2', '1'] | None"
+    else:
+        if uncacheable:
+            assert repr(Optional[tp1]) == "typing.Optional[typing.Literal['1', '2', '3']]"
+            assert repr(Optional[tp2]) == "typing.Optional[typing.Literal['3', '2', '1']]"
+        else:
+            # NOTE: This is the default behavior of typing.Literal
+            assert repr(Optional[tp1]) == repr(Optional[tp2]) == "typing.Optional[typing.Literal['1', '2', '3']]"
 
 
 @pytest.mark.parametrize(
@@ -487,7 +497,7 @@ def test_get_annotated_type(tp: Any, annotated_type: Any) -> None:
     ],
 )
 def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
-    """Verify that two annotation types acn be merged"""
+    """Verify that two annotation types can be merged"""
     if get_origin(tp1) is Literal or get_origin(tp2) is Literal:
         assert param_type_util.merge_annotation_types(tp1, tp2) != expected_type
         assert repr(param_type_util.merge_annotation_types(tp1, tp2)) == repr(expected_type)
