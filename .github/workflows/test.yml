@@ -34,6 +34,9 @@ jobs:
 
   changes:
     runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+      tests: ${{ steps.filter.outputs.tests }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
