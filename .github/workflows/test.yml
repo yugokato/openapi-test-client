@@ -13,8 +13,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Install uv
@@ -30,26 +32,44 @@ jobs:
         run: |
           pre-commit run --all-files --show-diff-on-failure
 
-  build:
+  changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+            tests:
+              - 'tests/**'
+
+  test:
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' || needs.changes.outputs.tests == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: true
-        cache-dependency-glob: "**/pyproject.toml"
-    - name: Install dependencies
-      run: |
-        uv pip install --system -e .[test]
-    - name: Run pytest
-      run: |
-        pytest tests -n auto
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e .[test]
+      - name: Run pytest
+        run: |
+          pytest tests -n auto
