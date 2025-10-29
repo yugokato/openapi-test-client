@@ -6,6 +6,8 @@ from quart_schema import Info, QuartSchema
 
 auth_manager = QuartAuth()
 
+# test
+
 
 def create_app(version: int = 1) -> Quart:
     app = Quart(__name__)

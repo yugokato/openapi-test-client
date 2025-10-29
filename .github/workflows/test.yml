@@ -51,7 +51,7 @@ jobs:
           pre-commit run --all-files --show-diff-on-failure
 
   test:
-    needs: changes
+    needs: [ changes ]
     if: ${{ needs.changes.outputs.src == 'true' || needs.changes.outputs.tests == 'true' }}
     runs-on: ubuntu-latest
     strategy:
@@ -76,3 +76,14 @@ jobs:
       - name: Run pytest
         run: |
           pytest tests -n auto
+
+  status-check:
+    if: always()
+    needs: [ lint, test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check test results
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "Status check failed for one or more jobs"
+          exit 1
