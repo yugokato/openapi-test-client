@@ -35,6 +35,7 @@ class DemoAppLifecycleManager:
     app_name = "demo_app"
 
     def __init__(self, tmp_path_factory: TempPathFactory):
+        self.host = "127.0.0.1"
         if os.environ.get("IS_TOX"):
             self.port = int(os.environ["APP_PORT"])
         else:
@@ -87,7 +88,7 @@ class DemoAppLifecycleManager:
         return url_cfg["dev"][DemoAppLifecycleManager.app_name]
 
     def start_app(self) -> None:
-        args = ["quart", "-A", self.app_name, "run", "--port", str(self.port)]
+        args = ["quart", "-A", self.app_name, "run", "--host", self.host, "--port", str(self.port)]
         self.proc = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
@@ -110,8 +111,15 @@ class DemoAppLifecycleManager:
         return len([f for f in self.xdist_session_dir.iterdir() if f.name.startswith("gw")])
 
     def wait_for_app_to_start(self) -> None:
-        logger.info(f"Waiting for the app to start with port {self.port}...")
-        wait_until(is_port_in_use, func_args=(self.port,), stop_condition=lambda x: x is True, interval=0.5, timeout=5)
+        logger.info(f"Waiting for the app to start on {self.host}:{self.port}...")
+        wait_until(
+            is_port_in_use,
+            func_args=(self.port,),
+            func_kwargs={"host": self.host},
+            stop_condition=lambda x: x is True,
+            interval=0.5,
+            timeout=5,
+        )
 
     def wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
