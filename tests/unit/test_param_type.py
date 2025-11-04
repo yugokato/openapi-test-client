@@ -17,6 +17,8 @@ from openapi_test_client.libraries.api.types import (
     Unset,
 )
 
+pytestmark = [pytest.mark.unittest]
+
 
 class MyClass: ...
 

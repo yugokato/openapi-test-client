@@ -1,8 +1,11 @@
+import pytest
 from pytest_subtests import SubTests
 
 from openapi_test_client.clients.demo_app.api.auth import AuthAPI
 from openapi_test_client.libraries.api import Endpoint, EndpointFunc
 from openapi_test_client.libraries.api.types import EndpointModel, PydanticModel
+
+pytestmark = [pytest.mark.unittest]
 
 
 def test_api_endpoint_function(subtests: SubTests, api_class_or_instance: AuthAPI | type[AuthAPI]) -> None:

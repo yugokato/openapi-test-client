@@ -1,18 +1,25 @@
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
 import pytest
 from common_libs.utils import clean_obj_name
-from pytest import Item, TempPathFactory
+from pytest import Item, Session, TempPathFactory
 from pytest_mock import MockerFixture
+from xdist import is_xdist_worker
 
 from openapi_test_client.libraries.api.types import File
 
 
 def pytest_make_parametrize_id(val: Any, argname: str) -> str:
     return f"{argname}={val!r}"
+
+
+def pytest_sessionstart(session: Session) -> None:
+    if not is_xdist_worker(session) and not session.config.option.collectonly:
+        os.environ["CURRENT_TEST_SESSION_UUID"] = str(uuid.uuid4())
 
 
 def pytest_runtest_setup(item: Item) -> None:

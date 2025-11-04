@@ -12,30 +12,56 @@ from _pytest.fixtures import SubRequest
 from pytest import FixtureRequest, TempPathFactory
 from pytest_mock import MockerFixture
 
-from openapi_test_client import ENV_VAR_PACKAGE_DIR
+from openapi_test_client import ENV_VAR_PACKAGE_DIR, get_config_dir
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.libraries.api.api_client_generator import get_client_dir
 from tests.conftest import temp_dir
 from tests.integration import helper
-from tests.integration.helper import URL_CONFIG_PATH, DemoAppLifecycleManager
+from tests.integration.helper import DemoAppLifecycleManager
+
+IS_TOX = os.environ.get("IS_TOX")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def demo_app_server(request: FixtureRequest, tmp_path_factory: TempPathFactory) -> Generator[None, Any, None]:
-    with DemoAppLifecycleManager(tmp_path_factory) as app_manager:
-        app_manager.wait_for_app_ready()
-        yield
+@pytest.fixture(scope="module")
+def _default_port() -> int:
+    client = DemoAppAPIClient()
+    cfg = json.loads((get_config_dir() / "urls.json").read_text())
+    base_url = cfg[client.env][client.app_name]
+    return int(base_url.split(":")[-1])
+
+
+@pytest.fixture(scope="module")
+def port(demo_app_server: DemoAppLifecycleManager, _default_port: int) -> int:
+    if IS_TOX:
+        assert demo_app_server.port is not None
+        return demo_app_server.port
+    else:
+        return _default_port
+
+
+@pytest.fixture(scope="module", autouse=True)
+def demo_app_server(
+    request: FixtureRequest, tmp_path_factory: TempPathFactory, _default_port: int
+) -> Generator[DemoAppLifecycleManager]:
+    port = None if IS_TOX else _default_port
+    with DemoAppLifecycleManager(request, tmp_path_factory, port=port) as app_manager:
+        yield app_manager
 
 
 @pytest.fixture
-def unauthenticated_api_client() -> DemoAppAPIClient:
-    return DemoAppAPIClient()
-
-
-@pytest.fixture(scope="session")
-def api_client() -> Generator[DemoAppAPIClient, Any, None]:
+def unauthenticated_api_client(port: int) -> DemoAppAPIClient:
     client = DemoAppAPIClient()
+    if IS_TOX:
+        helper.update_client_base_url(client, port)
+    return client
+
+
+@pytest.fixture(scope="module")
+def api_client(port: int) -> Generator[DemoAppAPIClient, Any, None]:
+    client = DemoAppAPIClient()
+    if IS_TOX:
+        helper.update_client_base_url(client, port)
     r = client.Auth.login(username="foo", password="bar")
     assert r.ok
     yield client
@@ -49,13 +75,12 @@ def random_app_name() -> str:
 
 @pytest.fixture
 def demo_app_openapi_spec_url(unauthenticated_api_client: DemoAppAPIClient) -> str:
-    url_cfg = json.loads(URL_CONFIG_PATH.read_text())
-    base_url = url_cfg[unauthenticated_api_client.env][unauthenticated_api_client.app_name]
+    base_url = unauthenticated_api_client.base_url
     doc_path = unauthenticated_api_client.api_spec.doc_path
     return f"{base_url}/{doc_path}"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def petstore_openapi_spec_url() -> str:
     """OpenAPI spec URL for petstore v3
 
@@ -96,7 +121,7 @@ def external_dir(request: SubRequest, random_app_name: str) -> Generator[Path | 
 
 @pytest.fixture
 def temp_app_client(
-    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str
+    temp_dir: Path, mocker: MockerFixture, demo_app_openapi_spec_url: str, port: int
 ) -> Generator[OpenAPIClient, Any, None]:
     """Temporary demo app API client that will be generated for a test"""
     app_name = f"{DemoAppLifecycleManager.app_name}_{random.choice(range(1, 1000))}"
@@ -111,7 +136,10 @@ def temp_app_client(
     # To simulate this we set the env var in here before instantiating the client
     mocker.patch.dict(os.environ, {ENV_VAR_PACKAGE_DIR: str(module_dir)})
 
-    yield OpenAPIClient.get_client(app_name)
+    client = OpenAPIClient.get_client(app_name)
+    if IS_TOX:
+        helper.update_client_base_url(client, port)
+    yield client
 
     shutil.rmtree(temp_dir)
 

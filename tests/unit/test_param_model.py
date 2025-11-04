@@ -7,6 +7,8 @@ from pytest_subtests import SubTests
 from openapi_test_client.libraries.api.api_functions.utils.pydantic_model import in_validation_mode
 from openapi_test_client.libraries.api.types import ParamModel, PydanticModel
 
+pytestmark = [pytest.mark.unittest]
+
 
 @pytest.mark.parametrize("scenario", ["empty_model", "with_no_fields", "with_partial_fields", "with_all_fields"])
 def test_param_model(

@@ -167,3 +167,6 @@ images/*
 
 # Unofficial tests
 tests/_*/**
+
+# pacts
+tests/**/pacts/*.json

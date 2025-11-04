@@ -20,6 +20,8 @@ from openapi_test_client.libraries.api.types import ParamModel
 from openapi_test_client.libraries.common.misc import reload_obj
 from tests.unit import helper
 
+pytestmark = [pytest.mark.unittest]
+
 
 def test_generate_base_api_class_code(temp_api_client: OpenAPIClient) -> None:
     """Verify code generation of new base API class works"""

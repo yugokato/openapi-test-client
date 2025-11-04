@@ -6,6 +6,8 @@ from openapi_test_client.libraries.api import EndpointFunc
 from openapi_test_client.libraries.api.api_classes.base import APIBase
 from openapi_test_client.libraries.api.api_functions.endpoints import EndpointHandler
 
+pytestmark = [pytest.mark.unittest]
+
 
 @pytest.mark.parametrize("with_instance", [True, False])
 def test_endpoint_handler(mocker: MockerFixture, api_client: DemoAppAPIClient, with_instance: bool) -> None:

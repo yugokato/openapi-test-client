@@ -11,6 +11,8 @@ from pytest_lazy_fixtures import lf as lazy_fixture
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 from openapi_test_client.libraries.api.types import Constraint, Optional, ParamModel, PydanticModel
 
+pytestmark = [pytest.mark.unittest]
+
 
 @pytest.mark.parametrize(
     ("NewParamModel", "input_value"),

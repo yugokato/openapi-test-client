@@ -18,6 +18,8 @@ from openapi_test_client.libraries.api.api_client_generator import (
 from tests.integration import helper
 from tests.integration.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
 
+pytestmark = [pytest.mark.integrationtest]
+
 
 @pytest.mark.parametrize("dry_run", [True, False])
 @pytest.mark.parametrize(
@@ -154,6 +156,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
 def test_demo_app_api_client_is_up_to_date(unauthenticated_api_client: DemoAppAPIClient) -> None:
     """Check that DemoAppAPIClient code is up-to-date"""
     api_spec = unauthenticated_api_client.api_spec.get_api_spec()
+    assert api_spec
     update_required = []
     for api_class in API_CLASSES:
         result = update_endpoint_functions(api_class, api_spec, dry_run=True, verbose=True)

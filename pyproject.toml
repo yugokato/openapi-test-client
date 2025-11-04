@@ -45,6 +45,7 @@ app = [
 test = [
     "common-libs[test]",
     "openapi-test-client[app]",
+    "pact-python==3.1.0"
 ]
 
 [project.scripts]

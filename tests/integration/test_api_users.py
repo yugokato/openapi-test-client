@@ -6,7 +6,7 @@ from openapi_test_client.clients.demo_app.models.users import Metadata, Preferen
 from openapi_test_client.libraries.api.types import File
 from tests.integration import helper
 
-pytestmark = pytest.mark.xdist_group("integration/api")
+pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
