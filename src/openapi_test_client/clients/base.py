@@ -29,7 +29,7 @@ class OpenAPIClient:
 
         if rest_client:
             self.rest_client = rest_client
-            self._base_url = rest_client.url_base
+            self._base_url = rest_client.base_url
         else:
             url_cfg = get_config_dir() / "urls.json"
             urls = json.loads(url_cfg.read_text())
@@ -50,7 +50,7 @@ class OpenAPIClient:
     @base_url.setter
     def base_url(self, url: str) -> None:
         self._base_url = url
-        self.rest_client.url_base = url
+        self.rest_client.base_url = url
 
     @classmethod
     def get_client(cls: type[T], app_name: str, **init_options: Any) -> T:

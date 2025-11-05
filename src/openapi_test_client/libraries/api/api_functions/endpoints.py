@@ -527,7 +527,7 @@ class EndpointFunc:
             self.path,
             self._original_func.__name__,
             self.model,
-            url=f"{self.rest_client.url_base}{self.path}" if instance else None,
+            url=f"{self.rest_client.base_url}{self.path}" if instance else None,
             content_type=endpoint_handler.content_type,
             is_public=endpoint_handler.is_public,
             is_documented=owner.is_documented and endpoint_handler.is_documented,

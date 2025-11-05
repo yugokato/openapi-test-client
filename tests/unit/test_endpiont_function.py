@@ -28,7 +28,7 @@ def test_api_endpoint_function(subtests: SubTests, api_class_or_instance: AuthAP
         if api_class_or_instance is AuthAPI:
             assert endpoint_obj.url is None
         else:
-            assert endpoint_obj.url == f"{api_class_or_instance.rest_client.url_base}{expected_path}"
+            assert endpoint_obj.url == f"{api_class_or_instance.rest_client.base_url}{expected_path}"
         assert endpoint_obj.is_public is True
         assert endpoint_obj.is_documented is True
         assert endpoint_obj.is_deprecated is False
