@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import re
 import shlex
@@ -38,17 +37,17 @@ class DemoAppPortManager(Lock):
     @wraps(Lock.__init__)
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.port_file = self._lock_file.parent / f"{self.name}.json"
+        self.port_file = self._lock_file.parent / self.name
         weakref.finalize(self, self._cleanup)
 
     def assign_port(self) -> int:
         with self:
             port = None
             if self.port_file.exists():
-                port = json.loads(self.port_file.read_text())
+                port = self.port_file.read_text()
             if not port:
                 port = find_open_port()
-                self.port_file.write_text(json.dumps(port))
+                self.port_file.write_text(str(port))
         return int(port)
 
     def _cleanup(self) -> None:
@@ -71,16 +70,18 @@ class DemoAppLifecycleManager:
         tmp_path_factory: TempPathFactory,
         host: str = "127.0.0.1",
         port: int | None = None,
+        start: bool = True,
     ):
         self._request = request
         self.host = host
         self.port = port
+        self.start = start
         self.tmp_path_factory = tmp_path_factory
         self.test_session_id = os.environ["CURRENT_TEST_SESSION_UUID"]
         self.worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         self.proc: subprocess.Popen | None = None
-        self.port_manager = None
-        if self.is_xdist:
+        self.port_manager: DemoAppPortManager | None = None
+        if self.start and self.is_xdist:
             with Lock("check_num_workers"):
                 xdist_run_uuid = os.environ["PYTEST_XDIST_TESTRUNUID"]
                 self.xdist_session_dir = (
@@ -95,38 +96,45 @@ class DemoAppLifecycleManager:
             self.is_starter = True
 
     def __enter__(self) -> Self:
-        with Lock("start_demo_app"):
+        if self.start:
+            with Lock(self.app_name):
+                # Apply lock until the app starts to avoid port conflicts in parallel testing
+                if self.port is None:
+                    self.port_manager = DemoAppPortManager(self.identifier)
+                    self.port = self.port_manager.assign_port()
+                if self.is_starter:
+                    try:
+                        self._start_app()
+                        self._wait_for_app_to_start()
+                    except Exception:
+                        self.stop_app()
+                        raise
+            self._wait_for_app_ready()
+        else:
             if self.port is None:
                 self.port_manager = DemoAppPortManager(self.identifier)
                 self.port = self.port_manager.assign_port()
-            if self.is_starter:
-                try:
-                    self._start_app()
-                except Exception:
-                    self.stop_app()
-                    raise
-            self._wait_for_app_to_start()
-        self._wait_for_app_ready()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        try:
-            if self.is_xdist:
-                (self.xdist_session_dir / self.worker_id).unlink()
-                if self.is_starter:
-                    self._wait_for_all_workers_to_complete()
-        finally:
-            self.stop_app()
+        if self.start:
+            try:
+                if self.is_xdist:
+                    (self.xdist_session_dir / self.worker_id).unlink()
+                    if self.is_starter:
+                        self._wait_for_all_workers_to_complete()
+            finally:
+                self.stop_app()
 
     @cached_property
     def identifier(self) -> str:
         """App identifier that is unique per test session and the fixture request scope"""
         request_scope = self._request.scope or "function"
-        if self._request.scope == "function":
+        if request_scope == "function":
             return f"{self.test_session_id}-{self._request.function.__name__}"
-        elif self._request.scope == "module":
+        elif request_scope == "module":
             return f"{self.test_session_id}-{self._request.module.__name__}"
-        elif self._request.scope == "session":
+        elif request_scope == "session":
             return self.test_session_id
         else:
             raise NotImplementedError(f"Unsupported request scope {request_scope}")
@@ -172,6 +180,7 @@ class DemoAppLifecycleManager:
             interval=0.5,
             timeout=10,
         )
+        logger.info("App has been started")
 
     def _wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
@@ -182,6 +191,7 @@ class DemoAppLifecycleManager:
 
         logger.info("Waiting for app to become ready...")
         wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=0.5, timeout=10)
+        logger.info("app is ready")
 
     def _wait_for_all_workers_to_complete(self, timeout: float = 60 * 60) -> None:
         logger.info("Waiting for all xdist workers to complete tests...")

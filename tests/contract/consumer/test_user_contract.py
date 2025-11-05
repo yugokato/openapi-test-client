@@ -1,24 +1,22 @@
-from collections.abc import Generator
-from pathlib import Path
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 
 import pytest
 from common_libs.clients.rest_client import RestResponse
 from pact import Pact, match
+from pact.pact import PactServer
 
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from tests.contract.consumer.helper import pact_mock_server
 
 pytestmark = [pytest.mark.contracttest, pytest.mark.xdist_group("contract")]
 
 
-@pytest.fixture
-def pact(pacts_dir: Path) -> Generator[Pact]:
-    pact = Pact("user-consumer", "user-provider").with_specification("V4")
-    yield pact
-    pact.write_file(pacts_dir)
-
-
-def test_create_user_contract(pact: Pact, authenticated_client: DemoAppAPIClient, fake_token: str) -> None:
+def test_create_user_contract(
+    pact_factory: Callable[[str], AbstractContextManager[Pact]],
+    pact_server_factory: Callable[[Pact, DemoAppAPIClient], AbstractContextManager[PactServer]],
+    authenticated_client: DemoAppAPIClient,
+    fake_token: str,
+) -> None:
     """Consumer contract test for the POST /v1/users endpoint"""
     endpoint_func = authenticated_client.Users.create_user
     expected_status_code = 201
@@ -32,23 +30,28 @@ def test_create_user_contract(pact: Pact, authenticated_client: DemoAppAPIClient
         "metadata": {},
     }
 
-    (
-        pact.upon_receiving("POST user request")
-        .with_request(endpoint_func.method, endpoint_func.path)
-        .with_header("Authorization", f"Bearer {fake_token}")
-        .with_body(body=payload, content_type="application/json")
-        .will_respond_with(expected_status_code)
-        .with_body(body=response, content_type="application/json")
-    )
+    with pact_factory("user") as pact:
+        (
+            pact.upon_receiving("POST user request")
+            .with_request(endpoint_func.method, endpoint_func.path)
+            .with_header("Authorization", f"Bearer {fake_token}")
+            .with_body(body=payload, content_type="application/json")
+            .will_respond_with(expected_status_code)
+            .with_body(body=response, content_type="application/json")
+        )
 
-    with pact_mock_server(pact, authenticated_client):
-        r = endpoint_func(**payload)
-        assert isinstance(r, RestResponse)
-        assert r.status_code == expected_status_code
-        assert r.response["first_name"] == payload["first_name"]
+        with pact_server_factory(pact, authenticated_client):
+            r = endpoint_func(**payload)
+            assert isinstance(r, RestResponse)
+            assert r.status_code == expected_status_code
+            assert r.response["first_name"] == payload["first_name"]
 
 
-def test_get_user_contract(pact: Pact, authenticated_client: DemoAppAPIClient) -> None:
+def test_get_user_contract(
+    pact_factory: Callable[[str], AbstractContextManager[Pact]],
+    pact_server_factory: Callable[[Pact, DemoAppAPIClient], AbstractContextManager[PactServer]],
+    authenticated_client: DemoAppAPIClient,
+) -> None:
     """Consumer contract test for the  GET /v1/users/<user_id> endpoint"""
     user_id = 1
     endpoint_func = authenticated_client.Users.get_user
@@ -61,27 +64,32 @@ def test_get_user_contract(pact: Pact, authenticated_client: DemoAppAPIClient) -
         "metadata": {},
     }
 
-    (
-        pact.upon_receiving("GET user request")
-        .given(
-            "the user exists",
-            id=user_id,
-            first_name=f"first_name_{user_id}",
-            last_name=f"last_name_{user_id}",
+    with pact_factory("user") as pact:
+        (
+            pact.upon_receiving("GET user request")
+            .given(
+                "the user exists",
+                id=user_id,
+                first_name=f"first_name_{user_id}",
+                last_name=f"last_name_{user_id}",
+            )
+            .with_request(endpoint_func.method, endpoint_func.path.format(user_id=user_id))
+            .will_respond_with(expected_status_code)
+            .with_body(body=response, content_type="application/json")
         )
-        .with_request(endpoint_func.method, endpoint_func.path.format(user_id=user_id))
-        .will_respond_with(expected_status_code)
-        .with_body(body=response, content_type="application/json")
-    )
 
-    with pact_mock_server(pact, authenticated_client):
-        r = endpoint_func(user_id)
-        assert isinstance(r, RestResponse)
-        assert r.status_code == expected_status_code
-        assert r.response["id"] == user_id
+        with pact_server_factory(pact, authenticated_client):
+            r = endpoint_func(user_id)
+            assert isinstance(r, RestResponse)
+            assert r.status_code == expected_status_code
+            assert r.response["id"] == user_id
 
 
-def test_get_users_contract(pact: Pact, authenticated_client: DemoAppAPIClient) -> None:
+def test_get_users_contract(
+    pact_factory: Callable[[str], AbstractContextManager[Pact]],
+    pact_server_factory: Callable[[Pact, DemoAppAPIClient], AbstractContextManager[PactServer]],
+    authenticated_client: DemoAppAPIClient,
+) -> None:
     """Consumer contract test for the  GET /v1/users endpoint"""
     user_id = 1
     endpoint_func = authenticated_client.Users.get_users
@@ -96,39 +104,45 @@ def test_get_users_contract(pact: Pact, authenticated_client: DemoAppAPIClient) 
         }
     )
 
-    (
-        pact.upon_receiving("GET users request")
-        .with_request(endpoint_func.method, endpoint_func.path)
-        .will_respond_with(expected_status_code)
-        .with_body(body=response, content_type="application/json")
-    )
+    with pact_factory("user") as pact:
+        (
+            pact.upon_receiving("GET users request")
+            .with_request(endpoint_func.method, endpoint_func.path)
+            .will_respond_with(expected_status_code)
+            .with_body(body=response, content_type="application/json")
+        )
 
-    with pact_mock_server(pact, authenticated_client):
-        r = endpoint_func()
-        assert isinstance(r, RestResponse)
-        assert r.status_code == expected_status_code
-        assert len(r.response) > 0
+        with pact_server_factory(pact, authenticated_client):
+            r = endpoint_func()
+            assert isinstance(r, RestResponse)
+            assert r.status_code == expected_status_code
+            assert len(r.response) > 0
 
 
-def test_delete_user_contract(pact: Pact, authenticated_client: DemoAppAPIClient) -> None:
+def test_delete_user_contract(
+    pact_factory: Callable[[str], AbstractContextManager[Pact]],
+    pact_server_factory: Callable[[Pact, DemoAppAPIClient], AbstractContextManager[PactServer]],
+    authenticated_client: DemoAppAPIClient,
+) -> None:
     """Consumer contract test for the  DELETE /v1/users/{user_id} endpoint"""
     user_id = 10
     expected_status_code = 200
     endpoint_func = authenticated_client.Users.delete_user
 
-    (
-        pact.upon_receiving("DELETE user request")
-        .given(
-            "the user exists",
-            id=user_id,
-            first_name=f"first_name_{user_id}",
-            last_name=f"last_name_{user_id}",
+    with pact_factory("user") as pact:
+        (
+            pact.upon_receiving("DELETE user request")
+            .given(
+                "the user exists",
+                id=user_id,
+                first_name=f"first_name_{user_id}",
+                last_name=f"last_name_{user_id}",
+            )
+            .with_request(endpoint_func.method, endpoint_func.path.format(user_id=user_id))
+            .will_respond_with(expected_status_code)
         )
-        .with_request(endpoint_func.method, endpoint_func.path.format(user_id=user_id))
-        .will_respond_with(expected_status_code)
-    )
 
-    with pact_mock_server(pact, authenticated_client):
-        r = endpoint_func(user_id)
-        assert isinstance(r, RestResponse)
-        assert r.status_code == expected_status_code
+        with pact_server_factory(pact, authenticated_client):
+            r = endpoint_func(user_id)
+            assert isinstance(r, RestResponse)
+            assert r.status_code == expected_status_code
