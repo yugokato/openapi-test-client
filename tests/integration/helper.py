@@ -79,6 +79,7 @@ class DemoAppLifecycleManager:
         self.test_session_id = os.environ["CURRENT_TEST_SESSION_UUID"]
         self.worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         self.proc: subprocess.Popen | None = None
+        self.port_manager = None
         if self.is_xdist:
             with Lock("check_num_workers"):
                 xdist_run_uuid = os.environ["PYTEST_XDIST_TESTRUNUID"]
@@ -96,7 +97,8 @@ class DemoAppLifecycleManager:
     def __enter__(self) -> Self:
         with Lock("start_demo_app"):
             if self.port is None:
-                self.port = DemoAppPortManager(self.identifier).assign_port()
+                self.port_manager = DemoAppPortManager(self.identifier)
+                self.port = self.port_manager.assign_port()
             if self.is_starter:
                 try:
                     self._start_app()
