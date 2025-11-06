@@ -1,25 +1,27 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
 import weakref
 from contextlib import nullcontext
-from functools import cached_property, wraps
+from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
 import pytest
 import requests
-from common_libs.decorators import singleton
 from common_libs.lock import Lock
 from common_libs.network import find_open_port, is_port_in_use
 from common_libs.utils import wait_until
 from pytest import FixtureRequest, TempPathFactory
 from requests.exceptions import ConnectionError
 
-from openapi_test_client import _CONFIG_DIR, logger
+from openapi_test_client import logger
 from openapi_test_client.clients.base import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 
@@ -27,31 +29,43 @@ if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
 
 
-URL_CONFIG_PATH = _CONFIG_DIR / "urls.json"
+class DemoAppPortManager:
+    """Demo app port manager"""
 
+    def __init__(self, identifier: str) -> None:
+        self.identifier = identifier
+        self.port_reservation_file = Path(tempfile.gettempdir(), "demo_app_port_reservation.json")
+        weakref.finalize(self, self.cleanup)
 
-@singleton
-class DemoAppPortManager(Lock):
-    """Demo app port manager."""
+    def reserve_port(self) -> int:
+        """Reserve an app port"""
+        with Lock("port_reservation"):
+            logger.debug("Checking the existing port reserved for this app...")
+            if self.port_reservation_file.exists():
+                reserved_ports = json.loads(self.port_reservation_file.read_text())
+            else:
+                reserved_ports = {}
+            reserved_port = reserved_ports.get(self.identifier)
+            if not reserved_port:
+                logger.debug("No reserved port exist. Reserving a new port...")
+                ports = list(reserved_ports.values())
+                if len(ports) != len(set(ports)):
+                    raise RuntimeError("Detected duplicate ports")
+                reserved_port = find_open_port(exclude=ports)
+                reserved_ports[self.identifier] = reserved_port
+                self.port_reservation_file.write_text(json.dumps(reserved_ports))
+            logger.debug(f"Reserved port: {reserved_port}")
+        return int(reserved_port)
 
-    @wraps(Lock.__init__)
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.port_file = self._lock_file.parent / self.name
-        weakref.finalize(self, self._cleanup)
-
-    def assign_port(self) -> int:
-        with self:
-            port = None
-            if self.port_file.exists():
-                port = self.port_file.read_text()
-            if not port:
-                port = find_open_port()
-                self.port_file.write_text(str(port))
-        return int(port)
-
-    def _cleanup(self) -> None:
-        self.port_file.unlink(missing_ok=True)
+    def cleanup(self) -> None:
+        with Lock("port_reservation"):
+            if self.port_reservation_file.exists():
+                if reserved_ports := json.loads(self.port_reservation_file.read_text() or "{}"):
+                    reserved_ports.pop(self.identifier, None)
+                    if reserved_ports:
+                        self.port_reservation_file.write_text(json.dumps(reserved_ports))
+                    else:
+                        self.port_reservation_file.unlink()
 
 
 class DemoAppLifecycleManager:
@@ -73,20 +87,17 @@ class DemoAppLifecycleManager:
         start: bool = True,
     ):
         self._request = request
+        self.port_manager = DemoAppPortManager(self.identifier)
         self.host = host
-        self.port = port
+        self.port = port or self.port_manager.reserve_port()
         self.start = start
-        self.tmp_path_factory = tmp_path_factory
-        self.test_session_id = os.environ["CURRENT_TEST_SESSION_UUID"]
-        self.worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         self.proc: subprocess.Popen | None = None
-        self.port_manager: DemoAppPortManager | None = None
+        self.worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
+        self.xdist_identifier = f"xdist-{self.port}"
         if self.start and self.is_xdist:
-            with Lock("check_num_workers"):
+            with Lock(self.xdist_identifier):
                 xdist_run_uuid = os.environ["PYTEST_XDIST_TESTRUNUID"]
-                self.xdist_session_dir = (
-                    self.tmp_path_factory.getbasetemp().parent / xdist_run_uuid / str(port or self.identifier)
-                )
+                self.xdist_session_dir = tmp_path_factory.getbasetemp().parent / xdist_run_uuid / self.xdist_identifier
                 if not self.xdist_session_dir.exists():
                     self.xdist_session_dir.mkdir(parents=True, exist_ok=True)
                 (self.xdist_session_dir / self.worker_id).touch()
@@ -95,47 +106,48 @@ class DemoAppLifecycleManager:
             self.xdist_session_dir = None
             self.is_starter = True
 
+        if self.is_starter:
+            weakref.finalize(self, self.stop_app)
+
     def __enter__(self) -> Self:
         if self.start:
-            with Lock(self.app_name):
-                # Apply lock until the app starts to avoid port conflicts in parallel testing
-                if self.port is None:
-                    self.port_manager = DemoAppPortManager(self.identifier)
-                    self.port = self.port_manager.assign_port()
-                if self.is_starter:
-                    try:
-                        self._start_app()
-                        self._wait_for_app_to_start()
-                    except Exception:
-                        self.stop_app()
-                        raise
+            if self.is_starter:
+                logger.debug(f"Starting app on {self.host}:{self.port}...")
+                try:
+                    self._start_app()
+                    self._wait_for_app_to_start()
+                    logger.debug(f"App has been started on {self.host}:{self.port}")
+                except Exception:
+                    self.stop_app()
+                    raise
+            else:
+                self._wait_for_app_to_start()
             self._wait_for_app_ready()
-        else:
-            if self.port is None:
-                self.port_manager = DemoAppPortManager(self.identifier)
-                self.port = self.port_manager.assign_port()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.start:
-            try:
+            if self.is_xdist:
+                with Lock(self.xdist_identifier):
+                    (self.xdist_session_dir / self.worker_id).unlink(missing_ok=True)
+            if self.proc:
                 if self.is_xdist:
-                    (self.xdist_session_dir / self.worker_id).unlink()
-                    if self.is_starter:
-                        self._wait_for_all_workers_to_complete()
-            finally:
+                    self._wait_for_all_workers_to_complete()
+                logger.debug(f"Stopping app on {self.host}:{self.port}...")
                 self.stop_app()
+                logger.debug("App has been stopped")
 
     @cached_property
     def identifier(self) -> str:
         """App identifier that is unique per test session and the fixture request scope"""
         request_scope = self._request.scope or "function"
+        test_session_id = os.environ["CURRENT_TEST_SESSION_UUID"]
         if request_scope == "function":
-            return f"{self.test_session_id}-{self._request.function.__name__}"
+            return f"{test_session_id}-{self._request.function.__name__}"
         elif request_scope == "module":
-            return f"{self.test_session_id}-{self._request.module.__name__}"
+            return f"{test_session_id}-{self._request.module.__name__}"
         elif request_scope == "session":
-            return self.test_session_id
+            return test_session_id
         else:
             raise NotImplementedError(f"Unsupported request scope {request_scope}")
 
@@ -162,13 +174,15 @@ class DemoAppLifecycleManager:
 
     def stop_app(self) -> None:
         if self.proc:
-            logger.info("Stopping the app...")
+            logger.info("Stopping app...")
             self.proc.terminate()
             stdout, stderr = self.proc.communicate()
-            logger.info(f"App logs:\n{stderr or stdout}")
+            logger.info(f"Stopped app. App logs:\n{stderr or stdout}")
+            self.proc = None
 
     def get_num_active_workers(self) -> int:
-        return len([f for f in self.xdist_session_dir.iterdir() if f.name.startswith("gw")])
+        with Lock(self.xdist_identifier):
+            return len([f for f in self.xdist_session_dir.iterdir() if f.name.startswith("gw")])
 
     def _wait_for_app_to_start(self) -> None:
         logger.info(f"Waiting for the app to start on {self.host}:{self.port}...")
@@ -180,7 +194,7 @@ class DemoAppLifecycleManager:
             interval=0.5,
             timeout=10,
         )
-        logger.info("App has been started")
+        logger.info(f"App has been started on {self.host}:{self.port}")
 
     def _wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
@@ -189,11 +203,11 @@ class DemoAppLifecycleManager:
             except ConnectionError:
                 return False
 
-        logger.info("Waiting for app to become ready...")
+        logger.info(f"Waiting for app to become ready on {self.host}:{self.port}...")
         wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=0.5, timeout=10)
-        logger.info("app is ready")
+        logger.info(f"app is ready on {self.host}:{self.port}")
 
-    def _wait_for_all_workers_to_complete(self, timeout: float = 60 * 60) -> None:
+    def _wait_for_all_workers_to_complete(self, timeout: float = 60) -> None:
         logger.info("Waiting for all xdist workers to complete tests...")
         wait_until(self.get_num_active_workers, stop_condition=lambda x: x == 0, timeout=timeout)
         logger.info("All xdist workers completed tests")

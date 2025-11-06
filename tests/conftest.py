@@ -6,11 +6,17 @@ from typing import Any
 
 import pytest
 from common_libs.utils import clean_obj_name
-from pytest import Item, Session, TempPathFactory
+from pytest import Config, Item, Session, TempPathFactory
 from pytest_mock import MockerFixture
 from xdist import is_xdist_worker
 
 from openapi_test_client.libraries.api.types import File
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: Config):
+    # --log-level (Avoid showing logs in "Captured log" section since our logging uses stdout)
+    config.option.log_level = "99"
 
 
 def pytest_make_parametrize_id(val: Any, argname: str) -> str:
@@ -28,15 +34,9 @@ def pytest_runtest_setup(item: Item) -> None:
         sys.stdout.write("\n")
 
 
-@pytest.fixture(autouse=True)
-def _mock_sys_path_and_modules(mocker: MockerFixture) -> None:
-    """Mock sys.path and sys.modules
-
-    Code generation tests will add sys.path and sys.modules. This mock will remove these added ones after
-    each test so that a test won't interfere others
-    """
-    mocker.patch.object(sys, "path", sys.path.copy())
-    mocker.patch.dict(sys.modules, sys.modules.copy())
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionfinish() -> None:
+    _patch_pytest_logging_issue()
 
 
 @pytest.fixture
@@ -57,3 +57,33 @@ def image_data() -> bytes:
 @pytest.fixture(scope="session")
 def image_file(image_data: bytes) -> File:
     return File(filename="test_image.png", content=image_data, content_type="image/png")
+
+
+def _patch_pytest_logging_issue() -> None:
+    """Patch logging issue caused by pytest issue#5502 (https://github.com/pytest-dev/pytest/issues/5502)
+
+    Pytest hijacks sys.stdout and replaces it with buffer (FileIO) when --capture=no or -s is not used, and closes
+    it at the end. This implementation causes an issue where the stdout used by logging is also replaced by pytest,
+    and "ValueError: I/O operation on closed file" error occurs when logging message is emit after the replaced stdout
+    has been closed.
+    """
+
+    import logging
+
+    loggers = [logging.getLogger(), *list(logging.Logger.manager.loggerDict.values())]
+    for logger in loggers:
+        if not hasattr(logger, "handlers"):
+            continue
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+
+
+@pytest.fixture(autouse=True)
+def _mock_sys_path_and_modules(mocker: MockerFixture) -> None:
+    """Mock sys.path and sys.modules
+
+    Code generation tests will add sys.path and sys.modules. This mock will remove these added ones after
+    each test so that a test won't interfere others
+    """
+    mocker.patch.object(sys, "path", sys.path.copy())
+    mocker.patch.dict(sys.modules, sys.modules.copy())

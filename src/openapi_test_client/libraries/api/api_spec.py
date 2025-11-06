@@ -55,8 +55,9 @@ class OpenAPISpec:
                     )
                 elif not (open_api_version := api_spec["openapi"]).startswith("3."):
                     raise NotImplementedError(f"Unsupported OpenAPI version: {open_api_version}")
-            except Exception as e:
-                logger.exception(f"Unable to get API specs from {url}\n{type(e).__name__}", exc_info=e)
+            except Exception:
+                logger.exception(f"Unable to get API specs from {url}")
+                raise
             else:
                 self._spec = OpenAPISpec.parse(api_spec)
                 return self._spec

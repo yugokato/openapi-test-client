@@ -4,11 +4,12 @@ from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
 import pytest
-from common_libs.lock import Lock
+from common_libs.network import is_port_in_use
 from pact import Pact
 from pact.pact import PactServer
 from pytest import FixtureRequest, TempPathFactory
 
+from openapi_test_client import logger
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from tests.integration.helper import DemoAppLifecycleManager, update_client_base_url
 
@@ -42,7 +43,7 @@ def pact_factory(pacts_dir: Path) -> Callable[[str], AbstractContextManager[Pact
     return create_pact
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def pact_server_factory(
     request: FixtureRequest, tmp_path_factory: TempPathFactory
 ) -> Callable[[Pact, DemoAppAPIClient], AbstractContextManager[PactServer]]:
@@ -50,13 +51,14 @@ def pact_server_factory(
 
     @contextmanager
     def create_pact_server(pact: Pact, client: DemoAppAPIClient) -> Generator[PactServer]:
-        with Lock(DemoAppLifecycleManager.app_name):
-            with DemoAppLifecycleManager(request, tmp_path_factory, start=False) as app_manager:
-                assert app_manager.port is not None
-                moc_server = pact.serve(addr=app_manager.host, port=app_manager.port)
-                with moc_server:
-                    app_manager._wait_for_app_to_start()
-                    update_client_base_url(client, app_manager.port)
-                    yield moc_server
+        with DemoAppLifecycleManager(request, tmp_path_factory, start=False) as app_manager:
+            assert app_manager.port is not None
+            assert not is_port_in_use(host=app_manager.host, port=app_manager.port)
+            logger.debug("Starting Pact server...")
+            moc_server = pact.serve(addr=app_manager.host, port=app_manager.port)
+            with moc_server:
+                app_manager._wait_for_app_to_start()
+                update_client_base_url(client, app_manager.port)
+                yield moc_server
 
     return create_pact_server
