@@ -346,7 +346,7 @@ def update_client(args: argparse.Namespace) -> None:
     assert api_spec
 
     api_tags_undefined: list[str] = []
-    all_documented_tags = [x["name"] for x in api_spec["tags"] if x["name"]]
+    all_documented_tags = [x["name"] for x in api_spec["tags"] if x["name"] and not x["name"].startswith("_")]
     all_defined_tags: list[str] = list(chain.from_iterable([x.TAGs for x in api_classes]))  # type: ignore[arg-type]
     update_required = []
     failed_results: list[tuple[str, Exception]] = []

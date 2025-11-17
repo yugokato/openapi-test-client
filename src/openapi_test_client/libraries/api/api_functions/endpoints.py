@@ -546,7 +546,7 @@ class EndpointFunc:
             r = await self._call_original_func(path_params, body_or_query_params, kwargs)
             if r is not None:
                 if not isinstance(r, RestResponse):
-                    raise RuntimeError(f"Custom endpoint must return RestResponse, got {type(r).__name__}")
+                    raise RuntimeError(f"Custom endpoint must return a RestResponse object, got {type(r).__name__}")
             else:
                 params = endpoint_func_util.generate_rest_func_params(
                     self.endpoint,

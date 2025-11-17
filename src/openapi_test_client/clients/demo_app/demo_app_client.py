@@ -1,6 +1,7 @@
 from functools import cached_property
 
 from openapi_test_client.clients.base import OpenAPIClient
+from openapi_test_client.clients.demo_app.api._test import _TestAPI
 
 from .api.auth import AuthAPI
 from .api.users import UsersAPI
@@ -26,3 +27,7 @@ class DemoAppAPIClient(OpenAPIClient):
     @cached_property
     def Users(self) -> UsersAPI:
         return UsersAPI(self)
+
+    @cached_property
+    def _Test(self) -> _TestAPI:
+        return _TestAPI(self)

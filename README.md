@@ -479,7 +479,7 @@ A list of defined API classes are available as `API_CLASSES`.
 ```pycon
 >>> from itertools import chain
 >>> from openapi_test_client.clients.demo_app.api import API_CLASSES
-# list all andpoints
+# list all endpoints
 >>> all_endpoints = chain(*[x.endpoints for x in API_CLASSES])
 >>> for endpoint in all_endpoints:
 ...     print(endpint)
@@ -562,7 +562,7 @@ Endpoint(tags=('Auth',),
 
 An example of the additional capability the `EndpointFunc` obj provides - Automatic retry:
 ```pycon
-# Call the endpiont with the automatic retry (you can specify a retry condition if needed)
+# Call the endpoint with the automatic retry (you can specify a retry condition if needed)
 >>> r = client.Auth.login.with_retry(username='foo', password='bar')
 2024-01-01T00:00:00.153-0000 - request: POST http://127.0.0.1:5000/v1/auth/login
 2024-01-01T00:00:00.158-0000 - response: 429 (Too Many Requests)

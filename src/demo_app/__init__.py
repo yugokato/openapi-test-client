@@ -15,6 +15,7 @@ def create_app(version: int = 1) -> Quart:
         tags=[
             {"name": "Auth", "description": "Auth APIs"},
             {"name": "Users", "description": "User APIs"},
+            {"name": "_Test", "description": "Test APIs"},
         ],
         security=[{"bearerAuth": []}],
         security_schemes={"bearerAuth": {"type": "http", "scheme": "bearer"}},
@@ -28,6 +29,7 @@ def create_app(version: int = 1) -> Quart:
 
 
 def _register_blueprints(app: Quart, version: int) -> None:
+    from demo_app.api._test.test import bp_test
     from demo_app.api.auth.auth import bp_auth
     from demo_app.api.default import bp_default
     from demo_app.api.user.user import bp_user
@@ -35,6 +37,7 @@ def _register_blueprints(app: Quart, version: int) -> None:
     from demo_app.handlers.request_handlers import bp_request_handler
 
     bp_api = Blueprint("demo_app", __name__, url_prefix=f"/v{version}")
+    bp_api.register_blueprint(bp_test, name=bp_test.name)
     bp_api.register_blueprint(bp_auth, name=bp_auth.name)
     bp_api.register_blueprint(bp_user, name=bp_user.name)
 
