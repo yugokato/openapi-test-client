@@ -207,7 +207,7 @@ class DemoAppLifecycleManager:
         wait_until(is_app_ready, stop_condition=lambda x: x is True, interval=0.5, timeout=10)
         logger.info(f"app is ready on {self.host}:{self.port}")
 
-    def _wait_for_all_workers_to_complete(self, timeout: float = 60) -> None:
+    def _wait_for_all_workers_to_complete(self, timeout: float = 60 * 2) -> None:
         logger.info("Waiting for all xdist workers to complete tests...")
         wait_until(self.get_num_active_workers, stop_condition=lambda x: x == 0, timeout=timeout)
         logger.info("All xdist workers completed tests")
