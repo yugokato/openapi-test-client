@@ -14,7 +14,7 @@ from openapi_test_client.libraries.api.types import File
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: Config):
+def pytest_configure(config: Config) -> None:
     # --log-level (Avoid showing logs in "Captured log" section since our logging uses stdout)
     config.option.log_level = "99"
 

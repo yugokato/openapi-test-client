@@ -6,8 +6,8 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
-import requests
 from _pytest.fixtures import SubRequest
 from pytest import FixtureRequest, TempPathFactory
 from pytest_mock import MockerFixture
@@ -87,7 +87,7 @@ def petstore_openapi_spec_url() -> str:
     See https://petstore3.swagger.io/
     """
     url = "https://petstore3.swagger.io/api/v3/openapi.json"
-    requests.get(url).raise_for_status()
+    httpx.get(url).raise_for_status()
     return url
 
 

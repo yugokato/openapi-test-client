@@ -23,9 +23,7 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def check_params(
-    endpoint: Endpoint, params: dict[str, Any], requests_lib_options: dict[str, Any] | None = None
-) -> None:
+def check_params(endpoint: Endpoint, params: dict[str, Any], raw_options: dict[str, Any] | None = None) -> None:
     """Check the endpoint parameters
 
      A warning message will be logged if any of the following condition matches:
@@ -34,13 +32,13 @@ def check_params(
 
     :param endpoint: Endpoint obj
     :param params: Request parameters
-    :param requests_lib_options: Raw requests library options passed to Session.request()
+    :param raw_options: Raw request options passed to the httpx client
     """
-    if requests_lib_options:
-        allowed_requests_params = get_supported_request_parameters()
-        unexpected_requests_params = set((requests_lib_options or {}).keys()).difference(allowed_requests_params)
-        if unexpected_requests_params:
-            raise RuntimeError(f"Invalid requests library option(s):\n{list_items(unexpected_requests_params)}")
+    if raw_options:
+        allowed_raw_options = get_supported_request_parameters()
+        unexpected_raw_options = set((raw_options or {}).keys()).difference(allowed_raw_options)
+        if unexpected_raw_options:
+            raise RuntimeError(f"Invalid raw option(s):\n{list_items(unexpected_raw_options)}")
 
     if endpoint.is_documented:
         dataclass_fields = endpoint.model.__dataclass_fields__
@@ -125,7 +123,7 @@ def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: 
 def is_json_request(
     endpoint: Endpoint,
     params: dict[str, Any],
-    requests_lib_options: dict[str, Any],
+    raw_options: dict[str, Any],
     session_headers: dict[str, str],
 ) -> bool:
     """Check if the endpoint call requires a JSON request
@@ -143,7 +141,7 @@ def is_json_request(
     if has_file:
         return False
     else:
-        specified_content_type_header = _get_specified_content_type_header(requests_lib_options, session_headers)
+        specified_content_type_header = _get_specified_content_type_header(raw_options, session_headers)
         if content_type := (specified_content_type_header or endpoint.content_type):
             return content_type.split(";")[0] == "application/json"
         else:
@@ -158,7 +156,7 @@ def generate_rest_func_params(
     quiet: bool = False,
     use_query_string: bool = False,
     is_validation_mode: bool = False,
-    **requests_lib_options: Any,
+    **raw_options: Any,
 ) -> dict[str, JSONType]:
     """Convert params passed to an endpoint function to ones for a low-level rest call function.
     Also set Content-Type header if needed
@@ -169,22 +167,22 @@ def generate_rest_func_params(
     :param quiet: quiet flag passed to an endpoint function call
     :param use_query_string: Force sends parameters as query strings
     :param is_validation_mode: Whether this request is in validation mode or not
-    :param requests_lib_options: Raw options for the requests library
+    :param raw_options: Raw request options passed to the httpx client
     """
     json_ = {}
     data = {}
     query = {}
     files: dict[str, str | bytes | File] | MultipartFormData
-    if is_json := is_json_request(endpoint, endpoint_params, requests_lib_options, session_headers):
+    if is_json := is_json_request(endpoint, endpoint_params, raw_options, session_headers):
         files = {}
     else:
         files = MultipartFormData()
     dataclass_fields = endpoint.model.__dataclass_fields__
-    rest_func_params: dict[str, Any] = dict(quiet=quiet, **requests_lib_options)
-    specified_content_type_header = _get_specified_content_type_header(requests_lib_options, session_headers)
+    rest_func_params: dict[str, Any] = dict(quiet=quiet, **raw_options)
+    specified_content_type_header = _get_specified_content_type_header(raw_options, session_headers)
     for param_name, param_value in endpoint_params.items():
-        if param_name == "requests_lib_options":
-            for k, v in requests_lib_options.items():
+        if param_name == "raw_options":
+            for k, v in raw_options.items():
                 rest_func_params[k] = v
         else:
             # Check Annotated metadata
@@ -236,7 +234,7 @@ def generate_rest_func_params(
                         # The parameter is annotated as File type, but the user gave something else. As long as
                         # Content-Type header is not explicitly given, we still assume the given value is for
                         # file uploading. The value may a File obj but in a dictionary, or might be just a file
-                        # content in str/bytes. Otherwise requests lib might throw an error
+                        # content in str/bytes. Otherwise the underlying HTTP library might throw an error
                         files[param_name] = param_value
                     else:
                         data[param_name] = param_value
@@ -254,9 +252,9 @@ def generate_rest_func_params(
     if isinstance(files, MultipartFormData) and (file_data := files.to_dict()):
         rest_func_params["files"] = file_data
 
-    # requests lib will not automatically set Content-Type header if the `data` value is string or bytes.
+    # httpx lib will not automatically set Content-Type header if the `data` value is string or bytes.
     # We will set the Content-type value using from the OpenAPI specs for this case, unless the header is explicitly
-    # set by a user. Otherwise, requests lib will automatically handle this part
+    # set by a user. Otherwise, httpx lib will automatically handle this part
     if (
         (rest_data := rest_func_params.get("data"))
         and isinstance(rest_data, str | bytes)
@@ -268,11 +266,9 @@ def generate_rest_func_params(
     return rest_func_params
 
 
-def _get_specified_content_type_header(
-    requests_lib_options: dict[str, Any], session_headers: dict[str, str]
-) -> str | None:
+def _get_specified_content_type_header(raw_options: dict[str, Any], session_headers: dict[str, str]) -> str | None:
     """Get Content-Type header value set for the request or for the current session"""
-    request_headers = requests_lib_options.get("headers", {})
+    request_headers = raw_options.get("headers", {})
     content_type_header = (
         request_headers.get("Content-Type")
         or request_headers.get("content-typ")

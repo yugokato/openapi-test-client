@@ -223,7 +223,7 @@ def _parse_request_body_object(
             schema_type = obj.get("type")
             if (
                 # The top-level array object is an exceptional case where it needs to be sent as `json` using the raw
-                # requests lib option.
+                # option.
                 (obj.get("items") and schema_type == "array")
                 or
                 # Irregular case. This endpoint allows ANY parameters (our **kwargs will handle this)

@@ -1,25 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
-from collections.abc import Callable, Sequence
-from copy import deepcopy
+from collections.abc import AsyncGenerator, Callable, Generator, Sequence
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from functools import partial, update_wrapper, wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, ParamSpec, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeAlias, TypeVar, Union, cast
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import RestResponse
 from common_libs.clients.rest_client.utils import retry_on
 from common_libs.lock import Lock
 from common_libs.logging import get_logger
+from httpx import HTTPError
 from pydantic import ValidationError
-from requests.exceptions import RequestException
 
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_function as endpoint_func_util
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_model as endpoint_model_util
 import openapi_test_client.libraries.api.api_functions.utils.pydantic_model as pydantic_model_util
 from openapi_test_client.libraries.api.api_classes import APIBase
+from openapi_test_client.libraries.api.api_functions.executors import AsyncExecutor, SyncExecutor
 from openapi_test_client.libraries.api.types import EndpointModel
 from openapi_test_client.libraries.common.misc import generate_class_name
 
@@ -42,7 +44,7 @@ _EndpointFunc = TypeVar(
     "_EndpointFunc",
     bound=Callable[..., RestResponse],
 )
-EndpointFunction: TypeAlias = _EndpointFunc | "EndpointFunc"
+EndpointFunction: TypeAlias = Union[_EndpointFunc, "EndpointFunc", "SyncEndpointFunc", "AsyncEndpointFunc"]
 EndpointDecorator: TypeAlias = Callable[[EndpointFunction], EndpointFunction]
 
 logger = get_logger(__name__)
@@ -80,7 +82,7 @@ class Endpoint:  # noqa: PLW1641
         quiet: bool = False,
         validate: bool = False,
         with_hooks: bool = True,
-        requests_lib_options: dict[str, Any] | None = None,
+        raw_options: dict[str, Any] | None = None,
         **body_or_query_params: Any,
     ) -> RestResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
@@ -89,7 +91,7 @@ class Endpoint:  # noqa: PLW1641
         :param quiet: A flag to suppress API request/response log
         :param validate: Validate the request parameter in Pydantic strict mode
         :param with_hooks: Invoke pre/post request hooks
-        :param requests_lib_options: Raw request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         :param body_or_query_params: Request body or query parameters
 
         Example:
@@ -108,7 +110,7 @@ class Endpoint:  # noqa: PLW1641
             quiet=quiet,
             with_hooks=with_hooks,
             validate=validate,
-            requests_lib_options=requests_lib_options,
+            raw_options=raw_options,
             **body_or_query_params,
         )
 
@@ -153,146 +155,97 @@ class endpoint:
     """  # noqa: E501
 
     @staticmethod
-    def get(path: str, **default_requests_lib_options: Any) -> Callable[..., EndpointFunction]:
+    def get(path: str, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("get", path, use_query_string=True, **default_requests_lib_options)
+        return endpoint._create("get", path, use_query_string=True, **raw_options)
 
     @staticmethod
-    def post(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def post(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create(
-            "post",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("post", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
-    def delete(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def delete(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create(
-            "delete",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("delete", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
-    def put(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def put(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create(
-            "put",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("put", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
-    def patch(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def patch(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the httpx
         """
-        return endpoint._create(
-            "patch",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("patch", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
-    def options(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def options(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create(
-            "options",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("options", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
-    def head(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def head(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create(
-            "head",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("head", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
-    def trace(
-        path: str, use_query_string: bool = False, **default_requests_lib_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    def trace(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_requests_lib_options: Default request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create(
-            "trace",
-            path,
-            use_query_string=use_query_string,
-            **default_requests_lib_options,
-        )
+        return endpoint._create("trace", path, use_query_string=use_query_string, **raw_options)
 
     @staticmethod
     def undocumented(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
@@ -397,20 +350,14 @@ class endpoint:
 
     @staticmethod
     def _create(
-        method: str, path: str, use_query_string: bool = False, **default_requests_lib_options: Any
+        method: str, path: str, use_query_string: bool = False, **raw_options: Any
     ) -> Callable[..., EndpointFunc]:
         """Returns an endpoint factory that creates an endpoint handler object, which will return an
         EndpointFunc object when accessing the associated API class function
         """
 
         def endpoint_factory(f: Callable[..., RestResponse]) -> EndpointHandler:
-            return EndpointHandler(
-                f,
-                method,
-                path,
-                use_query_string=use_query_string,
-                **default_requests_lib_options,
-            )
+            return EndpointHandler(f, method, path, use_query_string=use_query_string, **raw_options)
 
         return cast(Callable[..., EndpointFunc], endpoint_factory)
 
@@ -436,13 +383,13 @@ class EndpointHandler:
         method: str,
         path: str,
         use_query_string: bool = False,
-        **default_requests_lib_options: Any,
+        **raw_options: Any,
     ) -> None:
         self.original_func = original_func
         self.method = method
         self.path = path
         self.use_query_string = use_query_string
-        self.default_requests_lib_options = default_requests_lib_options
+        self.raw_options = raw_options
 
         # Will be set via @endpoint.<decorator_name>
         self.content_type: str | None = None  # application/json by default
@@ -454,12 +401,14 @@ class EndpointHandler:
     def __get__(self, instance: APIBase | None, owner: type[APIBase]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
+        is_async = instance and instance.api_client.async_mode
+        BaseEndpointFuncClass = AsyncEndpointFunc if is_async else SyncEndpointFunc
         with EndpointHandler._lock:
             if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
                 endpoint_func_name = (
                     f"{owner.__name__}{generate_class_name(self.original_func.__name__, suffix=EndpointFunc.__name__)}"
                 )
-                EndpointFuncClass = type(endpoint_func_name, (EndpointFunc,), {})
+                EndpointFuncClass = type(endpoint_func_name, (BaseEndpointFuncClass,), {})
                 endpoint_func = EndpointFuncClass(self, instance, owner)
                 EndpointHandler._endpoint_functions[key] = cast(
                     EndpointFunc, update_wrapper(endpoint_func, self.original_func)
@@ -476,22 +425,22 @@ class EndpointHandler:
         self.__decorators.extend([d for d in decorator])
 
 
-def requires_instance(f: Callable[Concatenate[EndpointFunc, P], R]) -> Callable[Concatenate[EndpointFunc, P], R]:
+def requires_instance(f: Callable[P, R]) -> Callable[P, R]:
     @wraps(f)
-    def wrapper(self: EndpointFunc, *args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = cast(EndpointFunc, args[0])
         if self._instance is None:
             func_name = self._original_func.__name__ if f.__name__ == "__call__" else f.__name__
             raise TypeError(f"You can not access {func_name}() directly through the {self._owner.__name__} class.")
-        return f(self, *args, **kwargs)
+        return f(*args, **kwargs)
 
     return wrapper
 
 
 class EndpointFunc:
-    """Endpoint function class
+    """Base class for Sync/Async Endpoint function classes"""
 
-    All parameters passed to the original API class function call will be passed through to the __call__()
-    """
+    executor: SyncExecutor | AsyncExecutor | None = None
 
     def __init__(self, endpoint_handler: EndpointHandler, instance: APIBase | None, owner: type[APIBase]):
         """Initialize endpoint function"""
@@ -516,7 +465,7 @@ class EndpointFunc:
         self._owner: type[APIBase] = owner
         self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
-        self._requests_lib_options = endpoint_handler.default_requests_lib_options
+        self._raw_options = endpoint_handler.raw_options
 
         tags = (instance or owner).TAGs
         assert isinstance(tags, tuple)
@@ -551,51 +500,29 @@ class EndpointFunc:
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
     @requires_instance
-    def __call__(
+    async def __call__(
         self,
         *path_params: Any,
         quiet: bool = False,
         validate: bool | None = None,
         with_hooks: bool | None = True,
-        requests_lib_options: dict[str, Any] | None = None,
+        raw_options: dict[str, Any] | None = None,
         **body_or_query_params: Any,
     ) -> RestResponse:
-        """Make an API call to the endpoint
+        """Make an API call to the endpoint. This logic is commonly used for sync/acync API calls
 
         :param path_params: Path parameters
         :param quiet: A flag to suppress API request/response log
         :param validate: Validate the request parameter in Pydantic strict mode
         :param with_hooks: Invoke pre/post request hooks
-        :param requests_lib_options: Raw request options passed to the requests library's Session.request()
+        :param raw_options: Raw request options passed to the underlying HTTP library
         :param body_or_query_params: Request body or query parameters
         """
         if validate is None:
             validate = pydantic_model_util.is_validation_mode()
-
-        if self.endpoint.is_deprecated:
-            logger.warning(f"DEPRECATED: '{self.endpoint}' is deprecated")
-
-        # Fill path variables
-        try:
-            completed_path = endpoint_func_util.complete_endpoint(self.endpoint, path_params)
-        except ValueError as e:
-            msg = str(e)
-            if api_spec_definition := self.get_usage():
-                msg = f"{e!s}\n{color(api_spec_definition, color_code=ColorCodes.YELLOW)}"
-            raise ValueError(msg) from None
-
-        # Check if parameters used are expected for the endpoint. If not, it is an indication that the API function is
-        # not up-to-date.
-        endpoint_func_util.check_params(self.endpoint, body_or_query_params, requests_lib_options=requests_lib_options)
-
-        if validate:
-            # Perform Pydantic validation in strict mode against parameters
-            try:
-                endpoint_func_util.validate_params(self.endpoint, path_params, body_or_query_params)
-            except ValidationError as e:
-                raise ValueError(
-                    color(f"Request parameter validation failed.\n{e}", color_code=ColorCodes.RED)
-                ) from None
+        path = self._validate_path_and_params(
+            *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        )
 
         # pre-request hook
         if with_hooks:
@@ -608,48 +535,36 @@ class EndpointFunc:
             # Call the original function first to make sure any custom function logic (if implemented) is executed.
             # If it returns a RestResponse obj, we will use it. If nothing is returned (the default behavior),
             # we will automatically make an API call
-            kwargs: dict[str, Any] = {}
             # Undocumented endpoints manually added/updated by users might not always have **kwargs like the regular
             # endpoints updated/managed by our script. To avoid an error by giving unexpected keyword argument, we pass
             # paramters for rest client only when the user explicitly requests them
-            if requests_lib_options:
-                kwargs.update(requests_lib_options=requests_lib_options)
+            kwargs: dict[str, Any] = {}
+            if raw_options:
+                kwargs.update(raw_options=raw_options)
             if quiet:
                 kwargs.update(quiet=quiet)
-            r = self._original_func(self._instance, *path_params, **body_or_query_params, **kwargs)
+            r = await self._call_original_func(path_params, body_or_query_params, kwargs)
             if r is not None:
                 if not isinstance(r, RestResponse):
-                    raise RuntimeError(
-                        f"Detected an unexpected return value from {self._original_func.__name__}(). If you implements "
-                        f"a custom API function logic and return something, the returned value MUST be a "
-                        f"{RestResponse.__name__} object, not {type(r).__name__}"
-                    )
+                    raise RuntimeError(f"Custom endpoint must return RestResponse, got {type(r).__name__}")
             else:
-                # use the copy since we cache the request function
-                raw_requests_lib_options = deepcopy(self._requests_lib_options)
-                if requests_lib_options:
-                    raw_requests_lib_options.update(requests_lib_options)
-                if raw_requests_lib_options.get("stream"):
-                    logger.info("stream=True was specified")
-                rest_func = getattr(self.rest_client, f"_{self.method}")
-                rest_func_params = endpoint_func_util.generate_rest_func_params(
+                params = endpoint_func_util.generate_rest_func_params(
                     self.endpoint,
                     body_or_query_params,
-                    self.rest_client.session.headers,
+                    self.rest_client.client.headers,
                     quiet=quiet,
                     use_query_string=self._use_query_string,
                     is_validation_mode=validate,
-                    **raw_requests_lib_options,
+                    **self._raw_options | (raw_options or {}),
                 )
-                r = rest_func(completed_path, **rest_func_params)
+                r = await self._call_api_func(path, params)
             return r
-        except RequestException as e:
+        except HTTPError as e:
             exception = e
             raise
-        except (Exception, KeyboardInterrupt):
+        except Exception:
             with_hooks = False
             raise
-        # post-request hook
         finally:
             if with_hooks:
                 try:
@@ -719,8 +634,206 @@ class EndpointFunc:
         if self.api_client and self.endpoint.is_documented:
             return self.api_client.api_spec.get_endpoint_usage(self.endpoint)
 
+    def _validate_path_and_params(
+        self,
+        *path_params: Any,
+        validate: bool | None = None,
+        raw_options: dict[str, Any] | None,
+        **body_or_query_params: dict[str, Any],
+    ) -> str:
+        if self.endpoint.is_deprecated:
+            logger.warning(f"DEPRECATED: '{self.endpoint}' is deprecated")
+
+        # Fill path variables
+        try:
+            completed_path = endpoint_func_util.complete_endpoint(self.endpoint, path_params)
+        except ValueError as e:
+            msg = str(e)
+            if api_spec_definition := self.get_usage():
+                msg = f"{e!s}\n{color(api_spec_definition, color_code=ColorCodes.YELLOW)}"
+            raise ValueError(msg) from None
+
+        # Check if parameters used are expected for the endpoint. If not, it is an indication that the API function is
+        # not up-to-date.
+        endpoint_func_util.check_params(self.endpoint, body_or_query_params, raw_options=raw_options)
+
+        if validate:
+            # Perform Pydantic validation in strict mode against parameters
+            try:
+                endpoint_func_util.validate_params(self.endpoint, path_params, body_or_query_params)
+            except ValidationError as e:
+                raise ValueError(
+                    color(f"Request parameter validation failed.\n{e}", color_code=ColorCodes.RED)
+                ) from None
+
+        return completed_path
+
+    async def _call_original_func(
+        self, path_params: tuple[str, ...], body_or_query_params: dict[str, Any], kwargs: dict[str, Any]
+    ) -> RestResponse:
+        r = self._original_func(self._instance, *path_params, **body_or_query_params, **kwargs)
+        if self.api_client.async_mode and inspect.iscoroutine(r):
+            # The original function is a not an async function but rest_client used inside the original function is
+            # AsyncRestClient, which means the returned value will be a coroutine. We can await it and get the actual
+            # value in here
+            r = await r
+        return r
+
+    async def _call_api_func(self, path: str, params: dict[str, Any]) -> RestResponse:
+        if self.api_client.async_mode:
+            assert isinstance(self, AsyncEndpointFunc)
+            assert isinstance(self.executor, AsyncExecutor)
+            return await self.executor.execute(self, path, params)
+        else:
+            assert isinstance(self, SyncEndpointFunc)
+            assert isinstance(self.executor, SyncExecutor)
+            return self.executor.execute(self, path, params)
+
+
+class SyncEndpointFunc(EndpointFunc):
+    """Endpoint function class (Sync)
+
+    All parameters passed to the original API class function call will be passed through to the __call__()
+    """
+
+    executor = SyncExecutor()
+
+    @requires_instance
+    @wraps(EndpointFunc.__call__)
+    def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
+        """Make a sync API call to the endpoint"""
+        return asyncio.run(super().__call__(*args, **kwargs))
+
+    @contextmanager
+    @requires_instance
+    def stream(
+        self,
+        *path_params: Any,
+        quiet: bool = False,
+        validate: bool | None = None,
+        with_hooks: bool | None = True,
+        raw_options: dict[str, Any] | None = None,
+        **body_or_query_params: Any,
+    ) -> Generator[RestResponse]:
+        """Stream the response"""
+        if validate is None:
+            validate = pydantic_model_util.is_validation_mode()
+        path = self._validate_path_and_params(
+            *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        )
+
+        # pre-request hook
+        if with_hooks:
+            self._instance.pre_request_hook(self.endpoint, *path_params, **body_or_query_params)
+
+        # Make a request
+        r = None
+        exception = None
+        try:
+            params = endpoint_func_util.generate_rest_func_params(
+                self.endpoint,
+                body_or_query_params,
+                self.rest_client.client.headers,
+                quiet=quiet,
+                use_query_string=self._use_query_string,
+                is_validation_mode=validate,
+                **self._raw_options | (raw_options or {}),
+            )
+            with self.executor.execute_stream(self, path, params) as r:
+                yield r
+        except HTTPError as e:
+            exception = e
+            raise
+        except (Exception, KeyboardInterrupt):
+            with_hooks = False
+            raise
+        # post-request hook
+        finally:
+            if with_hooks:
+                try:
+                    self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
+                except AssertionError:
+                    raise
+                except Exception as e:
+                    logger.exception(e)
+
+
+class AsyncEndpointFunc(EndpointFunc):
+    """Endpoint function class (Async)
+
+    All parameters passed to the original API class function call will be passed through to the __call__()
+    """
+
+    executor = AsyncExecutor()
+
+    @requires_instance
+    @wraps(EndpointFunc.__call__)
+    async def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
+        """Make an async API call to the endpoint"""
+        return await super().__call__(*args, **kwargs)
+
+    @asynccontextmanager
+    @requires_instance
+    async def stream(
+        self,
+        *path_params: Any,
+        quiet: bool = False,
+        validate: bool | None = None,
+        with_hooks: bool | None = True,
+        raw_options: dict[str, Any] | None = None,
+        **body_or_query_params: Any,
+    ) -> AsyncGenerator[RestResponse]:
+        """Stream response from an API call to the endpoint
+
+        :param path_params: Path parameters
+        :param quiet: A flag to suppress API request/response log
+        :param validate: Validate the request parameter in Pydantic strict mode
+        :param with_hooks: Invoke pre/post request hooks
+        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param body_or_query_params: Request body or query parameters
+        """
+        if validate is None:
+            validate = pydantic_model_util.is_validation_mode()
+        path = self._validate_path_and_params(
+            *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        )
+
+        # pre-request hook
+        if with_hooks:
+            self._instance.pre_request_hook(self.endpoint, *path_params, **body_or_query_params)
+
+        # Make a request
+        r = None
+        exception = None
+        try:
+            params = endpoint_func_util.generate_rest_func_params(
+                self.endpoint,
+                body_or_query_params,
+                self.rest_client.client.headers,
+                quiet=quiet,
+                use_query_string=self._use_query_string,
+                is_validation_mode=validate,
+                **self._raw_options | (raw_options or {}),
+            )
+            async with self.executor.execute_stream(self, path, params) as r:
+                yield r
+        except HTTPError as e:
+            exception = e
+            raise
+        except Exception:
+            with_hooks = False
+            raise
+        finally:
+            if with_hooks:
+                try:
+                    self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
+                except AssertionError:
+                    raise
+                except Exception as e:
+                    logger.exception(e)
+
 
 if TYPE_CHECKING:
     # For making IDE happy
     # TODO: Remove this
-    EndpointFunc: TypeAlias = _EndpointFunc | EndpointFunc  # type: ignore[no-redef]
+    EndpointFunc: TypeAlias = _EndpointFunc | EndpointFunc | SyncEndpointFunc | AsyncEndpointFunc  # type: ignore[no-redef]

@@ -6,7 +6,7 @@ import re
 from functools import lru_cache, reduce
 from typing import TYPE_CHECKING, Any
 
-import requests
+import httpx
 import yaml
 from common_libs.logging import get_logger
 
@@ -41,7 +41,7 @@ class OpenAPISpec:
                 raise ValueError(f"OpenAPI spec file must be JSON or YAML. Not '{doc_path}'")
 
             try:
-                r = requests.get(url)
+                r = httpx.get(url)
                 r.raise_for_status()
                 if doc_path.endswith((".yaml", ".yml")):
                     api_spec = yaml.safe_load(r.content.decode("utf-8"))

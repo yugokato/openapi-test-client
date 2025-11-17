@@ -44,6 +44,14 @@ def test_get_users(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     assert r.status_code == 200
     assert len(r.response) == len([x for x in USERS if x.role.value == role])
 
+    # stream
+    with api_client.Users.get_users.stream(role="admin", validate=validation_mode) as r:
+        assert r.status_code == 200
+        assert not r._response.is_closed
+        for chunk in r.stream():
+            assert isinstance(chunk, str)
+        assert r._response.is_closed
+
 
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool, image_data: bytes) -> None:

@@ -178,10 +178,8 @@ def generate_api_class(
 
     from openapi_test_client.libraries.api import endpoint
 
-    code = (
-        "\n".join([f"from {_get_package(m)} import {m.__name__}" for m in [base_class, endpoint, RestResponse]])
-        + "\n\n"
-    )
+    code = "\n".join([f"from {_get_package(m)} import {m.__name__}" for m in [base_class, endpoint]]) + "\n"
+    code += f"from {_get_package(RestResponse)} import APIResponse\n\n"
     code += f"class {class_name}({base_class.__name__}):\n{TAB}TAGs = {tuple([tag])}\n\n"
     code = format_code(code, remove_unused_imports=False)
     if is_temp_client:
@@ -286,7 +284,7 @@ def update_endpoint_functions(
         # endpoint path and endpoint options
         rf"(\n{tab}{{2}})?\"(?P<path>.+?)\"(?P<ep_options>,.+?)?(\n{tab})?\)\n"
         # function def
-        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> {RestResponse.__name__}:\n?)"
+        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> APIResponse:\n?)"
         # docstring
         rf"({tab}{{2}}(?P<docstring>\"{{3}}.*?\"{{3}})\n)?"
         # function body
@@ -485,7 +483,7 @@ def update_endpoint_functions(
                     undefined_ep_functions += (
                         f"\n"
                         f'{TAB}@{endpoint.__name__}.{meth}("{path}")\n'
-                        f"{TAB}def {undefined_func_name_prefix}{idx}(self) -> {RestResponse.__name__}:\n"
+                        f"{TAB}def {undefined_func_name_prefix}{idx}(self) -> APIResponse:\n"
                         f"{TAB * 2}...\n"
                     )
                 if undefined_ep_functions:
@@ -613,6 +611,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
 
     api_client_class_name_part = generate_class_name(app_name)
     api_client_class_name = f"{api_client_class_name_part}{API_CLIENT_CLASS_NAME_SUFFIX}"
+    doc_path = temp_api_client.api_spec.doc_path
 
     imports_code = (
         f"from functools import cached_property\n\nfrom {OpenAPIClient.__module__} import {OpenAPIClient.__name__}\n"
@@ -620,8 +619,8 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     api_client_code = (
         f"class {api_client_class_name}({OpenAPIClient.__name__}):\n"
         f'{TAB}"""API client for {app_name}"""\n\n'
-        f'{TAB}def __init__(self, env: str = "dev") -> None:\n'
-        f'{TAB}{TAB}super().__init__("{app_name}", env=env, doc="{temp_api_client.api_spec.doc_path}")\n\n'
+        f'{TAB}def __init__(self, env: str = "dev", async_mode: bool = False) -> None:\n'
+        f'{TAB}{TAB}super().__init__("{app_name}", env=env, doc="{doc_path}", async_mode=async_mode)\n\n'
     )
 
     # Add an accessor to each API class as a property

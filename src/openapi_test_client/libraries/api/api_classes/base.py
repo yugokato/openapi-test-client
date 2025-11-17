@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from common_libs.clients.rest_client import RestResponse
 from common_libs.logging import get_logger
-from requests.exceptions import RequestException
+from httpx import HTTPError
 
 if TYPE_CHECKING:
     from openapi_test_client.clients import OpenAPIClient
@@ -53,7 +53,7 @@ class APIBase(Generic[T], metaclass=ABCMeta):
         self,
         endpoint: Endpoint,
         response: RestResponse | None,
-        request_exception: RequestException | None,
+        exception: HTTPError | None,
         *path_params: Any,
         **params: Any,
     ) -> None:
@@ -61,7 +61,7 @@ class APIBase(Generic[T], metaclass=ABCMeta):
 
         :param endpoint: Endpoint object associated with an endpoint function called
         :param response: Response of the API request
-        :param request_exception: An exception raised in requests library
+        :param exception: An exception raised in the httpx client
         :param path_params: API path parameters for the request
         :param params: API parameters sent with the request
         """

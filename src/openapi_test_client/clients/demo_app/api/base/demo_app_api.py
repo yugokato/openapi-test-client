@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from common_libs.clients.rest_client import RestResponse
-from requests.exceptions import RequestException
+from httpx import HTTPError
 
 from openapi_test_client.libraries.api.api_classes.base import APIBase
 
@@ -23,11 +23,11 @@ class DemoAppBaseAPI(APIBase):
         self,
         endpoint: Endpoint,
         response: RestResponse | None,
-        request_exception: RequestException | None,
+        exception: HTTPError | None,
         *path_params: Any,
         **params: Any,
     ) -> None:
-        super().post_request_hook(endpoint, response, request_exception, *path_params, **params)
+        super().post_request_hook(endpoint, response, exception, *path_params, **params)
         if response and response.ok:
             if endpoint in self.api_client.Auth.endpoints:
                 manage_auth_session(self.api_client, endpoint, response)

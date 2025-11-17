@@ -5,7 +5,7 @@ import inspect
 import json
 from typing import Any, TypeVar
 
-from common_libs.clients.rest_client import RestClient
+from common_libs.clients.rest_client import AsyncRestClient, RestClient
 from common_libs.logging import get_logger
 
 from openapi_test_client import DEFAULT_ENV, get_config_dir
@@ -20,14 +20,26 @@ T = TypeVar("T", bound="OpenAPIClient")
 class OpenAPIClient:
     """Base class for all clients"""
 
-    def __init__(self, app_name: str, doc: str, env: str = DEFAULT_ENV, rest_client: RestClient = None):
+    def __init__(
+        self,
+        app_name: str,
+        doc: str,
+        env: str = DEFAULT_ENV,
+        rest_client: RestClient | AsyncRestClient = None,
+        async_mode: bool = False,
+    ):
         if app_name.lower() in ["open", "base"]:
             raise ValueError(f"app_name '{app_name}' is reserved for internal usage. Please use a different value")
 
         self.app_name = app_name
         self.env = env
+        self.async_mode = async_mode
 
         if rest_client:
+            if async_mode and isinstance(rest_client, RestClient):
+                raise TypeError(f"rest_client must be of type {AsyncRestClient.__name__} when async_mode is True")
+            if not async_mode and isinstance(rest_client, AsyncRestClient):
+                raise TypeError(f"rest_client must be of type {RestClient.__name__} when async_mode is False")
             self.rest_client = rest_client
             self._base_url = rest_client.base_url
         else:
@@ -39,7 +51,11 @@ class OpenAPIClient:
                 raise NotImplementedError(
                     f"Please add base URL for app '{self.app_name}' (env={self.env}) in {url_cfg}"
                 )
-            self.rest_client = RestClient(self.base_url)
+
+            if self.async_mode:
+                self.rest_client = AsyncRestClient(self.base_url)
+            else:
+                self.rest_client = RestClient(self.base_url)
 
         self.api_spec = OpenAPISpec(self, doc)
 

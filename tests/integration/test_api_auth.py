@@ -12,10 +12,12 @@ def test_user_login_logout(unauthenticated_api_client: DemoAppAPIClient, validat
     r = unauthenticated_api_client.Auth.login(username="foo", password="bar", validate=validation_mode)
     assert r.ok
     assert set(r.response.keys()) == {"token"}
+    assert unauthenticated_api_client.rest_client.get_bearer_token() == r.response["token"]
 
     r = unauthenticated_api_client.Auth.logout()
     assert r.ok
     assert r.response["message"] == "logged out"
+    assert unauthenticated_api_client.rest_client.get_bearer_token() is None
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])

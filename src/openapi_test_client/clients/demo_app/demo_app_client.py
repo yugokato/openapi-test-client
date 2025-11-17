@@ -16,8 +16,8 @@ class DemoAppAPIClient(OpenAPIClient):
     >>> token = r.response["token"]
     """
 
-    def __init__(self, env: str = "dev") -> None:
-        super().__init__("demo_app", env=env, doc="openapi.json")
+    def __init__(self, env: str = "dev", async_mode: bool = False) -> None:
+        super().__init__("demo_app", env=env, doc="openapi.json", async_mode=async_mode)
 
     @cached_property
     def Auth(self) -> AuthAPI:

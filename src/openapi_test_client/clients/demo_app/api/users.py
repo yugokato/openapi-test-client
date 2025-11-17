@@ -1,6 +1,6 @@
 from typing import Annotated, Literal, Unpack
 
-from common_libs.clients.rest_client import RestResponse
+from common_libs.clients.rest_client import APIResponse
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.api.api_functions import endpoint
@@ -22,12 +22,12 @@ class UsersAPI(DemoAppBaseAPI):
         role: Literal["admin", "viewer", "support"] = Unset,
         metadata: Optional[Metadata] = Unset,
         **kwargs: Unpack[Kwargs],
-    ) -> RestResponse:
+    ) -> APIResponse:
         """Create a new user"""
         ...
 
     @endpoint.get("/v1/users/{user_id}")
-    def get_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> RestResponse:
+    def get_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> APIResponse:
         """Get user"""
         ...
 
@@ -39,7 +39,7 @@ class UsersAPI(DemoAppBaseAPI):
         email: Optional[Annotated[str, Format("email")]] = Unset,
         role: Optional[Literal["admin", "viewer", "support"]] = Unset,
         **kwargs: Unpack[Kwargs],
-    ) -> RestResponse:
+    ) -> APIResponse:
         """Get users"""
         ...
 
@@ -47,11 +47,11 @@ class UsersAPI(DemoAppBaseAPI):
     @endpoint.post("/v1/users/images")
     def upload_image(
         self, *, file: File = Unset, description: Optional[str] = Unset, **kwargs: Unpack[Kwargs]
-    ) -> RestResponse:
+    ) -> APIResponse:
         """Upload user image"""
         ...
 
     @endpoint.delete("/v1/users/{user_id}")
-    def delete_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> RestResponse:
+    def delete_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> APIResponse:
         """Delete user"""
         ...
