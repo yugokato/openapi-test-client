@@ -164,7 +164,7 @@ Once you have generated an API client, the client class will be importable as
 
 ```pycon
 >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
->>> client = DemoAppAPIClient()
+>>> client = DemoAppAPIClient() # pass async_mode=True for async client
 ```
 
 Make sure to replace the "openapi_test_client" part with your own module name when importing your own clients.
@@ -173,7 +173,7 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 
 ```pycon
 >>> from openapi_test_client.clients import OpenAPIClient
->>> client = OpenAPIClient.get_client("<client_name>")
+>>> client = OpenAPIClient.get_client("<client_name>")  # pass async_mode=True for async client
 ```
 
 ### Make an API request
