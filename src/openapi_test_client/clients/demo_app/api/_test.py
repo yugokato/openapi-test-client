@@ -25,3 +25,13 @@ class _TestAPI(DemoAppBaseAPI):
     def wait(self, delay: float | int, /, **kwargs: Unpack[Kwargs]) -> APIResponse:
         """Test endpoint that returns a response after waiting for the specified delay"""
         ...
+
+    @endpoint.get("/v1/test/redirect", follow_redirects=True)
+    def redirect(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
+        """Test endpoint that redirects to /redirected"""
+        ...
+
+    @endpoint.get("/v1/test/redirected")
+    def redirected(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
+        """Test endpoint for the redirected route"""
+        ...

@@ -155,97 +155,101 @@ class endpoint:
     """  # noqa: E501
 
     @staticmethod
-    def get(path: str, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def get(path: str, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("get", path, use_query_string=True, **raw_options)
+        return endpoint._create("get", path, use_query_string=True, **default_raw_options)
 
     @staticmethod
-    def post(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def post(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("post", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("post", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def delete(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def delete(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("delete", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("delete", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def put(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def put(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("put", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("put", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def patch(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def patch(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the httpx
+        :param default_raw_options: Raw request options passed to the httpx
         """
-        return endpoint._create("patch", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("patch", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def options(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def options(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("options", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("options", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def head(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def head(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("head", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("head", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def trace(path: str, use_query_string: bool = False, **raw_options: Any) -> Callable[..., EndpointFunction]:
+    def trace(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
         :param path: The endpoint path
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param raw_opdefault_raw_optionstions: Raw request options passed to the underlying HTTP library
         """
-        return endpoint._create("trace", path, use_query_string=use_query_string, **raw_options)
+        return endpoint._create("trace", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
     def undocumented(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
@@ -350,14 +354,14 @@ class endpoint:
 
     @staticmethod
     def _create(
-        method: str, path: str, use_query_string: bool = False, **raw_options: Any
+        method: str, path: str, use_query_string: bool = False, **default_raw_options: Any
     ) -> Callable[..., EndpointFunc]:
         """Returns an endpoint factory that creates an endpoint handler object, which will return an
         EndpointFunc object when accessing the associated API class function
         """
 
         def endpoint_factory(f: Callable[..., RestResponse]) -> EndpointHandler:
-            return EndpointHandler(f, method, path, use_query_string=use_query_string, **raw_options)
+            return EndpointHandler(f, method, path, use_query_string=use_query_string, **default_raw_options)
 
         return cast(Callable[..., EndpointFunc], endpoint_factory)
 
@@ -383,13 +387,13 @@ class EndpointHandler:
         method: str,
         path: str,
         use_query_string: bool = False,
-        **raw_options: Any,
+        **default_raw_options: Any,
     ) -> None:
         self.original_func = original_func
         self.method = method
         self.path = path
         self.use_query_string = use_query_string
-        self.raw_options = raw_options
+        self.default_raw_options = default_raw_options
 
         # Will be set via @endpoint.<decorator_name>
         self.content_type: str | None = None  # application/json by default
@@ -465,7 +469,7 @@ class EndpointFunc:
         self._owner: type[APIBase] = owner
         self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
-        self._raw_options = endpoint_handler.raw_options
+        self._raw_options = endpoint_handler.default_raw_options
 
         tags = (instance or owner).TAGs
         assert isinstance(tags, tuple)

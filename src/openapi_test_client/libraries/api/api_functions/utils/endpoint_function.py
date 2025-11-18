@@ -181,7 +181,7 @@ def generate_rest_func_params(
     rest_func_params: dict[str, Any] = dict(quiet=quiet, **raw_options)
     specified_content_type_header = _get_specified_content_type_header(raw_options, session_headers)
     for param_name, param_value in endpoint_params.items():
-        if param_name == "raw_options":
+        if param_name == "default_raw_options":
             for k, v in raw_options.items():
                 rest_func_params[k] = v
         else:
