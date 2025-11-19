@@ -13,12 +13,12 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
+import httpcore
 import httpx
 import pytest
 from common_libs.lock import Lock
 from common_libs.network import find_open_port, is_port_in_use
 from common_libs.utils import wait_until
-from httpx import ConnectError
 from pytest import FixtureRequest, TempPathFactory
 
 from openapi_test_client import logger
@@ -200,7 +200,7 @@ class DemoAppLifecycleManager:
         def is_app_ready() -> bool:
             try:
                 return httpx.get(self.base_url).is_success
-            except ConnectError:
+            except (httpx.ConnectError, httpcore.ConnectError):
                 return False
 
         logger.info(f"Waiting for app to become ready on {self.host}:{self.port}...")
