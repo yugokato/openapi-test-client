@@ -47,7 +47,6 @@ class Kwargs(TypedDict, total=False):
     """For annotating the `kwargs` param in endpoint functions (PEP 692)"""
 
     quiet: bool
-    stream: bool
     validate: bool
     with_hooks: bool
     raw_options: dict[str, Any]

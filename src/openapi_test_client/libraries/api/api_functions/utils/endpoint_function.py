@@ -171,7 +171,7 @@ def generate_rest_func_params(
     """
     json_ = {}
     data = {}
-    query = {}
+    query_params = {}
     files: dict[str, str | bytes | File] | MultipartFormData
     if is_json := is_json_request(endpoint, endpoint_params, raw_options, session_headers):
         files = {}
@@ -181,7 +181,7 @@ def generate_rest_func_params(
     rest_func_params: dict[str, Any] = dict(quiet=quiet, **raw_options)
     specified_content_type_header = _get_specified_content_type_header(raw_options, session_headers)
     for param_name, param_value in endpoint_params.items():
-        if param_name == "default_raw_options":
+        if param_name == "raw_options":
             for k, v in raw_options.items():
                 rest_func_params[k] = v
         else:
@@ -217,11 +217,11 @@ def generate_rest_func_params(
                         param_name = alias_param[0].value
 
                     if "query" in metadata:
-                        query[param_name] = param_value
+                        query_params[param_name] = param_value
 
-            if param_name not in query.keys():
+            if param_name not in query_params.keys():
                 if use_query_string:
-                    query[param_name] = param_value
+                    query_params[param_name] = param_value
                 elif is_json:
                     json_[param_name] = param_value
                 else:
@@ -247,8 +247,8 @@ def generate_rest_func_params(
         if is_validation_mode:
             data = json.loads(json.dumps(data, cls=CustomJsonEncoder))
         rest_func_params["data"] = data
-    if query:
-        rest_func_params["query"] = query
+    if query_params:
+        rest_func_params["params"] = query_params
     if isinstance(files, MultipartFormData) and (file_data := files.to_dict()):
         rest_func_params["files"] = file_data
 

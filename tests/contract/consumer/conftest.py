@@ -4,7 +4,6 @@ from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 
 import pytest
-from common_libs.network import is_port_in_use
 from pact import Pact
 from pact.pact import PactServer
 from pytest import FixtureRequest, TempPathFactory
@@ -53,7 +52,6 @@ def pact_server_factory(
     def create_pact_server(pact: Pact, client: DemoAppAPIClient) -> Generator[PactServer]:
         with DemoAppLifecycleManager(request, tmp_path_factory, start=False) as app_manager:
             assert app_manager.port is not None
-            assert not is_port_in_use(host=app_manager.host, port=app_manager.port)
             logger.debug("Starting Pact server...")
             moc_server = pact.serve(addr=app_manager.host, port=app_manager.port)
             with moc_server:
