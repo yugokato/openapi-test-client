@@ -10,7 +10,6 @@ from openapi_test_client.clients.demo_app import DemoAppAPIClient
 pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]
 
 
-@pytest.mark.asyncio
 async def test_async_client(async_api_client: DemoAppAPIClient) -> None:
     """Verify that the same API client works in async mode"""
     r = await async_api_client.Auth.login(username="foo", password="bar")

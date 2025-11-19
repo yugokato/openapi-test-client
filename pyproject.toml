@@ -59,10 +59,6 @@ where = ["src"]
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
 
-[tool.pytest.ini_options]
-python_files = ["test_*.py"]
-testpaths = "tests"
-
 [tool.ruff]
 line-length = 120
 indent-width = 4
