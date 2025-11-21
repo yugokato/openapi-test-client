@@ -19,14 +19,15 @@ def fake_token() -> str:
 
 
 @pytest.fixture
-def unauthenticated_client() -> DemoAppAPIClient:
-    return DemoAppAPIClient()
+def unauthenticated_client() -> Generator[DemoAppAPIClient]:
+    with DemoAppAPIClient() as client:
+        yield client
 
 
 @pytest.fixture
-def authenticated_client(unauthenticated_client: DemoAppAPIClient, fake_token: str) -> DemoAppAPIClient:
+def authenticated_client(unauthenticated_client: DemoAppAPIClient, fake_token: str) -> Generator[DemoAppAPIClient]:
     unauthenticated_client.rest_client.set_bearer_token(fake_token)
-    return unauthenticated_client
+    yield unauthenticated_client
 
 
 @pytest.fixture

@@ -24,11 +24,11 @@ IS_TOX = os.environ.get("IS_TOX")
 
 
 @pytest.fixture(scope="module")
-def _default_port() -> int:
-    client = DemoAppAPIClient()
-    cfg = json.loads((get_config_dir() / "urls.json").read_text())
-    base_url = cfg[client.env][client.app_name]
-    return int(base_url.split(":")[-1])
+def _default_port() -> Generator[int]:
+    with DemoAppAPIClient() as client:
+        cfg = json.loads((get_config_dir() / "urls.json").read_text())
+        base_url = cfg[client.env][client.app_name]
+        yield int(base_url.split(":")[-1])
 
 
 @pytest.fixture(scope="module")
@@ -50,22 +50,22 @@ def demo_app_server(
 
 
 @pytest.fixture
-def unauthenticated_api_client(port: int) -> DemoAppAPIClient:
-    client = DemoAppAPIClient()
-    if IS_TOX:
-        helper.update_client_base_url(client, port)
-    return client
+def unauthenticated_api_client(port: int) -> Generator[DemoAppAPIClient]:
+    with DemoAppAPIClient() as client:
+        if IS_TOX:
+            helper.update_client_base_url(client, port)
+        yield client
 
 
 @pytest.fixture(scope="module")
-def api_client(port: int) -> Generator[DemoAppAPIClient, Any, None]:
-    client = DemoAppAPIClient()
-    if IS_TOX:
-        helper.update_client_base_url(client, port)
-    r = client.Auth.login(username="foo", password="bar")
-    assert r.ok
-    yield client
-    client.Auth.logout()
+def api_client(port: int) -> Generator[DemoAppAPIClient]:
+    with DemoAppAPIClient() as client:
+        if IS_TOX:
+            helper.update_client_base_url(client, port)
+        r = client.Auth.login(username="foo", password="bar")
+        assert r.ok
+        yield client
+        client.Auth.logout()
 
 
 @pytest.fixture
@@ -145,5 +145,5 @@ def temp_app_client(
 
 
 @pytest.fixture(autouse=True)
-def _steram_cmd_output(request: FixtureRequest) -> None:
+def _stream_cmd_output(request: FixtureRequest) -> None:
     os.environ["IS_CAPTURING_OUTPUT"] = str(request.config.option.capture != "no").lower()

@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
-from typing import Any, TypeVar
+from typing import Any, Self, TypeVar
 
 from common_libs.clients.rest_client import AsyncRestClient, RestClient
 from common_libs.logging import get_logger
@@ -25,7 +25,7 @@ class OpenAPIClient:
         app_name: str,
         doc: str,
         env: str = DEFAULT_ENV,
-        rest_client: RestClient | AsyncRestClient = None,
+        rest_client: RestClient | AsyncRestClient | None = None,
         async_mode: bool = False,
     ):
         if app_name.lower() in ["open", "base"]:
@@ -58,6 +58,18 @@ class OpenAPIClient:
                 self.rest_client = RestClient(self.base_url)
 
         self.api_spec = OpenAPISpec(self, doc)
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.rest_client.close()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.rest_client.close()
 
     @property
     def base_url(self) -> str:

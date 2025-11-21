@@ -34,8 +34,8 @@ work on, and the test client will provide everything needed for testing APIs.
 > Please note that validation against response is not currently supported.
 
 
-# Async support
-The same client code can support both `sync` (teh default) and `async` modes. You can switch to the async mode by 
+# Async Support
+The same client code can support both `sync` (the default) and `async` modes. You can switch to the async mode by 
 giving `async_mode=True` when instantiating an API client, then specify `await` to each API function call. 
 
 
