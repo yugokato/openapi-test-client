@@ -162,19 +162,44 @@ before login and after logout.
 Once you have generated an API client, the client class will be importable as 
 `from <your_module>.clients.<client_name> import <ClientName>APIClient`. 
 
+<details open>
+<summary>Sync Client</summary>
+
 ```pycon
 >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
->>> client = DemoAppAPIClient() # pass async_mode=True for async client
+>>> client = DemoAppAPIClient()
 ```
+</details>
 
-Make sure to replace the "openapi_test_client" part with your own module name when importing your own clients.
+<details>
+<summary>Async Client</summary>
+
+```pycon
+>>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
+>>> client = DemoAppAPIClient(async_mode=True)
+```
+</details>
+
+Make sure to replace the "openapi_test_clients" part with your own module name when importing your own clients.
 
 Alternatively, you can instantiate your client directly from the parent `OpenAPIClient` class.
 
+<details open>
+<summary>Sync Client</summary>
+
 ```pycon
 >>> from openapi_test_client.clients import OpenAPIClient
->>> client = OpenAPIClient.get_client("<client_name>")  # pass async_mode=True for async client
+>>> client = OpenAPIClient.get_client("<client_name>")
 ```
+</details>
+<details>
+<summary>Async Client</summary>
+
+```pycon
+>>> from openapi_test_client.clients import OpenAPIClient
+>>> client = OpenAPIClient.get_client("<client_name>", async_mode=True)
+```
+</details>
 
 ### Make an API request
 
@@ -182,6 +207,10 @@ To make an API request with your API client, call an API function as  `client.<A
 The function will take all parameters documented in the OpenAPI specs as keyword arguments. 
 
 eg. To call the login API defined under the Auth tag:
+
+<details open>
+<summary>Sync Client</summary>
+
 ```pycon
 >>> r = client.Auth.login(username='foo', password='bar')
 2024-01-01T00:00:00.863-0800 - request: POST http://127.0.0.1:5000/v1/auth/login
@@ -195,6 +224,26 @@ eg. To call the login API defined under the Auth tag:
 }
 - response_time: 0.01344s
 ```
+</details>
+
+<details>
+<summary>Async Client</summary>
+
+```pycon
+# NOTE: This example uses asyncio REPL (python -m asyncio) 
+>>> r = await client.Auth.login(username='foo', password='bar')
+2024-01-01T00:00:00.863-0800 - request: POST http://127.0.0.1:5000/v1/auth/login
+2024-01-01T00:00:00.877-0800 - response: 201 (Created)
+- request_id: a2b20acf-22d5-4131-ac0d-6796bf19d2af
+- request: POST http://127.0.0.1:5000/v1/auth/login
+- payload: {"username": "foo", "password": "***"}
+- status_code: 201 (Created)
+- response: {
+    "token": "IjFlNTAxNmI2LTVlZjctNGQxYi1iMGJhLTYxY2M3ZWIzY2VmYSI.ZadDlA.tKS_La5uDuteXH7OMT_WZVK1o_hAnWZVn_J5rSsJQILHu1juXYg0EYLkgpH1LChzeOhN_YUUXaO37rlt_UV1Ag"
+}
+- response_time: 0.01344s
+```
+</details>
 
 > [!NOTE] 
 > - A new UUID will be generated at each request and will be set to the `X-Request-ID` header
@@ -503,7 +552,7 @@ eg. The Login API is accessible via `client.Auth.login()` API function, which is
 
 ```pycon
 >>> client.Auth.login
-<openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc object at 0x1074abf10>
+<openapi_test_client.libraries.api.api_functions.endpoints.AuthAPILoginEndpointFunc object at 0x1074abf10>
 (mapped to: <function AuthAPI.login at 0x10751c360>)
 ```
 
@@ -511,7 +560,7 @@ The endpoint function is also accessible directly from the API class:
 ```pycon
 >>> from openapi_test_client.clients.demo_app.api.auth import AuthAPI
 >>> AuthAPI.login
-<openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc object at 0x107650b50>
+<openapi_test_client.libraries.api.api_functions.endpoints.AuthAPILoginEndpointFunc object at 0x107650b50>
 (mapped to: <function AuthAPI.login at 0x10751c360>)
 ```
 
