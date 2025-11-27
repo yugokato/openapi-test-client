@@ -10,7 +10,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeAlias, TypeVar, Union, cast
 
 from common_libs.ansi_colors import ColorCodes, color
-from common_libs.clients.rest_client import RestResponse
+from common_libs.clients.rest_client import APIResponse, RestResponse
 from common_libs.clients.rest_client.utils import retry_on
 from common_libs.lock import Lock
 from common_libs.logging import get_logger
@@ -84,7 +84,7 @@ class Endpoint:  # noqa: PLW1641
         with_hooks: bool = True,
         raw_options: dict[str, Any] | None = None,
         **body_or_query_params: Any,
-    ) -> RestResponse:
+    ) -> APIResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
         :param path_params: Path parameters
@@ -602,7 +602,7 @@ class EndpointFunc:
         num_retry: int = 1,
         retry_after: float = 5,
         **kwargs: Any,
-    ) -> RestResponse:
+    ) -> APIResponse:
         """Make an API call with retry conditions
 
         :param args: Positional arguments passed to __call__()
@@ -611,11 +611,17 @@ class EndpointFunc:
         :param retry_after: A short wait time in seconds before a retry
         :param kwargs: Keyword arguments passed to __call__()
         """
-        f = retry_on(condition, num_retry=num_retry, retry_after=retry_after, safe_methods_only=False)(self)
+        f = retry_on(
+            condition,
+            num_retry=num_retry,
+            retry_after=retry_after,
+            safe_methods_only=False,
+            _async_mode=self.api_client.async_mode,
+        )(self.__call__)
         return f(*args, **kwargs)
 
     @requires_instance
-    def with_lock(self, *args: Any, lock_name: str | None = None, **kwargs: Any) -> RestResponse:
+    def with_lock(self, *args: Any, lock_name: str | None = None, **kwargs: Any) -> APIResponse:
         """Make an API call with lock
 
         The lock will be applied on the API endpoint function level, which means any other API calls in the same/other

@@ -58,3 +58,12 @@ async def test_async_client(async_api_client: DemoAppAPIClient) -> None:
             assert isinstance(r, RestResponse)
             assert r.ok
             assert r.response == some_id * 2
+
+    # with retry
+    r = await async_api_client._Test.echo.with_retry(0, condition=lambda r: r.ok, retry_after=0.5)
+    assert r.ok
+    assert r.request.retried is not None
+
+    # with lock
+    r = await async_api_client._Test.echo.with_lock(0)
+    assert r.ok
