@@ -247,7 +247,7 @@ class endpoint:
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param raw_opdefault_raw_optionstions: Raw request options passed to the underlying HTTP library
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
         return endpoint._create("trace", path, use_query_string=use_query_string, **default_raw_options)
 
