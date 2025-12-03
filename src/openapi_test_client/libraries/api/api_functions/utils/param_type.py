@@ -29,8 +29,9 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+# NOTE: These lists also include some incorrect type names commonly found in OpenAPI specs
 STR_PARAM_TYPES = ["string", "str"]
-INT_PARAM_TYPES = ["integer", "int", "int64", "number"]
+NUMBER_PARAM_TYPES = ["number", "integer", "int", "int64", "int32"]
 BOOL_PARAM_TYPES = ["boolean", "bool"]
 LIST_PARAM_TYPES = ["array"]
 NULL_PARAM_TYPES = ["null", None]
@@ -115,9 +116,14 @@ def resolve_type_annotation(
                 return annotate_type(str, Format(param_format))
             else:
                 return str
-        elif param_type in INT_PARAM_TYPES:
-            if param_type == "number" and param_format == "float":
-                return float
+        elif param_type in NUMBER_PARAM_TYPES:
+            if param_type == "integer":
+                return int
+            elif param_type == "number":
+                if param_format in ("float", "double"):
+                    return float
+                else:
+                    return int | float
             elif param_format:
                 return annotate_type(int, Format(param_format))
             else:
@@ -294,7 +300,7 @@ def is_type_of(param_type: str | Any, type_to_check: Any) -> bool:
         elif type_to_check is bool:
             return param_type in BOOL_PARAM_TYPES
         elif type_to_check is int:
-            return param_type in INT_PARAM_TYPES
+            return param_type in NUMBER_PARAM_TYPES
         elif type_to_check is None:
             return param_type in NULL_PARAM_TYPES
         else:
