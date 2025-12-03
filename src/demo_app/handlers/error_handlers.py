@@ -1,13 +1,13 @@
-import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 
-from quart import Blueprint, Response, jsonify, make_response, request
-from quart import current_app as app
-from quart_schema import RequestSchemaValidationError
-from werkzeug.exceptions import BadRequest, MethodNotAllowed, NotFound, Unauthorized
+from common_libs.logging import get_logger
+from fastapi import FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException
 
-bp_error_handler = Blueprint("error_handler", __name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -17,47 +17,30 @@ class Error:
     request_id: str
 
 
-@bp_error_handler.app_errorhandler(BadRequest)
-async def handle_bad_request_error(error: BadRequest) -> Response:
-    err = Error(code=BadRequest.code, message=str(error), request_id=request.headers["X-Request-ID"])
-    return await make_response(jsonify({"error": err}), BadRequest.code)
+def add_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(HTTPException)
+    async def handle_http_errors(request: Request, error: HTTPException) -> Response:
+        err = Error(code=error.status_code, message=error.detail, request_id=request.headers.get("X-Request-ID"))
+        return JSONResponse(
+            status_code=error.status_code,
+            content={"error": asdict(err)},
+        )
 
+    @app.exception_handler(RequestValidationError)
+    async def handle_request_validation_error(request: Request, error: RequestValidationError) -> Response:
+        err = Error(
+            code=status.HTTP_400_BAD_REQUEST,
+            message=error.errors(),
+            request_id=request.headers.get("X-Request-ID"),
+        )
+        return JSONResponse(status_code=err.code, content={"error": asdict(err)})
 
-@bp_error_handler.app_errorhandler(Unauthorized)
-async def handle_unauthorized_request(error: Unauthorized) -> Response:
-    err = Error(code=Unauthorized.code, message="Login required", request_id=request.headers["X-Request-ID"])
-    return await make_response(jsonify({"error": err}), Unauthorized.code)
-
-
-@bp_error_handler.app_errorhandler(NotFound)
-async def handle_not_found_error(error: NotFound) -> Response:
-    err = Error(code=NotFound.code, message=error.description, request_id=request.headers["X-Request-ID"])
-    return await make_response(jsonify({"error": err}), NotFound.code)
-
-
-@bp_error_handler.app_errorhandler(MethodNotAllowed)
-async def handle_method_not_allowed_error(error: MethodNotAllowed) -> Response:
-    err = Error(code=MethodNotAllowed.code, message=error.description, request_id=request.headers["X-Request-ID"])
-    return await make_response(jsonify({"error": err}), MethodNotAllowed.code)
-
-
-@bp_error_handler.app_errorhandler(RequestSchemaValidationError)
-async def handle_request_validation_error(error: RequestSchemaValidationError) -> Response:
-    app.logger.error(error)
-    if isinstance(error.validation_error, TypeError):
-        errors = error.validation_error
-    else:
-        errors = json.loads(error.validation_error.json())
-    err = Error(code=400, message=errors, request_id=request.headers["X-Request-ID"])
-    return await make_response(jsonify({"error": err}), 400)
-
-
-@bp_error_handler.app_errorhandler(Exception)
-async def handle_internal_server_error(error: Exception) -> Response:
-    err = Error(
-        code=500,
-        message="An unexpected error occurred while processing your request",
-        request_id=request.headers["X-Request-ID"],
-    )
-    app.logger.exception(error)
-    return await make_response(jsonify({"error": err}), 500)
+    @app.exception_handler(Exception)
+    async def handle_internal_server_error(request: Request, error: Exception) -> Response:
+        logger.exception(error)
+        err = Error(
+            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="An unexpected error occurred while processing your request",
+            request_id=request.headers.get("X-Request-ID"),
+        )
+        return JSONResponse(status_code=err.code, content={"error": asdict(err)})
