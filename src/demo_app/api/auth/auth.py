@@ -1,36 +1,27 @@
-import uuid
+import secrets
 
-from quart import Blueprint, Response, jsonify, request
-from quart_auth import login_required
-from quart_schema import security_scheme, tag, validate_request
+from fastapi import APIRouter, Depends, Request
 
-from demo_app import auth_manager
+from demo_app import _active_tokens, login_required
 
-from .models import LoginData
+from .models import LoginRequest, LoginResponse, LogoutResponse
 
-bp_auth = Blueprint("Auth", __name__, url_prefix="/auth")
-tag_auth = tag(["Auth"])
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@bp_auth.post("/login")
-@tag_auth
-@security_scheme([])
-@validate_request(LoginData)
-async def login(data: LoginData) -> tuple[Response, int]:
+@router.post("/login", status_code=201)
+async def login(data: LoginRequest) -> LoginResponse:
     """Login"""
-    # Just assign a random uuid for this user as there's no actual BE
-    user_uuid = str(uuid.uuid4())
-    token = auth_manager.dump_token(user_uuid)
-    return jsonify({"token": token}), 201
+    token = secrets.token_hex(32)
+    _active_tokens.add(token)
+    return LoginResponse(token=token)
 
 
-@bp_auth.post("/logout")
-@tag_auth
-@login_required
-async def logout() -> tuple[Response, int]:
+@router.post("/logout", dependencies=[Depends(login_required)])
+async def logout(request: Request) -> LogoutResponse:
     """Logout"""
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header.removeprefix("Bearer ")
-        auth_manager.revoke_token(token)
-    return jsonify({"message": "logged out"}), 200
+        _active_tokens.discard(token)
+    return LogoutResponse(message="logged out")
