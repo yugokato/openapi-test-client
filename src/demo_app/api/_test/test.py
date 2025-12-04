@@ -14,9 +14,10 @@ async def echo(number: int) -> tuple[Response, int]:
     return jsonify(number), 200
 
 
+@bp_test.get("/wait/<int:delay>")
 @bp_test.get("/wait/<float:delay>")
 @tag_test
-async def wait(delay: float) -> tuple[Response, int]:
+async def wait(delay: int | float) -> tuple[Response, int]:
     """Test endpoint that returns a response after waiting for the specified delay"""
     await asyncio.sleep(delay)
     return jsonify("ok"), 200
