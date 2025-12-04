@@ -2,7 +2,7 @@ from dataclasses import asdict
 from typing import Any
 
 import pytest
-from pytest_subtests import SubTests
+from pytest import Subtests
 
 from openapi_test_client.libraries.api.api_functions.utils.pydantic_model import in_validation_mode
 from openapi_test_client.libraries.api.types import ParamModel, PydanticModel
@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.unittest]
 
 @pytest.mark.parametrize("scenario", ["empty_model", "with_no_fields", "with_partial_fields", "with_all_fields"])
 def test_param_model(
-    subtests: SubTests,
+    subtests: Subtests,
     scenario: str,
     EmptyParamModel: type[ParamModel],
     RegularParamModel: type[ParamModel],
@@ -34,7 +34,7 @@ def test_param_model(
         On each object, the following operations should work. An action taken to one scope (dataclass or dictionary)
         should be automatically reflected to the other.
         - Add a new field (to dataclass, to dictionary)
-        - Update an field value (as dataclass, as dictionary)
+        - Update a field value (as dataclass, as dictionary)
         - Delete a field (from dataclass, from dictionary)
     """
     if scenario == "empty_model":
@@ -71,7 +71,7 @@ def test_param_model(
 
 
 def test_param_model_nested(
-    subtests: SubTests, RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel]
+    subtests: Subtests, RegularParamModel: type[ParamModel], InnerParamModel: type[ParamModel]
 ) -> None:
     """Verify the above ParamModel functionality also works with nested param models"""
     model_params = {
