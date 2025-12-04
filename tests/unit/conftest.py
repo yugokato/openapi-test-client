@@ -103,7 +103,7 @@ def InnerParamModel() -> type[ParamModel]:
 def NewParamModel(request: SubRequest) -> type[ParamModel]:
     """A new dataclass param model generated with requested field data via indirect parametrization
 
-    The fixture can be take the field data in various shapes as follows:
+    The fixture can take the field data in various shapes as follows:
     - Just one field:
         - Only field type (field name and the default value will be automatically set)
         - As tuple (field name, field type) or (field name, field type, default value)
@@ -136,7 +136,7 @@ def NewParamModel(request: SubRequest) -> type[ParamModel]:
 
 @pytest.fixture(scope="session")
 def ParamModelWithParamFormats() -> type[ParamModel]:
-    """A a dataclass param model that has fields with various param formats we support"""
+    """A dataclass param model that has fields with various param formats we support"""
     fields = [
         ("uuid", Optional[Annotated[str, Format("uuid")]], Unset),
         ("date_time", Optional[Annotated[str, Format("date-time")]], Unset),
