@@ -7,11 +7,12 @@ bp_test = Blueprint("Test", __name__, url_prefix="/test")
 tag_test = tag(["Test"])
 
 
-@bp_test.get("/echo/<int:number>")
+@bp_test.get("/echo/<int:value>")
+@bp_test.get("/echo/<string:value>")
 @tag_test
-async def echo(number: int) -> tuple[Response, int]:
-    """Test endpoint that just echos the specified number"""
-    return jsonify(number), 200
+async def echo(value: int | str) -> tuple[Response, int | str]:
+    """Test endpoint that just echos the specified value"""
+    return jsonify(value), 200
 
 
 @bp_test.get("/wait/<int:delay>")

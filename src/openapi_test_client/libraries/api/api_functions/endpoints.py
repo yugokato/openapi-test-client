@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeAlias, TypeVar, 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client import APIResponse, RestResponse
 from common_libs.clients.rest_client.utils import retry_on
+from common_libs.job_executor import Job, run_concurrent
 from common_libs.lock import Lock
 from common_libs.logging import get_logger
 from httpx import HTTPError
@@ -714,6 +715,16 @@ class SyncEndpointFunc(EndpointFunc):
         """Make a sync API call to the endpoint"""
         return asyncio.run(super().__call__(*args, **kwargs))
 
+    @requires_instance
+    def with_concurrency(self, *args: Any, num: int = 2, **kwargs: Any) -> list[APIResponse]:
+        """Concurrently make duplicated API calls to the endpoint
+
+        :param args: Positional arguments passed to __call__()
+        :param num: Number of concurrent API calls
+        :param kwargs: Keyword arguments passed to __call__()
+        """
+        return run_concurrent([Job(self.__call__, args, kwargs) for _ in range(num)])
+
     @contextmanager
     @requires_instance
     def stream(
@@ -781,6 +792,18 @@ class AsyncEndpointFunc(EndpointFunc):
     async def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
         """Make an async API call to the endpoint"""
         return await super().__call__(*args, **kwargs)
+
+    @requires_instance
+    async def with_concurrency(self, *args: Any, num: int = 2, **kwargs: Any) -> list[APIResponse]:
+        """Concurrently make duplicated API calls to the endpoint
+
+        :param args: Positional arguments passed to __call__()
+        :param num: Number of concurrent API calls
+        :param kwargs: Keyword arguments passed to __call__()
+        """
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(self(*args, **kwargs)) for _ in range(num)]
+        return [t.result() for t in tasks]
 
     @asynccontextmanager
     @requires_instance
