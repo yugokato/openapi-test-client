@@ -73,9 +73,9 @@ def validate_params(endpoint: Endpoint, path_params: tuple[Any, ...], body_or_qu
     :param body_or_query_params: Request body or query parameters
     """
     path_param_names = (k for k, v in endpoint.model.__dataclass_fields__.items() if v.default is MISSING)
-    binded_path_params = OrderedDict(zip(path_param_names, path_params))
+    path_params_ = OrderedDict(zip(path_param_names, path_params))
     PydanticEndpointModel = endpoint.model.to_pydantic()
-    PydanticEndpointModel.validate_as_json({**binded_path_params, **body_or_query_params})
+    PydanticEndpointModel.validate_as_json({**path_params_, **body_or_query_params})
 
 
 def complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...], as_url: bool = False) -> str:

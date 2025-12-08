@@ -542,7 +542,7 @@ class EndpointFunc:
             # we will automatically make an API call
             # Undocumented endpoints manually added/updated by users might not always have **kwargs like the regular
             # endpoints updated/managed by our script. To avoid an error by giving unexpected keyword argument, we pass
-            # paramters for rest client only when the user explicitly requests them
+            # parameters for rest client only when the user explicitly requests them
             kwargs: dict[str, Any] = {}
             if raw_options:
                 kwargs.update(raw_options=raw_options)
@@ -683,7 +683,7 @@ class EndpointFunc:
         self, path_params: tuple[str, ...], body_or_query_params: dict[str, Any], kwargs: dict[str, Any]
     ) -> RestResponse:
         r = self._original_func(self._instance, *path_params, **body_or_query_params, **kwargs)
-        if self.api_client.async_mode and inspect.iscoroutine(r):
+        if self.api_client.async_mode and asyncio.iscoroutine(r):
             # The original function is a not an async function but rest_client used inside the original function is
             # AsyncRestClient, which means the returned value will be a coroutine. We can await it and get the actual
             # value in here
@@ -713,7 +713,14 @@ class SyncEndpointFunc(EndpointFunc):
     @wraps(EndpointFunc.__call__)
     def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
         """Make a sync API call to the endpoint"""
-        return asyncio.run(super().__call__(*args, **kwargs))
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(super().__call__(*args, **kwargs))
+        else:
+            raise RuntimeError(
+                "Invalid usage: Sync client API call inside an async event loop detected. Use Async client instead."
+            )
 
     @requires_instance
     def with_concurrency(self, *args: Any, num: int = 2, **kwargs: Any) -> list[APIResponse]:

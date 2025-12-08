@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
 import json
@@ -30,6 +31,16 @@ class OpenAPIClient:
     ):
         if app_name.lower() in ["open", "base"]:
             raise ValueError(f"app_name '{app_name}' is reserved for internal usage. Please use a different value")
+        if not async_mode:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            else:
+                raise RuntimeError(
+                    f"{type(self).__name__} cannot be used in sync mode inside async context. Specify async_mode=True "
+                    f"to enable async mode."
+                )
 
         self.app_name = app_name
         self.env = env
