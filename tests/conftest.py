@@ -1,12 +1,16 @@
 import os
 import sys
 import uuid
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
 import pytest
-from common_libs.utils import clean_obj_name
-from pytest import Config, Item, Session, TempPathFactory
+from common_libs.ansi_colors import ColorCodes
+from common_libs.utils import clean_obj_name, log_section
+from pytest import Config, Item, Session, Subtests, TempPathFactory
 from pytest_mock import MockerFixture
 from xdist import is_xdist_worker
 
@@ -37,6 +41,25 @@ def pytest_runtest_setup(item: Item) -> None:
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionfinish() -> None:
     _patch_pytest_logging_issue()
+
+
+@pytest.fixture
+def subtests(subtests: Subtests) -> Generator[Subtests]:
+    """Add section logging to Pytest's subtests fixture"""
+
+    def monkey_patch_subtest(f: Callable[..., Any]) -> Callable[..., Any]:
+        @contextmanager
+        @wraps(f)
+        def wrapper(msg: str | None = None, **kwargs: Any) -> Generator[None]:
+            with f(**kwargs):
+                if msg is not None:
+                    log_section(f"[subtest] {msg}", sub_section=True, color_code=ColorCodes.LIGHT_BLUE)
+                yield
+
+        return wrapper
+
+    subtests.test = monkey_patch_subtest(subtests.test)
+    yield subtests
 
 
 @pytest.fixture

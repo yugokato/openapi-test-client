@@ -10,6 +10,10 @@ formatters:
     format: "%(asctime)s - %(message)s"
     datefmt: "%Y-%m-%dT%H:%M:%S.%f%z"
 loggers:
+  common_libs:
+    level: DEBUG
+    handlers:
+      - console
   openapi_test_client:
     level: DEBUG
     handlers:
