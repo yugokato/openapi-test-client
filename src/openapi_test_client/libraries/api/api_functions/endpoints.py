@@ -5,7 +5,7 @@ import inspect
 from collections.abc import AsyncGenerator, Callable, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from functools import partial, update_wrapper, wraps
+from functools import cache, partial, update_wrapper, wraps
 from threading import RLock
 from typing import TYPE_CHECKING, Any, ClassVar, ParamSpec, TypeAlias, TypeVar, Union, cast
 
@@ -16,7 +16,6 @@ from common_libs.job_executor import Job, run_concurrent
 from common_libs.lock import Lock
 from common_libs.logging import get_logger
 from httpx import HTTPError
-from pydantic import ValidationError
 
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_function as endpoint_func_util
 import openapi_test_client.libraries.api.api_functions.utils.endpoint_model as endpoint_model_util
@@ -106,7 +105,8 @@ class Endpoint:  # noqa: PLW1641
         """
         api_class = self.api_class(api_client)
         endpoint_func: EndpointFunc = getattr(api_class, self.func_name)
-        return endpoint_func(
+        func_call = partial(
+            endpoint_func,
             *path_params,
             quiet=quiet,
             with_hooks=with_hooks,
@@ -114,6 +114,10 @@ class Endpoint:  # noqa: PLW1641
             raw_options=raw_options,
             **body_or_query_params,
         )
+        if api_client.async_mode:
+            return asyncio.run(func_call())
+        else:
+            return func_call()
 
 
 class endpoint:
@@ -407,13 +411,9 @@ class EndpointHandler:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
         is_async = instance and instance.api_client.async_mode
-        BaseEndpointFuncClass = AsyncEndpointFunc if is_async else SyncEndpointFunc
         with EndpointHandler._lock:
             if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
-                endpoint_func_name = (
-                    f"{owner.__name__}{generate_class_name(self.original_func.__name__, suffix=EndpointFunc.__name__)}"
-                )
-                EndpointFuncClass = type(endpoint_func_name, (BaseEndpointFuncClass,), {})
+                EndpointFuncClass = EndpointFunc._create(owner, self.original_func, is_async)
                 endpoint_func = EndpointFuncClass(self, instance, owner)
                 EndpointHandler._endpoint_functions[key] = cast(
                     EndpointFunc, update_wrapper(endpoint_func, self.original_func)
@@ -525,8 +525,8 @@ class EndpointFunc:
         """
         if validate is None:
             validate = pydantic_model_util.is_validation_mode()
-        path = self._validate_path_and_params(
-            *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        path = endpoint_func_util.validate_path_and_params(
+            self, *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
         )
 
         # pre-request hook
@@ -645,39 +645,13 @@ class EndpointFunc:
         if self.api_client and self.endpoint.is_documented:
             return self.api_client.api_spec.get_endpoint_usage(self.endpoint)
 
-    def _validate_path_and_params(
-        self,
-        *path_params: Any,
-        validate: bool | None = None,
-        raw_options: dict[str, Any] | None,
-        **body_or_query_params: dict[str, Any],
-    ) -> str:
-        if self.endpoint.is_deprecated:
-            logger.warning(f"DEPRECATED: '{self.endpoint}' is deprecated")
-
-        # Fill path variables
-        try:
-            completed_path = endpoint_func_util.complete_endpoint(self.endpoint, path_params)
-        except ValueError as e:
-            msg = str(e)
-            if api_spec_definition := self.get_usage():
-                msg = f"{e!s}\n{color(api_spec_definition, color_code=ColorCodes.YELLOW)}"
-            raise ValueError(msg) from None
-
-        # Check if parameters used are expected for the endpoint. If not, it is an indication that the API function is
-        # not up-to-date.
-        endpoint_func_util.check_params(self.endpoint, body_or_query_params, raw_options=raw_options)
-
-        if validate:
-            # Perform Pydantic validation in strict mode against parameters
-            try:
-                endpoint_func_util.validate_params(self.endpoint, path_params, body_or_query_params)
-            except ValidationError as e:
-                raise ValueError(
-                    color(f"Request parameter validation failed.\n{e}", color_code=ColorCodes.RED)
-                ) from None
-
-        return completed_path
+    @staticmethod
+    @cache
+    def _create(api_class: type[APIBase], orig_func: Callable[..., Any], async_mode: bool) -> type[EndpointFunc]:
+        """Dynamically create an EndpointFunc class for the given endpoint function"""
+        base_class = AsyncEndpointFunc if async_mode else SyncEndpointFunc
+        class_name = f"{api_class.__name__}{generate_class_name(orig_func.__name__, suffix=EndpointFunc.__name__)}"
+        return type(class_name, (base_class,), {})
 
     async def _call_original_func(
         self, path_params: tuple[str, ...], body_or_query_params: dict[str, Any], kwargs: dict[str, Any]
@@ -746,8 +720,8 @@ class SyncEndpointFunc(EndpointFunc):
         """Stream the response"""
         if validate is None:
             validate = pydantic_model_util.is_validation_mode()
-        path = self._validate_path_and_params(
-            *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        path = endpoint_func_util.validate_path_and_params(
+            self, *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
         )
 
         # pre-request hook
@@ -834,8 +808,8 @@ class AsyncEndpointFunc(EndpointFunc):
         """
         if validate is None:
             validate = pydantic_model_util.is_validation_mode()
-        path = self._validate_path_and_params(
-            *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        path = endpoint_func_util.validate_path_and_params(
+            self, *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
         )
 
         # pre-request hook
