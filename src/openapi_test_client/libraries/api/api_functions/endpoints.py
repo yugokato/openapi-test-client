@@ -687,14 +687,7 @@ class SyncEndpointFunc(EndpointFunc):
     @wraps(EndpointFunc.__call__)
     def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
         """Make a sync API call to the endpoint"""
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(super().__call__(*args, **kwargs))
-        else:
-            raise RuntimeError(
-                "Invalid usage: Sync client API call inside an async event loop detected. Use Async client instead."
-            )
+        return asyncio.run(super().__call__(*args, **kwargs))
 
     @requires_instance
     def with_concurrency(self, *args: Any, num: int = 2, **kwargs: Any) -> list[APIResponse]:
