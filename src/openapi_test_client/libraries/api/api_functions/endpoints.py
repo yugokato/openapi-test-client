@@ -601,7 +601,7 @@ class EndpointFunc:
         *args: Any,
         condition: int | Sequence[int] | Callable[[RestResponse], bool] = lambda r: not r.ok,
         num_retry: int = 1,
-        retry_after: float = 5,
+        retry_after: float | int | Callable[[RestResponse], float | int] = 5,
         **kwargs: Any,
     ) -> APIResponse:
         """Make an API call with retry conditions
