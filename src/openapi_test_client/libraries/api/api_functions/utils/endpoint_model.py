@@ -278,9 +278,10 @@ def _parse_request_body_object(
                         _add_body_or_query_param_field(
                             body_or_query_param_fields, param_name, param_type_annotation, param_obj=param_obj
                         )
-            except Exception:
+            except Exception as e:
                 logger.error(
                     "Encountered an error while processing the param object in 'requestBody':\n"
+                    f"- error: {type(e).__name__}: {e}\n"
                     f"- param name: {param_name}\n"
                     f"- param object: {param_obj}"
                 )
@@ -312,7 +313,7 @@ def _is_file_param(
         if isinstance(param_def, ParamDef):
             return param_def.format == "binary"
         elif isinstance(param_def, ParamDef.ParamGroup):
-            return any([p.format == "binary" for p in param_def])
+            return any(_is_file_param(content_type, p) for p in param_def)
         else:
             return False
     else:

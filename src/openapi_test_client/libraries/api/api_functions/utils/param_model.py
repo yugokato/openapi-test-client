@@ -426,7 +426,16 @@ def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:
                         merged_field_obj.type, field_obj.type
                     )
                     if "anyOf" in merged_field_obj.metadata:
-                        merged_field_obj.metadata["anyOf"].append(field_obj.metadata)
+                        # This is a temporary solution
+                        anyOf = merged_field_obj.metadata["anyOf"]
+                        if isinstance(anyOf, list):
+                            anyOf.append(field_obj.metadata)
+                        elif isinstance(anyOf, tuple):
+                            metadata = dict(merged_field_obj.metadata)
+                            metadata["anyOf"] = (*anyOf, field_obj.metadata)
+                            merged_field_obj.metadata = MappingProxyType(metadata)
+                        else:
+                            raise NotImplementedError(f"Unsupported type of 'anyOf' data: {type(anyOf)}")
                     else:
                         merged_field_obj.metadata = MappingProxyType(
                             {"anyOf": [merged_field_obj.metadata, field_obj.metadata]}
