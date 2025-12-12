@@ -166,7 +166,7 @@ images/*
 !images/*.gif
 
 # Unofficial tests
-tests/_*/**
+tests/**/_*/**
 
 # pacts
 tests/**/pacts/*.json

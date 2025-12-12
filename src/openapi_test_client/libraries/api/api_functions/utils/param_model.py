@@ -5,7 +5,18 @@ from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
 from types import MappingProxyType, NoneType, UnionType
-from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack, cast, get_args, get_origin
+from typing import (
+    Annotated,
+    Any,
+    ForwardRef,
+    Literal,
+    Optional,
+    Union,
+    Unpack,
+    cast,
+    get_args,
+    get_origin,
+)
 
 import inflect
 from common_libs.logging import get_logger
@@ -33,10 +44,9 @@ logger = get_logger(__name__)
 
 
 def is_param_model(annotated_type: Any) -> bool:
-    """Check if the givin annotated type is a custom param model
+    """Check if the given annotated type is a custom param model
 
     :param annotated_type: Annotated type to check whether it is a param model or not
-    :param allow_forward_ref: Consider ForwardRef obj as a param model
     """
     return (inspect.isclass(annotated_type) and issubclass(annotated_type, ParamModel)) or isinstance(
         annotated_type, ForwardRef
@@ -48,7 +58,6 @@ def has_param_model(annotated_type: Any) -> bool:
 
     :param annotated_type: Annotated type for a field to check whether it contains a param model or not
     """
-
     base_type = param_type_util.get_base_type(annotated_type)
     if param_type_util.is_union_type(base_type):
         return any(is_param_model(o) for o in get_args(base_type))
@@ -84,18 +93,31 @@ def get_param_model_name(param_model: type[ParamModel] | ForwardRef) -> str:
 
 
 @lru_cache
-def generate_model_name(field_name: str, field_type: str | Any) -> str:
-    """Generate model name from the given field
+def generate_model_name(base_name: str) -> str:
+    """Generate model name
+
+    :param base_name: A base name to be used to generate the model name
+    """
+    model_name = generate_class_name(clean_model_field_name(base_name))
+    # Adjust the model name if it happens to conflict with class names we might import
+    if model_name in get_reserved_model_names():
+        model_name += "_"
+    return model_name
+
+
+@lru_cache
+def generate_model_name_for_dataclass_field(field_name: str, is_list: bool = False) -> str:
+    """Generate model name from the given parameter
 
     :param field_name: Dataclass field name
-    :param field_type: OpenAPI parameter type or dataclass field type
+    :param is_list: This is a list type field
     """
     model_name = generate_class_name(clean_model_field_name(field_name))
     # NOTE: You may need to add a custom blacklist/rules for your app in here to ignore words that inflect library
     # doesn't handle well.
-    # Eg. The word "bps" (Bits per second) is not a plural word, but inflect thinks it is and incorrectly generates
+    # E.g. The word "bps" (Bits per second) is not a plural word, but inflect thinks it is and incorrectly generates
     # its singular noun as "bp"
-    if param_type_util.is_type_of(field_type, list) and (singular_noun := inflect.engine().singular_noun(model_name)):
+    if is_list and (singular_noun := inflect.engine().singular_noun(model_name)):
         # Change the plural model name to the singular word
         model_name = cast(str, singular_noun)
 
@@ -152,14 +174,7 @@ def create_model_from_param_def(
             for inner_param_name, inner_param_obj in param_def.get("properties", {}).items()
         ]
         alias_illegal_model_field_names(model_name, fields)
-        return cast(
-            type[ParamModel],
-            make_dataclass(
-                model_name,
-                fields,
-                bases=(ParamModel,),
-            ),
-        )
+        return cast(type[ParamModel], make_dataclass(model_name, fields, bases=(ParamModel,)))
 
 
 def generate_imports_code_from_model(
@@ -200,13 +215,13 @@ def generate_imports_code_from_model(
             elif has_param_model(obj_type):
                 if not exclude_nested_models:
                     _, model_file_name = api_class.__module__.rsplit(".", 1)
-                    module_and_name_pairs.add(
-                        (
-                            f"..{API_MODEL_CLASS_DIR_NAME}.{model_file_name}",
-                            # Using the original field type here to detect list or not
-                            generate_model_name(field_name, field_type),  # type: ignore[arg-type]
-                        )
-                    )
+                    param_models = get_param_model(obj_type)
+                    assert param_models
+                    if not isinstance(param_models, list):
+                        param_models = [param_models]
+                    for m in param_models:
+                        model_name = m.__forward_arg__ if isinstance(m, ForwardRef) else m.__name__
+                        module_and_name_pairs.add((f"..{API_MODEL_CLASS_DIR_NAME}.{model_file_name}", model_name))
             else:
                 if inspect.isclass(obj_type):
                     name = obj_type.__name__
@@ -266,16 +281,29 @@ def get_param_models(model: type[EndpointModel | ParamModel], recursive: bool = 
     def collect_param_models(model: type[EndpointModel | ParamModel]) -> None:
         for field_name, field_obj in model.__dataclass_fields__.items():
             if has_param_model(field_obj.type):
-                model_name = generate_model_name(field_name, field_obj.type)  # type: ignore[arg-type]
-                param_def = ParamDef.from_param_obj(field_obj.metadata)
-                param_model = create_model_from_param_def(model_name, param_def)
-                param_models.append(param_model)
-                if recursive:
-                    collect_param_models(param_model)
+                annotated_param_models = get_param_model(field_obj.type)
+                assert annotated_param_models
+                if not isinstance(annotated_param_models, list):
+                    annotated_param_models = [annotated_param_models]
 
-    param_models: list[type[ParamModel]] = []
+                param_models = []
+                for m in annotated_param_models:
+                    # TODO: Improve this part
+                    # Recreate the model from param def. This is currently needed as the annotated param model in
+                    # the field is not a merged one if the param def contains multiple definitions for the same param,
+                    # since our union picks the first one.
+                    model_name = m.__forward_arg__ if isinstance(m, ForwardRef) else m.__name__
+                    param_def = ParamDef.from_param_obj(field_obj.metadata)
+                    m = create_model_from_param_def(model_name, param_def)
+                    param_models.append(m)
+                collected_param_models.extend(param_models)
+                if recursive:
+                    for m in param_models:
+                        collect_param_models(m)
+
+    collected_param_models: list[type[ParamModel]] = []
     collect_param_models(model)
-    return param_models
+    return collected_param_models
 
 
 def dedup_models_by_name(models: list[type[ParamModel]]) -> list[type[ParamModel]]:

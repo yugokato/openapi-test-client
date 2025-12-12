@@ -148,10 +148,13 @@ class OpenAPISpec:
                 for k, v in copy.deepcopy(reference).items():
                     new_reference = reference[k]
                     if k == "$ref":
+                        if not isinstance(new_reference, str):
+                            raise RuntimeError(f"Detected invalid $ref value: {new_reference}")
                         del reference[k]
                         ref_keys = re.findall(ref_pattern, new_reference)
                         assert ref_keys
                         schema = "/".join(ref_keys)
+                        schema_name = ref_keys[-1]
                         is_circular_ref = schema in schemas_seen
                         try:
                             resolved_value: dict[str, Any] | list[Any] = reduce(lambda d, k: d[k], ref_keys, api_spec)
@@ -168,6 +171,7 @@ class OpenAPISpec:
 
                             if isinstance(resolved_value, dict):
                                 reference.update(resolved_value)
+                                reference["__schema_name__"] = schema_name
                             else:
                                 reference = resolved_value
                     else:

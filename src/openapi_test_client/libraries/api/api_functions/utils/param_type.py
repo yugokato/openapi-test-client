@@ -155,9 +155,14 @@ def resolve_type_annotation(
                 # Looks like param type for a list item is not always documented properly
                 return list[Any]
         elif param_type == "object":
+            assert isinstance(param_def, ParamDef)
             if "properties" in param_def or param_def.get("__circular_ref__"):
                 # Param model
-                model_name = param_model_util.generate_model_name(param_name, list if _is_array else Any)
+                schema = param_def.get("__schema_name__")
+                if schema:
+                    model_name = param_model_util.generate_model_name(schema)
+                else:
+                    model_name = param_model_util.generate_model_name_for_dataclass_field(param_name, is_list=_is_array)
                 if "properties" in param_def:
                     return param_model_util.create_model_from_param_def(model_name, param_def)
                 else:
@@ -237,14 +242,16 @@ def get_base_type(tp: Any, return_if_container_type: bool = False) -> Any | list
 
         if is_union_type(tp):
             args_without_nonetype = [x for x in get_args(tp) if x is not NoneType]
-            return generate_union_type([get_base_type(x) for x in args_without_nonetype])
+            return generate_union_type(
+                [get_base_type(x, return_if_container_type=return_if_container_type) for x in args_without_nonetype]
+            )
         elif origin_type is Annotated:
-            return get_base_type(tp.__origin__)
+            return get_base_type(tp.__origin__, return_if_container_type=return_if_container_type)
         elif origin_type is list:
             if return_if_container_type:
                 return tp
             else:
-                return get_base_type(get_args(tp)[0])
+                return get_base_type(get_args(tp)[0], return_if_container_type=return_if_container_type)
     return tp
 
 
@@ -565,10 +572,10 @@ def or_(x: Any, y: Any) -> Any:
     else:
         is_x_union = is_union_type(x)
         is_y_union = is_union_type(y)
-        if is_x_union:
-            if is_y_union:
-                return reduce(or_, (*get_args(x), *get_args(y)))
-            elif param_model_util.is_param_model(y):
+        if is_x_union and is_y_union:
+            return reduce(or_, (*get_args(x), *get_args(y)))
+        elif is_x_union:
+            if param_model_util.is_param_model(y):
                 param_model_names_in_x = [
                     param_model_util.get_param_model_name(x) for x in get_args(x) if param_model_util.is_param_model(x)
                 ]
