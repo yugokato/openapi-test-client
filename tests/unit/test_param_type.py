@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import re
 import sys
 from dataclasses import dataclass, make_dataclass
 from functools import reduce
 from operator import or_
 from types import NoneType
-from typing import Annotated, Any, ForwardRef, Literal, cast, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, cast, get_args, get_origin
 
 import pytest
 
@@ -18,6 +20,9 @@ from openapi_test_client.libraries.api.types import (
     UncacheableLiteralArg,
     Unset,
 )
+
+if TYPE_CHECKING:
+    from typing import _AnnotatedAlias  # type: ignore[attr-defined]
 
 pytestmark = [pytest.mark.unittest]
 
@@ -124,6 +129,7 @@ def test_get_type_annotation_as_str(tp: Any, expected_tp_str: str, is_optional: 
         (Annotated[str, Constraint(min_len=5)] | Annotated[int, Constraint(min=5)], str | int),
         (list[str], str),
         (list[dict[str, Any]], dict[str, Any]),
+        (list[list[str]], list[str]),
         (Annotated[str, "meta"], str),
         (Optional[str], str),
         (Optional[str | int], str | int),
@@ -156,14 +162,20 @@ def test_get_base_type(tp: Any, expected_type: Any) -> None:
         (ForwardRef(MyClass.__name__), str, str),
         (str | int, bool, bool),
         (list[str], int, list[int]),
+        (list[list[str]], int, list[int]),
+        (list[list[str]], list[int], list[list[int]]),
+        (tuple[str, int], (bool, float), tuple[bool, float]),
         (Optional[str], int, Optional[int]),
         (Optional[str | int], bool, Optional[bool]),
         (Optional[dict[str, Any]], MyParamModel, Optional[MyParamModel]),
         (Optional[ForwardRef(MyParamModel.__name__)], str, Optional[str]),
+        (Optional[list[list[str]]], list[int], Optional[list[list[int]]]),
         (Annotated[str, "meta", Constraint(min=1)], int, Annotated[int, "meta", Constraint(min=1)]),
         (Annotated[str | int, "meta"], bool, Annotated[bool, "meta"]),
+        (Annotated[list[list[str]], "meta"], list[int], Annotated[list[list[int]], "meta"]),
         (Optional[Annotated[str, "meta"]], int, Optional[Annotated[int, "meta"]]),
         (Optional[Annotated[dict[str, Any], "meta"]], MyParamModel, Optional[Annotated[MyParamModel, "meta"]]),
+        (Optional[Annotated[list[list[str]], "meta"]], list[int], Optional[Annotated[list[list[int]], "meta"]]),
         (Optional[Annotated[ForwardRef(MyParamModel.__name__), "meta"]], str, Optional[Annotated[str, "meta"]]),
     ],
 )
@@ -389,12 +401,44 @@ def test_annotate_type(tp: Any, metadata: list[Any], expected_type: Any) -> None
 
 
 @pytest.mark.parametrize(
+    ("tp", "annotated_from", "annotated_to", "expected_type"),
+    [
+        (Annotated[int, "m"], Annotated[int, "m"], Annotated[str, "m", "m2"], Annotated[str, "m", "m2"]),
+        (
+            Optional[Annotated[int, "m"]],
+            Annotated[int, "m"],
+            Annotated[str, "m2"],
+            Optional[Annotated[str, "m2"]],
+        ),
+        (Annotated[int, "m"], Annotated[int, "m"], Annotated[int | str, "m2"], Annotated[int | str, "m2"]),
+        (list[Annotated[int, "m"]], Annotated[int, "m"], Annotated[str, "m"], list[Annotated[str, "m"]]),
+        (
+            Annotated[list[Annotated[list[int], Constraint(min_len=3)]], Constraint(min_len=1)],
+            Annotated[list[int], Constraint(min_len=3)],
+            Annotated[list[str], Constraint(min=2), "m"],
+            Annotated[list[Annotated[list[str], Constraint(min=2), "m"]], Constraint(min_len=1)],
+        ),
+    ],
+)
+def test_replace_annotated_type(
+    tp: Any, annotated_from: _AnnotatedAlias, annotated_to: _AnnotatedAlias, expected_type: Any
+) -> None:
+    """Verify that Annotated[] type inside a type annotation can be replaced with another Annotated[] type"""
+    assert param_type_util.replace_annotated_type(tp, annotated_from, annotated_to) == expected_type
+
+
+@pytest.mark.parametrize(
     ("tp", "metadata", "expected_type"),
     [
         (Annotated[str, "meta1"], ["meta2"], Annotated[str, "meta1", "meta2"]),
         (Annotated[str, "meta1", "meta2"], ["meta2", "meta3"], Annotated[str, "meta1", "meta2", "meta3"]),
         (Optional[Annotated[str, "meta1"]], ["meta2"], Optional[Annotated[str, "meta1", "meta2"]]),
         (Optional[Annotated[str | int, "meta1"]], ["meta2"], Optional[Annotated[str | int, "meta1", "meta2"]]),
+        (
+            Annotated[list[Annotated[list[int], Constraint(min_len=3)]], Constraint(min_len=1)],
+            ["meta1"],
+            Annotated[list[Annotated[list[int], Constraint(min_len=3)]], Constraint(min_len=1), "meta1"],
+        ),
         (int | Annotated[str, "meta1"], ["meta2"], int | Annotated[str, "meta1", "meta2"]),
         (Annotated[str, "meta1"] | int, ["meta2"], Annotated[str, "meta1", "meta2"] | int),
         (Optional[int] | Annotated[str, "meta1"], ["meta2"], Optional[int] | Annotated[str, "meta1", "meta2"]),

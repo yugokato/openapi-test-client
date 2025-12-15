@@ -39,6 +39,18 @@ pytestmark = [pytest.mark.unittest]
         (Optional[str | int], None),
         (Optional[Literal["1", "2"]], None),
         (Optional[Annotated[str, "meta"]], None),
+        *(
+            (
+                Optional[
+                    str
+                    | list[str]
+                    | Annotated[list[int], Constraint(min_len=2)]
+                    | Annotated[list[Annotated[list[int], Constraint(min_len=2)]], Constraint(min_len=1)]
+                ],
+                v,
+            )
+            for v in (None, "foo", ["foo"], [123, 456], [[123, 456]])
+        ),
     ],
     indirect=["NewParamModel"],
 )
@@ -73,6 +85,18 @@ def test_pydantic_model_conversion_and_validation(NewParamModel: type[ParamModel
         (str, None),
         (Literal["1", "2"], None),
         (Annotated[str, "meta"], None),
+        *(
+            (
+                Optional[
+                    str
+                    | list[str]
+                    | Annotated[list[int], Constraint(min_len=2)]
+                    | Annotated[list[Annotated[list[int], Constraint(min_len=2)]], Constraint(min_len=3)]
+                ],
+                v,
+            )
+            for v in (123, [123, None], [123], [[123], [456], [789]], [[1, 2], [3, 4]])
+        ),
     ],
     indirect=["NewParamModel"],
 )
@@ -85,7 +109,7 @@ def test_pydantic_model_conversion_and_validation_error(NewParamModel: type[Para
         param_type_util.is_union_type(t, exclude_optional=True)
         for t in [field.type, param_type_util.get_base_type(field.type)]
     )
-    expected_error = f"{('2 validation errors' if is_union else '1 validation error')} for {pydantic_model.__name__}"
+    expected_error = rf"\d* validation error{'s' if is_union else ''} for {pydantic_model.__name__}\n"
     with pytest.raises(ValidationError, match=expected_error):
         pydantic_model.validate_as_json({field.name: input_value})
 
@@ -115,6 +139,7 @@ def test_pydantic_model_conversion_and_validation_error(NewParamModel: type[Para
         pytest.param("ipvanyinterface", "2001::/64", id="ipvanyinterface_v6"),
         pytest.param("ipvanynetwork", "192.168.1.0/24", id="ipvanynetwork_v4"),
         pytest.param("ipvanynetwork", "2001::/64", id="ipvanynetwork_v6"),
+        pytest.param("phone", "+1-650-253-0000", id="phone"),
     ],
 )
 def test_pydantic_model_conversion_with_annotated_format(

@@ -516,7 +516,7 @@ def update_endpoint_functions(
     try:
         update_existing_endpoints()
         update_missing_endpoints()
-        # Format code again tp remove unused imports
+        # Format code again to remove unused imports
         modified_api_cls_code = format_code(modified_api_cls_code)
         if is_new_api_class:
             # Clear the original code so that diff will show everything as new

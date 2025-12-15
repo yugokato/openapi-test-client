@@ -255,7 +255,7 @@ def get_base_type(tp: Any, return_if_container_type: bool = False) -> Any | list
             if return_if_container_type:
                 return tp
             else:
-                return get_base_type(get_args(tp)[0], return_if_container_type=return_if_container_type)
+                return get_base_type(get_args(tp)[0], return_if_container_type=True)
     return tp
 
 
@@ -264,7 +264,7 @@ def replace_base_type(tp: Any, new_type: Any, replace_container_type: bool = Fal
 
     :param tp: The original type annotation
     :param new_type: A new type to replace the base type with
-    :param replace_container_type: Treat container types like list and tuple as an base type
+    :param replace_container_type: Treat container types like list and tuple as a base type
 
     >>> tp = Optional[Annotated[int, "metadata"]]
     >>> new_tp = replace_base_type(tp, str)
@@ -276,16 +276,22 @@ def replace_base_type(tp: Any, new_type: Any, replace_container_type: bool = Fal
         args = get_args(tp)
         if is_union_type(tp):
             if is_optional_type(tp):
-                return generate_optional_type(replace_base_type(args[0], new_type))
+                return generate_optional_type(
+                    replace_base_type(args[0], new_type, replace_container_type=replace_container_type)
+                )
             else:
-                return replace_base_type(args, new_type)
+                return replace_base_type(args, new_type, replace_container_type=replace_container_type)
         elif origin_type is Annotated:
-            return annotate_type(replace_base_type(tp.__origin__, new_type), *tp.__metadata__)
+            return Annotated[
+                replace_base_type(tp.__origin__, new_type, replace_container_type=replace_container_type),
+                *tp.__metadata__,
+            ]
         elif origin_type in [list, tuple]:
             if replace_container_type:
                 return new_type
             else:
-                return origin_type[replace_base_type(args, new_type)]
+                inner_tp = args[0] if len(args) == 1 else args
+                return origin_type[replace_base_type(inner_tp, new_type, replace_container_type=True)]
         else:
             return new_type
     else:
@@ -325,6 +331,37 @@ def is_type_of(param_type: str | Any, type_to_check: Any) -> bool:
         elif is_union_type(param_type):
             return any([is_type_of(x, type_to_check) for x in get_args(param_type)])
     return param_type is type_to_check
+
+
+def matches_type(value: Any, tp: Any) -> bool:
+    """Check if the value conforms to the provided type annotation
+
+    :param value: Any value
+    :param tp: Type annotation to check the value against
+    """
+    if value is None:
+        return type(None) in get_args(tp)
+
+    # Union / Optional
+    if is_union_type(tp):
+        return any(matches_type(value, arg) for arg in get_args(tp))
+
+    origin = get_origin(tp)
+    if origin is Annotated:
+        base, *_ = get_args(tp)
+        if not matches_type(value, base):
+            return False
+        return True
+    elif origin is Literal:
+        args = get_args(tp)
+        return any(isinstance(value, type(x)) for x in args)
+    elif origin is list:
+        if not isinstance(value, list):
+            return False
+        (elem_type,) = get_args(tp)
+        return all(matches_type(v, elem_type) for v in value)
+
+    return isinstance(value, tp)
 
 
 def is_optional_type(tp: Any) -> bool:
@@ -406,9 +443,6 @@ def annotate_type(tp: Any, *metadata: Any) -> Any:
     :param tp: Type annotation
     :param metadata: Metadata to add to Annotated[]
     """
-    if get_annotated_type(tp):
-        return modify_annotated_metadata(tp, *metadata, action="add")
-
     if get_origin(tp) is Annotated:
         return modify_annotated_metadata(tp, *metadata, action="add")
     elif is_optional_type(tp):
@@ -416,6 +450,35 @@ def annotate_type(tp: Any, *metadata: Any) -> Any:
         return generate_optional_type(annotate_type(inner_type, *metadata))
     else:
         return Annotated[tp, *metadata]
+
+
+def replace_annotated_type(tp: Any, annotated_tp_from: Any, annotated_tp_to: Any) -> Any:
+    """Replace the current Annotated[] type in the tp to a new Annotated[] type
+
+    :param tp: Type annotation that contains Annotated[] type
+    :param annotated_tp_from: The current Annotated[] type
+    :param annotated_tp_to: The new Annotated[] type
+    """
+    if not (get_origin(annotated_tp_from) is Annotated and get_origin(annotated_tp_from) is Annotated):
+        raise TypeError("annotated_tp_from and annotated_tp_to must be an Annotated[] type")
+
+    if is_union_type(tp):
+        return generate_union_type(
+            list(filter(None, [replace_annotated_type(a, annotated_tp_from, annotated_tp_to) for a in get_args(tp)]))
+        )
+    else:
+        origin = get_origin(tp)
+        if origin is Annotated:
+            if tp is annotated_tp_from:
+                return annotated_tp_to
+            t, *metadata = get_args(tp)
+            return Annotated[replace_annotated_type(t, annotated_tp_from, annotated_tp_to), *metadata]
+        elif origin is list:
+            return origin[replace_annotated_type(get_args(tp)[0], annotated_tp_from, annotated_tp_to)]
+        elif origin is tuple:
+            return origin[*(replace_annotated_type(t, annotated_tp_from, annotated_tp_to) for t in get_args(tp))]
+        else:
+            return tp
 
 
 def modify_annotated_metadata(annotated_tp: Any, *metadata: Any, action: Literal["add", "replace", "remove"]) -> Any:
@@ -437,7 +500,7 @@ def modify_annotated_metadata(annotated_tp: Any, *metadata: Any, action: Literal
         raise ValueError(f"Invalid action: {action}")
 
     def modify_metadata(tp: Any) -> Any:
-        if get_origin(tp) is Annotated:
+        if (origin := get_origin(tp)) is Annotated:
             if action == "add":
                 new_metadata = dedup(*tp.__metadata__, *metadata)
             elif action == "remove":
@@ -446,7 +509,7 @@ def modify_annotated_metadata(annotated_tp: Any, *metadata: Any, action: Literal
                     raise ValueError("At least one metadata must exist after the action is performed")
             else:
                 new_metadata = dedup(*metadata)
-            return annotate_type(get_args(tp)[0], *new_metadata)
+            return origin[get_args(tp)[0], *new_metadata]
         else:
             if is_union_type(tp):
                 return generate_union_type([modify_metadata(arg) for arg in get_args(tp)])
@@ -456,15 +519,23 @@ def modify_annotated_metadata(annotated_tp: Any, *metadata: Any, action: Literal
     return modify_metadata(annotated_tp)
 
 
-def get_annotated_type(tp: Any) -> _AnnotatedAlias | tuple[_AnnotatedAlias] | None:
-    """Get annotated type definition(s)
+def get_annotated_type(
+    tp: Any, metadata_filter: str | type[ParamAnnotationType] | list[str | type[ParamAnnotationType]] | None = None
+) -> _AnnotatedAlias | tuple[_AnnotatedAlias] | None:
+    """Get annotated type definition(s) from the provided type annotation
 
     NOTE: If the type annotation is a union of multiple Annotated[] types, all annotated types will be returned
 
     :param tp: Type annotation
+    :param metadata_filter: Filter by metadata
     """
+    if metadata_filter and not isinstance(metadata_filter, list):
+        metadata_filter = [metadata_filter]
+
     if is_union_type(tp):
-        annotated_types = tuple(filter(None, [get_annotated_type(arg) for arg in get_args(tp)]))
+        annotated_types = tuple(
+            filter(None, [get_annotated_type(arg, metadata_filter=metadata_filter) for arg in get_args(tp)])
+        )
         if annotated_types:
             if len(annotated_types) == 1:
                 return annotated_types[0]
@@ -472,8 +543,22 @@ def get_annotated_type(tp: Any) -> _AnnotatedAlias | tuple[_AnnotatedAlias] | No
                 return annotated_types
         return None
     else:
-        if get_origin(tp) is Annotated:
+        origin = get_origin(tp)
+        if origin is Annotated:
+            if metadata_filter:
+                metadata = tp.__metadata__
+                for x in metadata_filter:
+                    if (isinstance(x, str) and x in metadata) or (
+                        inspect.isclass(x)
+                        and issubclass(x, ParamAnnotationType)
+                        and any(isinstance(m, x) for m in metadata)
+                    ):
+                        return tp
+                    return None
             return tp
+        elif origin is list:
+            return get_annotated_type(get_args(tp)[0], metadata_filter=metadata_filter)
+        # TODO: Add more?
 
 
 def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
@@ -486,7 +571,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
     """
 
     def merge_args_per_origin(args: Sequence[Any]) -> tuple[Any, ...]:
-        """Merge type annotations per its origiin type"""
+        """Merge type annotations per its origin type"""
         origin_type_order = {Literal: 1, Annotated: 2, Union: 3, UnionType: 4, list: 5, dict: 6, None: 10}
         args_per_origin: dict[Any, list[Any]] = {}
         for arg in args:

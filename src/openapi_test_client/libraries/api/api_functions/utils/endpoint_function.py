@@ -4,7 +4,7 @@ import json
 import re
 from collections import OrderedDict
 from dataclasses import MISSING
-from typing import TYPE_CHECKING, Any, get_args
+from typing import TYPE_CHECKING, Any
 
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client.utils import get_supported_request_parameters
@@ -134,39 +134,35 @@ def generate_rest_func_params(
             for k, v in raw_options.items():
                 rest_func_params[k] = v
         else:
-            # Check Annotated metadata
             if field_obj := dataclass_fields.get(param_name):
-                # Check Annotated metadata
-                if annotated_type := param_type_util.get_annotated_type(field_obj.type):
-                    if isinstance(annotated_type, list | tuple):
-                        # This field has more than one Annotated[] as a union. We will try to find the right one for
-                        # this request where the type of the given param value matches. If none of them match,
-                        # select the first one and log warning message
-                        try:
-                            annotated_type = next(
-                                x
-                                for x in annotated_type
-                                if param_type_util.is_type_of(get_args(x)[0], type(param_value))
-                            )
-                        except StopIteration:
-                            annotated_type = annotated_type[0]
-                            logger.warning(
-                                f"The field type of '{endpoint.model.__name__}.{param_name}' has more than 1 "
-                                f"Annotated[] types, but the type of the provided value does not match with any of "
-                                f"them. The first annotated type will be used for this API call.\n"
-                                f"- Defined field type: {field_obj.type}\n"
-                                f"- Provided value type: {type(param_value)}"
-                            )
+                if param_type_util.matches_type(param_value, field_obj.type):
+                    # Check if Annotate[] type definition with "query" and/or Alias metadata exists
+                    if annotated_type := param_type_util.get_annotated_type(
+                        field_obj.type, metadata_filter=["query", Alias]
+                    ):
+                        if isinstance(annotated_type, list | tuple):
+                            # This field has more than one Annotated[] as a union. We will try to find the right one for
+                            # this request where the type of the given param value matches.
+                            try:
+                                annotated_type = next(
+                                    t for t in annotated_type if param_type_util.matches_type(param_value, t)
+                                )
+                                should_check_annotated_meta = True
+                            except StopIteration:
+                                should_check_annotated_meta = False
+                        else:
+                            should_check_annotated_meta = param_type_util.matches_type(param_value, annotated_type)
 
-                    # Process alias name and query parameter
-                    metadata = annotated_type.__metadata__
-                    if alias_param := [x for x in metadata if isinstance(x, Alias)]:
-                        assert len(alias_param) == 1
-                        # Resolve the actual param name
-                        param_name = alias_param[0].value
+                        if should_check_annotated_meta:
+                            # Process alias name and query parameter
+                            metadata = annotated_type.__metadata__
+                            if alias_param := [x for x in metadata if isinstance(x, Alias)]:
+                                assert len(alias_param) == 1
+                                # Resolve the actual param name
+                                param_name = alias_param[0].value
 
-                    if "query" in metadata:
-                        query_params[param_name] = param_value
+                            if "query" in metadata:
+                                query_params[param_name] = param_value
 
             if param_name not in query_params.keys():
                 if use_query_string:
@@ -183,7 +179,7 @@ def generate_rest_func_params(
                         # The parameter is annotated as File type, but the user gave something else. As long as
                         # Content-Type header is not explicitly given, we still assume the given value is for
                         # file uploading. The value may a File obj but in a dictionary, or might be just a file
-                        # content in str/bytes. Otherwise the underlying HTTP library might throw an error
+                        # content in str/bytes. Otherwise, the underlying HTTP library might throw an error
                         files[param_name] = param_value
                     else:
                         data[param_name] = param_value

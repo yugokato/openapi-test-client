@@ -100,77 +100,91 @@ def generate_pydantic_model_field(
                 pydantic_model_type = param_type_util.generate_union_type(models)
             else:
                 pydantic_model_type = param_model.to_pydantic()
-            dataclass_field_type = param_type_util.replace_base_type(dataclass_field_type, pydantic_model_type)
+            dataclass_field_type = param_type_util.replace_base_type(
+                dataclass_field_type, pydantic_model_type, replace_container_type=True
+            )
+
+        dataclass_field_type = _convert_annotated_type_recursively(
+            dataclass_field_type, dataclass_field_type, default_value
+        )
 
         if annotated_type := param_type_util.get_annotated_type(dataclass_field_type):
-            if isinstance(annotated_type, list | tuple):
-                # This should not happen since we are looping through each type if the field type is union
-                raise NotImplementedError(f"Unsupported field type for validation mode: '{model_field.type}'")
-
-            base_type = param_type_util.get_base_type(annotated_type)
             is_query_param = "query" in annotated_type.__metadata__
-
-            # Adjust field type based on the param format
-            if format := filter_annotated_metadata(annotated_type, Format):
-                base_type = convert_type_from_param_format(base_type, format.value)
-
-            # Add pydantic Field objectbased on the param constraints
-            # NOTE: If the field type was converted to a validation type provided by Pydantic (eg. str->EmailStr), the
-            # following constraint will be ignored (Pydantic doesn't allow extra options to be added to a Field object).
-            # We will completely rely on Pydantic's validation logic in this case.
-            if constraint := filter_annotated_metadata(annotated_type, Constraint):
-                const: dict[str, Any] = {}
-                if param_type_util.is_type_of(base_type, str):
-                    if constraint.min_len:
-                        const.update(min_length=constraint.min_len)
-                    if constraint.max_len:
-                        const.update(max_length=constraint.max_len)
-                    if constraint.pattern:
-                        const.update(pattern=constraint.pattern)
-                elif param_type_util.is_type_of(base_type, int):
-                    if constraint.exclusive_min:
-                        const.update(gt=constraint.exclusive_min)
-                    else:
-                        const.update(ge=constraint.min)
-                    if constraint.exclusive_max:
-                        const.update(lt=constraint.exclusive_max)
-                    else:
-                        const.update(le=constraint.max)
-                    if constraint.multiple_of:
-                        const.update(multiple_of=constraint.multiple_of)
-                elif param_type_util.is_type_of(base_type, list):
-                    const.update(min_length=constraint.min_len, max_length=constraint.max_len)
-
-                if const:
-                    # Update metadata: remove Constraint and add Field
-                    new_metadata = [x for x in annotated_type.__metadata__ if not isinstance(x, Constraint)] + [
-                        Field(**const)
-                    ]
-                    dataclass_field_type = param_type_util.modify_annotated_metadata(
-                        annotated_type, *new_metadata, action="replace"
-                    )
-
-                if default_value is not None and constraint.nullable:
-                    # Required and nullable = Optional
-                    base_type = base_type | None
-
-            dataclass_field_type = param_type_util.replace_base_type(dataclass_field_type, base_type)
-
             # For query parameters, each parameter may be allowed to use multiple times with different values.
             # Our client will support this scenario by taking values as a list. To prevent a validation error to
             # occur when giving a list, adjust the model type to also allow list.
             if is_query_param or (
                 issubclass(original_model, EndpointModel) and original_model.endpoint_func.method.upper() == "GET"
             ):
-                base_type = param_type_util.get_base_type(dataclass_field_type)
+                base_type = param_type_util.get_base_type(dataclass_field_type, return_if_container_type=True)
                 if not param_type_util.is_type_of(base_type, list):
                     dataclass_field_type = param_type_util.replace_base_type(
                         dataclass_field_type,
                         base_type | list[base_type],  # type: ignore[valid-type]
+                        replace_container_type=True,
                     )
         pydantic_field_types.append(dataclass_field_type)
 
     return (param_type_util.generate_union_type(pydantic_field_types), default_value)
+
+
+def _convert_annotated_type_recursively(outer_tp: Any, inner_tp: Any, default_value: EllipsisType | None) -> Any:
+    if annotated_type := param_type_util.get_annotated_type(inner_tp):
+        orig_annotated_type = annotated_type
+        base_type = param_type_util.get_base_type(orig_annotated_type, return_if_container_type=True)
+        if nested_annotated_type := param_type_util.get_annotated_type(base_type):
+            annotated_type = _convert_annotated_type_recursively(annotated_type, nested_annotated_type, default_value)
+            outer_tp = param_type_util.replace_annotated_type(outer_tp, orig_annotated_type, annotated_type)
+            base_type = param_type_util.get_base_type(annotated_type, return_if_container_type=True)
+            orig_annotated_type = annotated_type
+
+        # Adjust field type based on the param format
+        if format := filter_annotated_metadata(annotated_type, Format):
+            base_type = convert_type_from_param_format(base_type, format.value)
+
+        # Add pydantic Field object based on the param constraints
+        # NOTE: If the field type was converted to a validation type provided by Pydantic (eg. str->EmailStr), the
+        # following constraint will be ignored (Pydantic doesn't allow extra options to be added to a Field object).
+        # We will completely rely on Pydantic's validation logic in this case.
+        if constraint := filter_annotated_metadata(annotated_type, Constraint):
+            pydantic_const: dict[str, Any] = {}
+            if param_type_util.is_type_of(base_type, str):
+                if constraint.min_len:
+                    pydantic_const.update(min_length=constraint.min_len)
+                if constraint.max_len:
+                    pydantic_const.update(max_length=constraint.max_len)
+                if constraint.pattern:
+                    pydantic_const.update(pattern=constraint.pattern)
+            elif param_type_util.is_type_of(base_type, list):
+                pydantic_const.update(min_length=constraint.min_len, max_length=constraint.max_len)
+            elif param_type_util.is_type_of(base_type, int):
+                if constraint.exclusive_min:
+                    pydantic_const.update(gt=constraint.exclusive_min)
+                else:
+                    pydantic_const.update(ge=constraint.min)
+                if constraint.exclusive_max:
+                    pydantic_const.update(lt=constraint.exclusive_max)
+                else:
+                    pydantic_const.update(le=constraint.max)
+                if constraint.multiple_of:
+                    pydantic_const.update(multiple_of=constraint.multiple_of)
+
+            if pydantic_const:
+                # Update metadata: Replace our Constraint with Pydantic Field
+                new_metadata = [x for x in annotated_type.__metadata__ if not isinstance(x, Constraint)] + [
+                    Field(**pydantic_const)
+                ]
+                annotated_type = param_type_util.modify_annotated_metadata(
+                    annotated_type, *new_metadata, action="replace"
+                )
+
+            if default_value is not None and constraint.nullable:
+                # Required and nullable = Optional
+                base_type = base_type | None
+
+        annotated_type = param_type_util.replace_base_type(annotated_type, base_type, replace_container_type=True)
+        outer_tp = param_type_util.replace_annotated_type(outer_tp, orig_annotated_type, annotated_type)
+    return outer_tp
 
 
 def filter_annotated_metadata(annotated_type: Any, target_class: type[T]) -> T | None:
@@ -193,6 +207,6 @@ def convert_type_from_param_format(field_type: Any, format: str) -> Any:
     :param format: OpenAPI parameter format
     """
     if pydantic_type := PARAM_FORMAT_AND_TYPE_MAP.get(format):
-        return param_type_util.replace_base_type(field_type, pydantic_type)
+        return param_type_util.replace_base_type(field_type, pydantic_type, replace_container_type=True)
     else:
         return field_type

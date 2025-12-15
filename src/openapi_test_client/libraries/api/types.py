@@ -480,15 +480,19 @@ class Constraint(ParamAnnotationType):
     Use it as a metadata of typing.Annotated
     """
 
-    min: int | None = None
-    max: int | None = None
-    exclusive_min: int | None = None
-    exclusive_max: int | None = None
+    min: int | float | None = None
+    max: int | float | None = None
+    exclusive_min: int | float | None = None
+    exclusive_max: int | float | None = None
     multiple_of: int | None = None
     min_len: int | None = None
     max_len: int | None = None
     nullable: bool | None = None
     pattern: str | None = None
+
+    def __repr__(self) -> str:
+        const = ", ".join([f"{k}={v}" for k, v in asdict(self).items() if v is not None])
+        return f"{type(self).__name__}({const})"
 
 
 class UncacheableLiteralArg:

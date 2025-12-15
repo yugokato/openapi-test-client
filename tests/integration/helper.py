@@ -266,8 +266,8 @@ def do_test_invalid_params(
         assert (
             f"Request parameter validation failed.\n"
             f"{num_expected_errors} validation error{'s' if num_expected_errors > 1 else ''} for "
-            f"{endpoint_func.endpoint.model.__name__}" in str(e.value)
-        )
+            f"{endpoint_func.endpoint.model.__name__}"
+        ) in str(e.value)
     else:
         assert r.status_code == 400
         assert len(r.response["error"]["message"]) == num_expected_errors
