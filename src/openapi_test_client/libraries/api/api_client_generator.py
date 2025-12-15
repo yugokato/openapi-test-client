@@ -547,7 +547,9 @@ def update_endpoint_functions(
             modified_model_code = (
                 f"from dataclasses import dataclass\n\nfrom {ParamModel.__module__} import {ParamModel.__name__}\n\n"
             )
-            for model in param_model_util.sort_by_dependency(param_model_util.dedup_models_by_name(param_models)):
+            for model in param_model_util.sort_models_by_dependency(
+                param_model_util.dedup_models_by_name(param_models)
+            ):
                 imports_code, model_code = param_model_util.generate_model_code_from_model(api_class, model)
                 # Stack all imports to the top, then append model code at the end
                 modified_model_code = imports_code + modified_model_code + model_code

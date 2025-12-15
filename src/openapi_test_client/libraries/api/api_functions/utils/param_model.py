@@ -5,18 +5,7 @@ from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
 from types import MappingProxyType, NoneType, UnionType
-from typing import (
-    Annotated,
-    Any,
-    ForwardRef,
-    Literal,
-    Optional,
-    Union,
-    Unpack,
-    cast,
-    get_args,
-    get_origin,
-)
+from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack, cast, get_args, get_origin
 
 import inflect
 from common_libs.logging import get_logger
@@ -43,47 +32,12 @@ from openapi_test_client.libraries.common.misc import generate_class_name
 logger = get_logger(__name__)
 
 
-def is_param_model(annotated_type: Any) -> bool:
-    """Check if the given annotated type is a custom param model
-
-    :param annotated_type: Annotated type to check whether it is a param model or not
-    """
-    return (inspect.isclass(annotated_type) and issubclass(annotated_type, ParamModel)) or isinstance(
-        annotated_type, ForwardRef
-    )
-
-
-def has_param_model(annotated_type: Any) -> bool:
-    """Check if the given annotated type contains a custom param model
-
-    :param annotated_type: Annotated type for a field to check whether it contains a param model or not
-    """
-    base_type = param_type_util.get_base_type(annotated_type)
-    if param_type_util.is_union_type(base_type):
-        return any(is_param_model(o) for o in get_args(base_type))
-    else:
-        return is_param_model(base_type)
-
-
-def get_param_model(annotated_type: Any) -> type[ParamModel] | ForwardRef | list[type[ParamModel] | ForwardRef] | None:
-    """Returns a param model from the annotated type, if there is any
-
-    :param annotated_type: Annotated type
-    """
-    base_type = param_type_util.get_base_type(annotated_type)
-    if has_param_model(base_type):
-        if param_type_util.is_union_type(base_type):
-            return [get_param_model(x) for x in get_args(base_type) if has_param_model(x)]
-        else:
-            return base_type
-
-
 def get_param_model_name(param_model: type[ParamModel] | ForwardRef) -> str:
     """Get the model name
 
     :param param_model: Param model. This can be a forward ref
     """
-    if not is_param_model(param_model):
+    if not param_type_util.is_param_model(param_model):
         raise ValueError(f"{param_model} is not a param model")
 
     if isinstance(param_model, ForwardRef):
@@ -163,7 +117,7 @@ def create_model_from_param_def(
     if isinstance(param_def, ParamDef) and param_def.is_array and "items" in param_def:
         return create_model_from_param_def(model_name, param_def["items"], _root=_root)
     elif isinstance(param_def, ParamDef.ParamGroup):
-        return _merge_models([create_model_from_param_def(model_name, p, _root=_root) for p in param_def])
+        return merge_models(*[create_model_from_param_def(model_name, p, _root=_root) for p in param_def])
     else:
         fields = [
             DataclassModelField(
@@ -212,10 +166,10 @@ def generate_imports_code_from_model(
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 else:
                     raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")
-            elif has_param_model(obj_type):
+            elif param_type_util.has_param_model(obj_type):
                 if not exclude_nested_models:
                     _, model_file_name = api_class.__module__.rsplit(".", 1)
-                    param_models = get_param_model(obj_type)
+                    param_models = param_type_util.get_param_model(obj_type)
                     assert param_models
                     if not isinstance(param_models, list):
                         param_models = [param_models]
@@ -280,21 +234,17 @@ def get_param_models(model: type[EndpointModel | ParamModel], recursive: bool = 
 
     def collect_param_models(model: type[EndpointModel | ParamModel]) -> None:
         for field_name, field_obj in model.__dataclass_fields__.items():
-            if has_param_model(field_obj.type):
-                annotated_param_models = get_param_model(field_obj.type)
+            if param_type_util.has_param_model(field_obj.type):
+                annotated_param_models = param_type_util.get_param_model(field_obj.type)
                 assert annotated_param_models
                 if not isinstance(annotated_param_models, list):
                     annotated_param_models = [annotated_param_models]
 
                 param_models = []
                 for m in annotated_param_models:
-                    # TODO: Improve this part
-                    # Recreate the model from param def. This is currently needed as the annotated param model in
-                    # the field is not a merged one if the param def contains multiple definitions for the same param,
-                    # since our union picks the first one.
-                    model_name = m.__forward_arg__ if isinstance(m, ForwardRef) else m.__name__
-                    param_def = ParamDef.from_param_obj(field_obj.metadata)
-                    m = create_model_from_param_def(model_name, param_def)
+                    if isinstance(m, ForwardRef):
+                        param_def = ParamDef.from_param_obj(field_obj.metadata)
+                        m = create_model_from_param_def(m.__forward_arg__, param_def)
                     param_models.append(m)
                 collected_param_models.extend(param_models)
                 if recursive:
@@ -317,12 +267,12 @@ def dedup_models_by_name(models: list[type[ParamModel]]) -> list[type[ParamModel
 
     deduped_models = []
     for models_with_same_name in models_per_name.values():
-        deduped_models.append(_merge_models(models_with_same_name))
+        deduped_models.append(merge_models(*models_with_same_name))
 
     return deduped_models
 
 
-def sort_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]:
+def sort_models_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]:
     """Sort param models by dependencies so that Unresolved reference error will not occur when dumping them as
     dataclass mode code.
 
@@ -386,7 +336,7 @@ def alias_illegal_model_field_names(location: str, model_fields: list[DataclassM
             return name
         else:
             name = clean_model_field_name(name)
-            if param_models := get_param_model(param_type):
+            if param_models := param_type_util.get_param_model(param_type):
                 # There seems to be some known issues when the field name clashes with the type annotation name.
                 # We change the field name in this case
                 # eg. https://docs.pydantic.dev/2.10/errors/usage_errors/#unevaluable-type-annotation
@@ -411,7 +361,8 @@ def alias_illegal_model_field_names(location: str, model_fields: list[DataclassM
                 model_fields[i] = DataclassModelField(*new_fields)
 
 
-def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:
+@lru_cache
+def merge_models(*models: type[ParamModel]) -> type[ParamModel]:
     """Merge multiple modes that have the same model name with different fields into one new model
 
     :param models: Param models (Each model must have the same model name)
@@ -472,7 +423,7 @@ def _merge_models(models: list[type[ParamModel]]) -> type[ParamModel]:
                 merged_dataclass_fields[field_name] = field_obj
 
     new_fields = [
-        (field_name, field_obj.type, field(default=Unset, metadata=field_obj.metadata))
+        (field_name, field_obj.type, field(default=Unset, metadata=dict(field_obj.metadata)))
         for field_name, field_obj in merged_dataclass_fields.items()
     ]
     return cast(type[ParamModel], make_dataclass(models[0].__name__, new_fields, bases=(ParamModel,)))

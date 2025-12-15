@@ -4,6 +4,7 @@ import inspect
 from collections.abc import Sequence
 from dataclasses import asdict
 from functools import reduce
+from operator import or_ as _or_
 from types import NoneType, UnionType
 from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Optional, Union, get_args, get_origin
 
@@ -16,6 +17,7 @@ from openapi_test_client.libraries.api.types import (
     Format,
     ParamAnnotationType,
     ParamDef,
+    ParamModel,
     UncacheableLiteralArg,
 )
 from openapi_test_client.libraries.api.types import Optional as Optional_
@@ -242,8 +244,10 @@ def get_base_type(tp: Any, return_if_container_type: bool = False) -> Any | list
 
         if is_union_type(tp):
             args_without_nonetype = [x for x in get_args(tp) if x is not NoneType]
-            return generate_union_type(
-                [get_base_type(x, return_if_container_type=return_if_container_type) for x in args_without_nonetype]
+            # Note: Do NOT use generate_union_type() in here. It will cause infinity loop
+            return reduce(
+                _or_,
+                [get_base_type(x, return_if_container_type=return_if_container_type) for x in args_without_nonetype],
             )
         elif origin_type is Annotated:
             return get_base_type(tp.__origin__, return_if_container_type=return_if_container_type)
@@ -366,7 +370,9 @@ def is_deprecated_param(tp: Any) -> bool:
 
 
 def generate_union_type(type_annotations: Sequence[Any]) -> Any:
-    """Convert multiple annotations to a Union type
+    """Convert multiple annotations to a Union type.
+
+    NOTE: Param models with the same name will be merged
 
     :param type_annotations: type annotations
     """
@@ -549,9 +555,62 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
     return generate_union_type((tp1, tp2))
 
 
+def is_param_model(tp: Any, include_forward_ref: bool = True) -> bool:
+    """Check if the given annotated type is a custom param model
+
+    :param tp: Annotated type to check whether it is a param model or not
+    :param include_forward_ref: Treat ForwardRef as a param model
+    """
+    is_param_model_ = inspect.isclass(tp) and issubclass(tp, ParamModel)
+    if include_forward_ref:
+        return is_param_model_ or isinstance(tp, ForwardRef)
+    else:
+        return is_param_model_
+
+
+def has_param_model(tp: Any, include_forward_ref: bool = True) -> bool:
+    """Check if the given annotated type contains a custom param model
+
+    :param tp: Annotated type for a field to check whether it contains a param model or not
+    :param include_forward_ref: Treat ForwardRef as a param model
+    """
+    base_type = get_base_type(tp)
+    if is_union_type(base_type):
+        return any(is_param_model(o, include_forward_ref=include_forward_ref) for o in get_args(base_type))
+    else:
+        return is_param_model(base_type, include_forward_ref=include_forward_ref)
+
+
+def get_param_model(
+    tp: Any, include_forward_ref: bool = True
+) -> type[ParamModel] | ForwardRef | list[type[ParamModel] | ForwardRef] | None:
+    """Returns a param model from the annotated type, if there is any
+
+    :param tp: Annotated type
+    :param include_forward_ref: Treat ForwardRef as a param model
+    """
+    base_type = get_base_type(tp)
+    if has_param_model(base_type, include_forward_ref=include_forward_ref):
+        if is_union_type(base_type):
+            models = []
+            for x in get_args(base_type):
+                if has_param_model(x, include_forward_ref=include_forward_ref):
+                    model = get_param_model(x, include_forward_ref=include_forward_ref)
+                    assert model is not None
+                    if isinstance(model, list):
+                        models.extend(model)
+                    else:
+                        models.append(model)
+            if len(models) == 1:
+                return models[0]
+            else:
+                return models
+        else:
+            return base_type
+
+
 def or_(x: Any, y: Any) -> Any:
-    """Customized version of operator.or_ that treats our dynamically created param model classes with the same
-    name as duplicates
+    """Customized version of operator.or_ that merges our dynamically created param model classes with the same name
 
     eg. operator.or_ v.s our or_
     >>> import operator
@@ -563,25 +622,34 @@ def or_(x: Any, y: Any) -> Any:
     >>> reduce(or_, [Model1 | None, Model2])
     __main__.MyModel | None
     """
+
+    def sort_by_type_name(*args: Any) -> list[Any]:
+        return sorted(args, key=lambda o: (o if inspect.isclass(o) else type(o)).__name__)
+
     if (
-        param_model_util.is_param_model(x)
-        and param_model_util.is_param_model(y)
-        and param_model_util.get_param_model_name(x) == param_model_util.get_param_model_name(y)
+        is_param_model(x, include_forward_ref=False)
+        and is_param_model(y, include_forward_ref=False)
+        and x.__name__ == y.__name__
     ):
-        return x
+        return param_model_util.merge_models(x, y)
     else:
         is_x_union = is_union_type(x)
         is_y_union = is_union_type(y)
         if is_x_union and is_y_union:
-            return reduce(or_, (*get_args(x), *get_args(y)))
+            return reduce(or_, sort_by_type_name(*get_args(x), *get_args(y)))
         elif is_x_union:
-            if param_model_util.is_param_model(y):
-                param_model_names_in_x = [
-                    param_model_util.get_param_model_name(x) for x in get_args(x) if param_model_util.is_param_model(x)
-                ]
-                if param_model_util.get_param_model_name(y) in param_model_names_in_x:
-                    return x
+            if is_param_model(y, include_forward_ref=False):
+                new_args = []
+                x_args = sort_by_type_name(*get_args(x))
+                for x_arg in x_args:
+                    if is_param_model(x_arg, include_forward_ref=False) and x_arg.__name__ == y.__name__:
+                        new_args.append(param_model_util.merge_models(x_arg, y))
+                    else:
+                        new_args.append(x_arg)
+
+                if x_args != new_args:
+                    return reduce(or_, new_args)
         elif is_y_union:
-            return reduce(or_, (x, *get_args(y)))
+            return reduce(or_, sort_by_type_name(x, *get_args(y)))
 
     return x | y

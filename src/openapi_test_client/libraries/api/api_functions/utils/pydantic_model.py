@@ -23,7 +23,6 @@ from pydantic import (
 )
 from pydantic_extra_types.phone_numbers import PhoneNumber
 
-import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 from openapi_test_client.libraries.api.types import Constraint, DataclassModel, EndpointModel, File, Format, ParamModel
 
@@ -95,7 +94,7 @@ def generate_pydantic_model_field(
     pydantic_field_types = []
     for dataclass_field_type in dataclass_field_types:
         # Convert nested param models to Pydantic models and replace it in the original field type
-        if param_model := param_model_util.get_param_model(dataclass_field_type):
+        if param_model := param_type_util.get_param_model(dataclass_field_type):
             if isinstance(param_model, list):
                 models = [m.to_pydantic() for m in param_model]
                 pydantic_model_type = param_type_util.generate_union_type(models)

@@ -1,8 +1,10 @@
 import re
 import sys
 from dataclasses import dataclass, make_dataclass
+from functools import reduce
+from operator import or_
 from types import NoneType
-from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
+from typing import Annotated, Any, ForwardRef, Literal, cast, get_args, get_origin
 
 import pytest
 
@@ -29,8 +31,15 @@ class MyParamModel(ParamModel):
     param2: str = Unset
 
 
-MyParamModel2 = make_dataclass(MyParamModel.__name__, [("foo", str, Unset)], bases=(ParamModel,))
-MyParamModel3 = make_dataclass(MyParamModel.__name__, [("bar", int, Unset)], bases=(ParamModel,))
+MyParamModel2 = cast(
+    type[ParamModel], make_dataclass(MyParamModel.__name__, [("foo", str, Unset)], bases=(ParamModel,))
+)
+MyParamModel3 = cast(
+    type[ParamModel], make_dataclass(MyParamModel.__name__, [("bar", int, Unset)], bases=(ParamModel,))
+)
+MyAnotherParamModel = cast(
+    type[ParamModel], make_dataclass("MyAnotherParamModel", [("foobar", int, Unset)], bases=(ParamModel,))
+)
 
 
 @pytest.mark.parametrize("as_list", [False, True])
@@ -224,7 +233,7 @@ def test_is_type_of(param_type: Any, type_to_check: Any, is_type_of: bool) -> No
 def test_is_optional_type(tp: Any, is_optional_type: bool) -> None:
     """Verify that we can check whether a given type annotation can be used for an optional parameter type or not
 
-    Note: The definiton of optional here means either Optional[] or a union type with None as one of the args
+    Note: The definition of optional here means either Optional[] or a union type with None as one of the args
     """
     assert param_type_util.is_optional_type(tp) is is_optional_type
 
@@ -285,16 +294,28 @@ def test_is_deprecated_param(tp: Any, is_deprecated_param: bool) -> None:
         ([str, int], str | int),
         ([str, int, None], str | int | None),
         ([str, int, None, str, int, None], str | int | None),
-        ([MyParamModel, MyParamModel, dict[str, Any]], MyParamModel | dict[str, Any]),
-        (
-            [MyParamModel, MyParamModel2, dict[str, Any]],
-            MyParamModel | dict[str, Any],
-        ),
+        ([MyParamModel, MyAnotherParamModel, str | int], MyParamModel | MyAnotherParamModel | str | int),
     ],
 )
 def test_generate_union_type(types: list[Any], expected_type: Any) -> None:
     """Verify that a union type annotation can be generated from multiple type annotations"""
     assert param_type_util.generate_union_type(types) == expected_type
+
+
+@pytest.mark.parametrize(
+    "types",
+    [
+        [MyParamModel, MyParamModel, str | int],
+        [MyParamModel2, MyParamModel3, str | int],
+        [MyParamModel, MyParamModel2, MyParamModel3, str | int],
+    ],
+)
+def test_generate_union_type_with_model_merge(types: list[Any]) -> None:
+    """Verify that a union type annotation can be generated from multiple type annotations"""
+    tp = param_type_util.generate_union_type(types)
+    orig_models = [x for x in types if param_type_util.is_param_model(x)]
+    merged_model = param_type_util.get_param_model(tp)
+    check_merged_model(merged_model, *orig_models)
 
 
 @pytest.mark.parametrize(
@@ -514,18 +535,38 @@ def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
         (str, int, str | int),
         (str | int, int | str, str | int),
         (str | None, int, str | int | None),
-        (MyParamModel, MyParamModel, MyParamModel),
-        (MyParamModel, MyParamModel2, MyParamModel),
-        (MyParamModel2, MyParamModel3, MyParamModel2),
-        (MyParamModel | None, MyParamModel2, MyParamModel | None),
-        (MyParamModel, MyParamModel2 | None, MyParamModel | None),
-        (MyParamModel2 | None, MyParamModel3, MyParamModel2 | None),
-        (MyParamModel2, MyParamModel3 | None, MyParamModel2 | None),
-        (MyParamModel, ForwardRef(MyParamModel.__name__), MyParamModel),
+        (MyParamModel, MyAnotherParamModel, MyParamModel | MyAnotherParamModel),
     ],
 )
-def test_custom_or_(tp1: Any, tp2: Any, expected_type: Any) -> None:
-    """Verify that our custom `or_` function can treat dynamically created ParamModel instances with the same name as
-    the same object
-    """
-    assert param_type_util.or_(tp1, tp2) == expected_type
+def test_custom_or_with_no_model_merge(tp1: Any, tp2: Any, expected_type: Any) -> None:
+    """Verify that our custom `or_` function should work the same as operator.or_ when no model merge is needed"""
+    assert param_type_util.or_(tp1, tp2) == reduce(or_, [tp1, tp2]) == expected_type
+
+
+@pytest.mark.parametrize(
+    ("tp1", "tp2"),
+    [
+        (MyParamModel, MyParamModel),
+        (MyParamModel2, MyParamModel3),
+        (MyParamModel | None, MyParamModel2),
+        (MyParamModel, MyParamModel2 | None),
+        (MyParamModel2 | None, MyParamModel3),
+        (MyParamModel2, MyParamModel3 | None),
+    ],
+)
+def test_custom_or_with_model_merge(tp1: Any, tp2: Any) -> None:
+    """Verify that our custom `or_` function merges param models with the same name"""
+    model1 = param_type_util.get_param_model(tp1)
+    model2 = param_type_util.get_param_model(tp2)
+    assert model1 and model2
+
+    tp = param_type_util.or_(tp1, tp2)
+    merged_model = param_type_util.get_param_model(tp)
+    assert merged_model
+    check_merged_model(merged_model, model1, model2)
+
+
+def check_merged_model(merged_model: type[ParamModel], *original_models: type[ParamModel]) -> None:
+    assert set((name, f.name, f.type, f.default) for name, f in merged_model.__dataclass_fields__.items()) == {
+        *((name, f.name, f.type, f.default) for m in original_models for name, f in m.__dataclass_fields__.items()),
+    }
