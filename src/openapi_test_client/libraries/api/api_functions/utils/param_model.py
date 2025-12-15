@@ -305,7 +305,7 @@ def sort_models_by_dependency(models: list[type[ParamModel]]) -> list[type[Param
 def clean_model_field_name(name: str) -> str:
     """Returns an alias name if the given name is illegal as a model field name"""
     name = clean_obj_name(name)
-    if name in get_reserved_model_names() + get_reserved_param_names():
+    if name in (*get_reserved_model_names(), *get_reserved_param_names(), *dir(dict)):
         # The field name conflicts with one of reserved names
         name += "_"
     return name

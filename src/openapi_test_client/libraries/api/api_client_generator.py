@@ -111,7 +111,7 @@ class {base_api_class_name}({APIBase.__name__}):
     code = format_code(
         f"from .{BASE_CLASS_DIR_NAME} import {base_api_class.__name__}\n"
         f"from {init_api_classes.__module__} import {init_api_classes.__name__}\n\n"
-        f"API_CLASSES = {init_api_classes.__name__}({base_api_class.__name__})\n"
+        f"API_CLASSES = {init_api_classes.__name__}({base_api_class.__name__})\t# type: ignore[type-abstract]\n"
     )
     _write_init_file(app_api_class_dir, code)
 
