@@ -621,8 +621,9 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     api_client_code = (
         f"class {api_client_class_name}({OpenAPIClient.__name__}):\n"
         f'{TAB}"""API client for {app_name}"""\n\n'
-        f'{TAB}def __init__(self, env: str = "dev", async_mode: bool = False) -> None:\n'
-        f'{TAB}{TAB}super().__init__("{app_name}", env=env, doc="{doc_path}", async_mode=async_mode)\n\n'
+        f'{TAB}def __init__(self, env: str = "dev", base_url: str | None = None, async_mode: bool = False) -> None:\n'
+        f'{TAB}{TAB}super().__init__("{app_name}", env=env, base_url=base_url, doc="{doc_path}", async_mode=async_mode)'
+        f"\n\n"
     )
 
     # Add an accessor to each API class as a property

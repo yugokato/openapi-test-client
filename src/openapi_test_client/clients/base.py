@@ -26,6 +26,7 @@ class OpenAPIClient:
         app_name: str,
         doc: str,
         env: str = DEFAULT_ENV,
+        base_url: str | None = None,
         rest_client: RestClient | AsyncRestClient | None = None,
         async_mode: bool = False,
     ):
@@ -51,17 +52,23 @@ class OpenAPIClient:
                 raise TypeError(f"rest_client must be of type {AsyncRestClient.__name__} when async_mode is True")
             if not async_mode and isinstance(rest_client, AsyncRestClient):
                 raise TypeError(f"rest_client must be of type {RestClient.__name__} when async_mode is False")
+            if base_url:
+                raise ValueError("base_url is not supported when rest_client is provided")
+
             self.rest_client = rest_client
             self._base_url = rest_client.base_url
         else:
-            url_cfg = get_config_dir() / "urls.json"
-            urls = json.loads(url_cfg.read_text())
-            try:
-                self._base_url = urls[self.env][self.app_name]
-            except KeyError:
-                raise NotImplementedError(
-                    f"Please add base URL for app '{self.app_name}' (env={self.env}) in {url_cfg}"
-                )
+            if base_url:
+                self._base_url = base_url
+            else:
+                url_cfg = get_config_dir() / "urls.json"
+                urls = json.loads(url_cfg.read_text())
+                try:
+                    self._base_url = urls[self.env][self.app_name]
+                except KeyError:
+                    raise NotImplementedError(
+                        f"Please specify base_url or add one for app '{self.app_name}' (env={self.env}) in {url_cfg}"
+                    )
 
             if self.async_mode:
                 self.rest_client = AsyncRestClient(self.base_url)
