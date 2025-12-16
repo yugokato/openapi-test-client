@@ -307,6 +307,7 @@ def test_is_deprecated_param(tp: Any, is_deprecated_param: bool) -> None:
         ([str, int, None], str | int | None),
         ([str, int, None, str, int, None], str | int | None),
         ([MyParamModel, MyAnotherParamModel, str | int], MyParamModel | MyAnotherParamModel | str | int),
+        ([], Any),
     ],
 )
 def test_generate_union_type(types: list[Any], expected_type: Any) -> None:

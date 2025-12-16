@@ -422,6 +422,8 @@ def generate_union_type(type_annotations: Sequence[Any]) -> Any:
 
     :param type_annotations: type annotations
     """
+    if not type_annotations:
+        return Any
     return reduce(or_, type_annotations)
 
 

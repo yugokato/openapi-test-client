@@ -145,16 +145,19 @@ class ParamDef(HashableDict):
                         [
                             convert(p)
                             for p in obj["allOf"]
-                            if any(
-                                key in p.keys()
-                                for key in [
-                                    "oneOf",
-                                    "anyOf",
-                                    "allOf",
-                                    "schema",
-                                    "type",
-                                    "properties",
-                                ]
+                            if (
+                                any(
+                                    key in p.keys()
+                                    for key in [
+                                        "oneOf",
+                                        "anyOf",
+                                        "allOf",
+                                        "schema",
+                                        "type",
+                                        "properties",
+                                    ]
+                                )
+                                or p == {}
                             )
                         ]
                     )
@@ -168,7 +171,7 @@ class ParamDef(HashableDict):
                         param_def["items"] = convert(param_def["items"])
                     return param_def
                 elif "properties" in obj:
-                    # The parameter type is missing. Assume is is 'object'
+                    # The parameter type is missing. Assume it is 'object'
                     obj["type"] = "object"
                     return convert(obj)
                 else:
