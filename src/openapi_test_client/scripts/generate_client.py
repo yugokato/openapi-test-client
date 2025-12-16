@@ -265,9 +265,6 @@ def generate_client(args: argparse.Namespace) -> None:
         raise ValueError(f"Invalid OpenAPI spec URL: {args.url} ")
 
     base_url, doc_path = matched.groups()
-    if not doc_path.endswith((".json", ".yaml", ".yml")):
-        raise ValueError(f"Unsupported OpenAPI spec file: '{doc_path}'. The file type must be JSON or YAML")
-
     external_dir = None
     if args.external_dir:
         external_dir = Path(args.external_dir).resolve()

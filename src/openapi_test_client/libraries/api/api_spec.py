@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
 from functools import lru_cache, reduce
 from typing import TYPE_CHECKING, Any
@@ -37,30 +38,48 @@ class OpenAPISpec:
                 url = f"{self.api_client.base_url}/{self.doc_path}"
                 doc_path = self.doc_path
 
-            if not doc_path.endswith((".json", ".yaml", ".yml")):
+            ext = os.path.splitext(doc_path)[1]
+            if ext and ext not in ((".json", ".yaml", ".yml")):
                 raise ValueError(f"OpenAPI spec file must be JSON or YAML. Not '{doc_path}'")
 
             try:
                 r = httpx.get(url)
                 r.raise_for_status()
-                if doc_path.endswith((".yaml", ".yml")):
-                    api_spec = yaml.safe_load(r.content.decode("utf-8"))
-                else:
-                    api_spec = r.json()
-
-                if "openapi" not in api_spec.keys():
-                    raise NotImplementedError(
-                        f"Invalid OpenAPI spec: 'openapi' field doesn't exist in the root object: "
-                        f"{list(api_spec.keys())}"
-                    )
-                elif not (open_api_version := api_spec["openapi"]).startswith("3."):
-                    raise NotImplementedError(f"Unsupported OpenAPI version: {open_api_version}")
             except Exception:
                 logger.exception(f"Unable to get API specs from {url}")
                 raise
+
+            if ext:
+                if ext in (".yaml", ".yml"):
+                    api_spec = yaml.safe_load(r.text)
+                else:
+                    api_spec = r.json()
             else:
-                self._spec = OpenAPISpec.parse(api_spec)
-                return self._spec
+                api_spec = None
+                # Determine YAML or JSON
+                try:
+                    api_spec = r.json()
+                except json.JSONDecodeError:
+                    try:
+                        api_spec = yaml.safe_load(r.text)
+                    except yaml.YAMLError:
+                        pass
+
+                if api_spec is None:
+                    raise RuntimeError(
+                        f"Unable to load OpenAPI spec data fetched from {r.url}. "
+                        f"Please make sure the data is valid JSON or YAML"
+                    )
+
+            if "openapi" not in api_spec.keys():
+                raise NotImplementedError(
+                    f"Invalid OpenAPI spec: 'openapi' field doesn't exist in the root object: {list(api_spec.keys())}"
+                )
+            if not (open_api_version := api_spec["openapi"]).startswith("3."):
+                raise NotImplementedError(f"Unsupported OpenAPI version: {open_api_version}")
+
+            self._spec = OpenAPISpec.parse(api_spec)
+            return self._spec
         else:
             logger.warning("API spec is not available")
 
