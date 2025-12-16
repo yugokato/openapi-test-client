@@ -573,6 +573,52 @@ def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
 
 
 @pytest.mark.parametrize(
+    ("value", "tp", "is_valid"),
+    [
+        # valid
+        (None, Optional[int], True),
+        (1, Any, True),
+        (1, int, True),
+        (1, int | str, True),
+        (1, Optional[int], True),
+        (1, Optional[int | str], True),
+        (1, Optional[Annotated[int, "meta"]], True),
+        (1, Optional[Annotated[int | str, "meta"]], True),
+        (1, Literal[1, 2], True),
+        ([1, 2], Any, True),
+        ([1, 2], list[int], True),
+        ([1, "2"], list[int | str], True),
+        ({"k": "v"}, Any, True),
+        ({}, dict[str, Any], True),
+        ({"k": "v"}, dict[str, str], True),
+        ({"k": "v"}, dict[str | int, str], True),
+        (MyParamModel(), MyParamModel, True),
+        ({"k": "v"}, MyParamModel | dict[str, Any], True),
+        # invalid
+        (None, int, False),
+        (1, str, False),
+        (1, str | bool, False),
+        (1, Optional[str], False),
+        (1, Optional[str | bool], False),
+        (1, Optional[Annotated[str, "meta"]], False),
+        (1, Optional[Annotated[str | bool, "meta"]], False),
+        (1, Literal[2, 3], False),
+        ([1, 2], int, False),
+        ([1, 2], list[str], False),
+        ([1, "2"], list[str], False),
+        ([1, 2], list[str | bool], False),
+        ({"k": 1}, dict[str, str], False),
+        ({1: "v"}, dict[str, str], False),
+        ({1: 2}, dict[str, str], False),
+        ({}, MyParamModel, False),
+    ],
+)
+def test_matches_type(value: Any, tp: Any, is_valid: bool) -> None:
+    """Verify that a value can be validated if it comforts to the type annotation"""
+    assert param_type_util.matches_type(value, tp) is is_valid
+
+
+@pytest.mark.parametrize(
     ("tp1", "tp2", "expected_type"),
     [
         (str, str, str),

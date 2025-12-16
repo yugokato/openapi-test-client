@@ -339,6 +339,8 @@ def matches_type(value: Any, tp: Any) -> bool:
     :param value: Any value
     :param tp: Type annotation to check the value against
     """
+    if tp is Any:
+        return True
     if value is None:
         return type(None) in get_args(tp)
 
@@ -353,13 +355,20 @@ def matches_type(value: Any, tp: Any) -> bool:
             return False
         return True
     elif origin is Literal:
-        args = get_args(tp)
-        return any(isinstance(value, type(x)) for x in args)
+        return value in get_args(tp)
     elif origin is list:
         if not isinstance(value, list):
             return False
         (elem_type,) = get_args(tp)
         return all(matches_type(v, elem_type) for v in value)
+    elif origin is dict:
+        if not isinstance(value, dict):
+            return False
+        k_type, v_type = get_args(tp)
+        return all(matches_type(k, k_type) for k in value.keys()) and all(
+            matches_type(v, v_type) for v in value.values()
+        )
+    # TODO: Add more if needed
 
     return isinstance(value, tp)
 
