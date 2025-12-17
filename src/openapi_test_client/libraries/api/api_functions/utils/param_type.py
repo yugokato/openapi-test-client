@@ -256,6 +256,8 @@ def get_base_type(tp: Any, return_if_container_type: bool = False) -> Any | list
                 return tp
             else:
                 return get_base_type(get_args(tp)[0], return_if_container_type=True)
+    if isinstance(tp, str):
+        return ForwardRef(tp)
     return tp
 
 
