@@ -594,6 +594,9 @@ def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
         ({"k": "v"}, dict[str, str], True),
         ({"k": "v"}, dict[str | int, str], True),
         (MyParamModel(), MyParamModel, True),
+        (MyParamModel(), dict, True),
+        (MyParamModel(param1="foo"), dict[str, str], True),
+        (MyParamModel(), dict | ParamModel, True),
         ({"k": "v"}, MyParamModel | dict[str, Any], True),
         # invalid
         (None, int, False),
@@ -612,6 +615,7 @@ def test_merge_annotation_types(tp1: Any, tp2: Any, expected_type: Any) -> None:
         ({1: "v"}, dict[str, str], False),
         ({1: 2}, dict[str, str], False),
         ({}, MyParamModel, False),
+        (MyParamModel(param1="foo"), dict[str, int], False),
     ],
 )
 def test_matches_type(value: Any, tp: Any, is_valid: bool) -> None:
