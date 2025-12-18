@@ -117,8 +117,8 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
     # Remove some code from the API class
     modified_api_class_code = original_api_class_code
     for code_to_delete in [
-        "from ..models.users import Metadata\n",
-        "metadata: Optional[Metadata] = Unset,\n",
+        "from ..models.users import MetadataInput\n",
+        "metadata: Optional[MetadataInput] = Unset,\n",
         f"{TAB * 2}{create_user_func_docstring}\n",
     ]:
         assert code_to_delete in original_api_class_code
