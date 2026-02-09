@@ -31,7 +31,7 @@ dependencies = [
     "pydantic[email]~=2.12.0",
     "pydantic-extra-types~=2.10.5",
     "PyYAML~=6.0.2",
-    "ruff~=0.14.0"
+    "ruff~=0.15.0"
 ]
 dynamic = ["version"]
 
