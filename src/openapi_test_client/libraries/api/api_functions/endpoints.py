@@ -51,7 +51,7 @@ logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
-class Endpoint:  # noqa: PLW1641
+class Endpoint:
     """An Endpoint class to hold various endpoint data associated to an API class function
 
     This is accessible via an EndpointFunc object (see docstrings of the `endpoint` class below).
@@ -74,6 +74,9 @@ class Endpoint:  # noqa: PLW1641
 
     def __eq__(self, obj: Any) -> bool:
         return isinstance(obj, Endpoint) and str(self) == str(obj)
+
+    def __hash__(self) -> int:
+        return hash(str(self))
 
     def __call__(
         self,
@@ -121,11 +124,11 @@ class Endpoint:  # noqa: PLW1641
 
 
 class endpoint:
-    """A class to convert an API class function to work as an EndpointFunc class object
+    """An endpoint factory that converts a wrapped API class function to a dynamically-created EndpointFunc instance
 
-    An EndpointFunc object can be accessed by the following two ways:
-    - <API Clas>.<API class function>
-    - <API Class instance>.<API class function>
+    An EndpointFunc instance can be accessed by the following two ways:
+    - class-level:    <API Class>.<API class function>
+    - instance-level: <API Class instance>.<API class function>
 
     Example:
         >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
@@ -410,7 +413,7 @@ class EndpointHandler:
     def __get__(self, instance: APIBase | None, owner: type[APIBase]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         key = (self.original_func.__name__, instance, owner)
-        is_async = instance and instance.api_client.async_mode
+        is_async = bool(instance and instance.api_client.async_mode)
         with EndpointHandler._lock:
             if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
                 EndpointFuncClass = EndpointFunc._create(owner, self.original_func, is_async)
@@ -827,7 +830,7 @@ class AsyncEndpointFunc(EndpointFunc):
         except HTTPError as e:
             exception = e
             raise
-        except Exception:
+        except (Exception, KeyboardInterrupt):
             with_hooks = False
             raise
         finally:
