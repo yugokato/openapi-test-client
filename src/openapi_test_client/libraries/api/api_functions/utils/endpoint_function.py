@@ -313,7 +313,7 @@ def _get_specified_content_type_header(raw_options: dict[str, Any], session_head
     request_headers = raw_options.get("headers", {})
     content_type_header = (
         request_headers.get("Content-Type")
-        or request_headers.get("content-typ")
+        or request_headers.get("content-type")
         or session_headers.get("Content-Type")
         or session_headers.get("content-type")
     )
