@@ -8,14 +8,12 @@ from typing import Annotated, Any, cast
 
 import pytest
 from _pytest.fixtures import SubRequest
-from pytest import FixtureRequest
+from common_libs.clients.rest_client import RestClient
 from pytest_mock import MockerFixture
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 from openapi_test_client import ENV_VAR_PACKAGE_DIR
 from openapi_test_client.clients.base import OpenAPIClient
-from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from openapi_test_client.clients.demo_app.api.auth import AuthAPI
 from openapi_test_client.libraries.api.api_client_generator import setup_external_directory
 from openapi_test_client.libraries.api.api_functions.utils.pydantic_model import PARAM_FORMAT_AND_TYPE_MAP
 from openapi_test_client.libraries.api.api_spec import OpenAPISpec
@@ -24,18 +22,9 @@ from tests.unit import helper
 
 
 @pytest.fixture(scope="session")
-def api_client() -> DemoAppAPIClient:
+def api_client() -> OpenAPIClient:
     """API client"""
-    return DemoAppAPIClient()
-
-
-@pytest.fixture(params=["instance", "class"])
-def api_class_or_instance(request: FixtureRequest, api_client: DemoAppAPIClient) -> AuthAPI | type[AuthAPI]:
-    """Parametrize fixture that returns the demo API client's AuthAPI class or an isntance of the class"""
-    if request.param == "instance":
-        return api_client.Auth
-    else:
-        return AuthAPI
+    return OpenAPIClient("test", "/docs", rest_client=RestClient("https://example.com/api"))
 
 
 @pytest.fixture

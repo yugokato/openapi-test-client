@@ -336,6 +336,7 @@ class endpoint:
         >>>    ...
         """
 
+        @wraps(f)
         def wrapper(*args: Any, **kwargs: Any) -> EndpointHandler | Callable[[EndpointHandler], EndpointHandler]:
             if not kwargs and args and len(args) == 1 and isinstance(args[0], EndpointHandler):
                 # This is a regular decorator
@@ -344,6 +345,7 @@ class endpoint:
                 return endpoint_handler
             else:
                 # The decorator takes arguments
+                @wraps(f)
                 def _wrapper(endpoint_handler: EndpointHandler) -> EndpointHandler:
                     endpoint_handler.register_decorator(cast(EndpointDecorator, partial(f, *args, **kwargs)))
                     return endpoint_handler
@@ -351,14 +353,6 @@ class endpoint:
                 return _wrapper
 
         return cast(EndpointDecorator | Callable[..., EndpointDecorator], wrapper)
-
-    @staticmethod
-    def request_wrapper(f: Callable[P, R]) -> Callable[P, R]:
-        @wraps(f)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            return f(*args, **kwargs)
-
-        return wrapper
 
     @staticmethod
     def _create(
