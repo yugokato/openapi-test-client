@@ -189,7 +189,7 @@ def test_generate_api_client_code(temp_api_client: OpenAPIClient, mocker: Mocker
     assert NewAPIClient.__name__ == "TestAppAPIClient"
     assert (Path(inspect.getfile(NewAPIClient)).parent / "__init__.py").exists()
 
-    # Initializa the client and check both API classes are accessible
+    # Initialize the client and check both API classes are accessible
     api_client = NewAPIClient()
     assert api_client.app_name == temp_api_client.app_name
     assert hasattr(api_client, "TestSomething1")
