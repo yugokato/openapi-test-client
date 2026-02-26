@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from openapi_test_client.libraries.api.types import Constraint, Format, Optional, ParamModel, Unset
+from openapi_test_client.libraries.core.types import Constraint, Format, Optional, ParamModel, Unset
 
 
 @dataclass

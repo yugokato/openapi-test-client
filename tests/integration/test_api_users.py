@@ -3,7 +3,7 @@ import pytest
 from demo_app.api.user.user import USERS
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.models.users import Metadata, Preferences, SocialLinks
-from openapi_test_client.libraries.api.types import File
+from openapi_test_client.libraries.core.types import File
 from tests.integration import helper
 
 pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]

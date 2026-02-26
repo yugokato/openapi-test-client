@@ -13,8 +13,8 @@ from pytest import FixtureRequest, TempPathFactory
 from pytest_mock import MockerFixture
 
 from openapi_test_client import ENV_VAR_PACKAGE_DIR, get_config_dir
-from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
+from openapi_test_client.clients.openapi import OpenAPIClient
 from openapi_test_client.libraries.code_gen.client_generator import get_client_dir
 from tests.conftest import temp_dir
 from tests.integration import helper
@@ -87,7 +87,9 @@ def petstore_openapi_spec_url() -> str:
     See https://petstore3.swagger.io/
     """
     url = "https://petstore3.swagger.io/api/v3/openapi.json"
-    httpx.get(url).raise_for_status()
+    r = httpx.get(url)
+    if not r.is_success:
+        pytest.xfail(reason=f"Petstore OpenAPI spec URL is not accessible (status code: {r.status_code})")
     return url
 
 

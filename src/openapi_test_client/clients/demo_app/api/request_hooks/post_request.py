@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from common_libs.clients.rest_client import RestResponse
 
     from openapi_test_client.clients.demo_app import DemoAppAPIClient
-    from openapi_test_client.libraries.api import Endpoint
+    from openapi_test_client.libraries.core import Endpoint
 
 
 def do_something_after_request(

@@ -22,11 +22,11 @@ from common_libs.utils import wait_until
 from pytest import FixtureRequest, TempPathFactory
 
 from openapi_test_client import logger
-from openapi_test_client.clients.base import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
+from openapi_test_client.clients.openapi import OpenAPIClient
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.api import EndpointFunc
+    from openapi_test_client.libraries.core import EndpointFunc
 
 
 class DemoAppPortManager:

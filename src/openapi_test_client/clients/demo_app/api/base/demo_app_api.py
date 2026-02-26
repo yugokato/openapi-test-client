@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING, Any
 from common_libs.clients.rest_client import RestResponse
 from httpx import HTTPError
 
-from openapi_test_client.libraries.api.api_classes.base import APIBase
+from openapi_test_client.libraries.core.api_classes.base import APIBase
 
 from ..request_hooks.post_request import manage_auth_session
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.api import Endpoint
+    from openapi_test_client.libraries.core import Endpoint
 
 
 class DemoAppBaseAPI(APIBase):

@@ -6,17 +6,17 @@ from dataclasses import MISSING, asdict
 from types import NoneType, UnionType
 from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, get_args, get_origin
 
-from openapi_test_client.libraries.api import APIBase
-from openapi_test_client.libraries.api import types as types_module
-from openapi_test_client.libraries.api.api_functions.utils.param_model import get_param_models, merge_models
-from openapi_test_client.libraries.api.api_functions.utils.param_type import (
+from openapi_test_client.libraries.common.constants import BACKSLASH, TAB
+from openapi_test_client.libraries.core import APIBase
+from openapi_test_client.libraries.core import types as types_module
+from openapi_test_client.libraries.core.endpoints.utils.param_model import get_param_models, merge_models
+from openapi_test_client.libraries.core.endpoints.utils.param_type import (
     get_param_model,
     has_param_model,
     is_optional_type,
     is_union_type,
 )
-from openapi_test_client.libraries.api.types import Alias, Constraint, EndpointModel, Format, Kwargs, ParamModel, Unset
-from openapi_test_client.libraries.common.constants import BACKSLASH, TAB
+from openapi_test_client.libraries.core.types import Alias, Constraint, EndpointModel, Format, Kwargs, ParamModel, Unset
 
 
 def generate_func_signature_code(model: type[EndpointModel]) -> str:

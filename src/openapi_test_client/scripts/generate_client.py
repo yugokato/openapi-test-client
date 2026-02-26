@@ -87,12 +87,12 @@ from openapi_test_client import (
     get_package_dir,
     is_external_project,
 )
-from openapi_test_client.clients import OpenAPIClient
+from openapi_test_client.clients.openapi import OpenAPIClient
 from openapi_test_client.libraries.code_gen import client_generator as generator
 from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.api.api_classes.base import APIBase
+    from openapi_test_client.libraries.core.api_classes.base import APIBase
 
 logger = get_logger(__name__)
 

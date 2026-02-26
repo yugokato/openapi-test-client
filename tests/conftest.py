@@ -14,7 +14,7 @@ from pytest import Config, Item, Session, Subtests, TempPathFactory
 from pytest_mock import MockerFixture
 from xdist import is_xdist_worker
 
-from openapi_test_client.libraries.api.types import File
+from openapi_test_client.libraries.core.types import File
 
 
 @pytest.hookimpl(tryfirst=True)

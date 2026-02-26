@@ -6,10 +6,10 @@ from common_libs.utils import list_items
 from pytest_lazy_fixtures import lf as lazy_fixture
 
 from openapi_test_client import logger
-from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.api import API_CLASSES
 from openapi_test_client.clients.demo_app.api.users import UsersAPI
+from openapi_test_client.clients.openapi import OpenAPIClient
 from openapi_test_client.libraries.code_gen.client_generator import (
     API_MODEL_CLASS_DIR_NAME,
     update_endpoint_functions,

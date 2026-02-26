@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from openapi_test_client.clients.demo_app import DemoAppAPIClient
-    from openapi_test_client.libraries.api import Endpoint
+    from openapi_test_client.libraries.core import Endpoint
 
 
 def do_something_before_request(api_client: DemoAppAPIClient, endpoint: Endpoint, **params: Any) -> None:

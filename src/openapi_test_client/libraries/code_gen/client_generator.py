@@ -13,8 +13,8 @@ from common_libs.ansi_colors import ColorCodes, color
 from common_libs.clients.rest_client.ext import RestResponse
 from common_libs.logging import get_logger
 
-import openapi_test_client.libraries.api.api_functions.utils.endpoint_model as endpoint_model_util
-import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
+import openapi_test_client.libraries.core.endpoints.utils.endpoint_model as endpoint_model_util
+import openapi_test_client.libraries.core.endpoints.utils.param_model as param_model_util
 from openapi_test_client import (
     _CONFIG_DIR,
     _PACKAGE_DIR,
@@ -24,10 +24,7 @@ from openapi_test_client import (
     get_package_dir,
     is_external_project,
 )
-from openapi_test_client.clients import OpenAPIClient
-from openapi_test_client.libraries.api import APIBase
-from openapi_test_client.libraries.api.api_classes import get_api_classes, init_api_classes
-from openapi_test_client.libraries.api.types import ParamModel
+from openapi_test_client.clients.openapi import OpenAPIClient
 from openapi_test_client.libraries.code_gen.utils import (
     dedup_models_by_name,
     generate_func_signature_code,
@@ -45,9 +42,12 @@ from openapi_test_client.libraries.common.misc import (
     reload_all_modules,
     reload_obj,
 )
+from openapi_test_client.libraries.core import APIBase
+from openapi_test_client.libraries.core.api_classes import get_api_classes, init_api_classes
+from openapi_test_client.libraries.core.types import ParamModel
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.api import EndpointFunc
+    from openapi_test_client.libraries.core import EndpointFunc
 
 
 logger = get_logger(__name__)
@@ -72,7 +72,7 @@ Do NOT manually update the content.
 @lru_cache
 def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIBase]:
     """Generate new base API class file for the given temporary API client"""
-    from openapi_test_client.libraries.api import Endpoint
+    from openapi_test_client.libraries.core import Endpoint
 
     assert _is_temp_client(temp_api_client)
     app_name = temp_api_client.app_name
@@ -182,7 +182,7 @@ def generate_api_class(
     if api_class_file_path.exists():
         raise RuntimeError(f"{api_class_file_path} exists")
 
-    from openapi_test_client.libraries.api import endpoint
+    from openapi_test_client.libraries.core import endpoint
 
     code = "\n".join([f"from {_get_package(m)} import {m.__name__}" for m in [base_class, endpoint]]) + "\n"
     code += f"from {_get_package(RestResponse)} import APIResponse\n\n"
@@ -255,8 +255,8 @@ def update_endpoint_functions(
         >>> from common_libs.clients.rest_client import RestResponse
         >>>
         >>> from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
-        >>> from openapi_test_client.libraries.api.api_functions import endpoint
-        >>> from openapi_test_client.libraries.api.types import Unset
+        >>> from openapi_test_client.libraries.core.endpoints import endpoint
+        >>> from openapi_test_client.libraries.core.types import Unset
         >>>
         >>>
         >>> class SomeDemoAPI(DemoAppBaseAPI):
@@ -270,7 +270,7 @@ def update_endpoint_functions(
         >>>     ...
         >>>
     '''
-    from openapi_test_client.libraries.api import endpoint
+    from openapi_test_client.libraries.core import endpoint
 
     has_root_security = bool(api_spec.get("security"))
 
