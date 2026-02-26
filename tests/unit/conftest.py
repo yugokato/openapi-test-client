@@ -14,10 +14,10 @@ from pytest_mock import MockerFixture
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
 from openapi_test_client import ENV_VAR_PACKAGE_DIR
 from openapi_test_client.clients.base import OpenAPIClient
-from openapi_test_client.libraries.api.api_client_generator import setup_external_directory
 from openapi_test_client.libraries.api.api_functions.utils.pydantic_model import PARAM_FORMAT_AND_TYPE_MAP
 from openapi_test_client.libraries.api.api_spec import OpenAPISpec
 from openapi_test_client.libraries.api.types import File, Format, Optional, ParamModel, Unset
+from openapi_test_client.libraries.code_gen.client_generator import setup_external_directory
 from tests.unit import helper
 
 

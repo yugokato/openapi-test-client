@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import inspect
-from collections import defaultdict
 from dataclasses import Field, field, make_dataclass
 from functools import lru_cache
-from types import MappingProxyType, NoneType, UnionType
-from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack, cast, get_args, get_origin
+from types import MappingProxyType
+from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack, cast
 
 import inflect
 from common_libs.logging import get_logger
 from common_libs.utils import clean_obj_name
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
-import openapi_test_client.libraries.api.types as types_module
-from openapi_test_client.libraries.api.api_classes.base import APIBase
 from openapi_test_client.libraries.api.types import (
     Alias,
     DataclassModel,
@@ -26,7 +23,6 @@ from openapi_test_client.libraries.api.types import (
     ParamModel,
     Unset,
 )
-from openapi_test_client.libraries.common.constants import TAB
 from openapi_test_client.libraries.common.misc import generate_class_name
 
 logger = get_logger(__name__)
@@ -131,100 +127,6 @@ def create_model_from_param_def(
         return cast(type[ParamModel], make_dataclass(model_name, fields, bases=(ParamModel,)))
 
 
-def generate_imports_code_from_model(
-    api_class: type[APIBase], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
-) -> str:
-    """Generate imports code from the model
-
-    :param api_class: The API class the model is for
-    :param model: A dataclass obj
-    :param exclude_nested_models: Skip imports for nested models (to avoid define imports for models in the same file)
-    """
-    if issubclass(model, EndpointModel):
-        imports_code = f"from typing import Unpack\nfrom {Kwargs.__module__} import {Kwargs.__name__}\n"
-    else:
-        imports_code = ""
-    module_and_name_pairs = set()
-    primitive_types = [int, float, str, bool]
-    from openapi_test_client.libraries.api.api_client_generator import API_MODEL_CLASS_DIR_NAME
-
-    def generate_imports_code(obj_type: Any) -> str:
-        if obj_type not in [*primitive_types, None, NoneType] and not isinstance(obj_type, tuple(primitive_types)):
-            if typing_origin := get_origin(obj_type):
-                if typing_origin is Annotated:
-                    module_and_name_pairs.add(("typing", Annotated.__name__))  # type: ignore[attr-defined]
-                    [generate_imports_code(m) for m in get_args(obj_type)]
-                elif typing_origin is Literal:
-                    module_and_name_pairs.add(("typing", Literal.__name__))  # type: ignore[attr-defined]
-                elif typing_origin in [list, dict, tuple]:
-                    [generate_imports_code(m) for m in [x for x in get_args(obj_type)]]
-                elif typing_origin in [UnionType, Union]:
-                    if param_type_util.is_optional_type(obj_type):
-                        # NOTE: We will use our alias version of typing.Optional for now
-                        # module_and_name_pairs.add(("typing", Optional.__name__))  # type: ignore[attr-defined]
-                        module_and_name_pairs.add((types_module.__name__, Optional.__name__))  # type: ignore[attr-defined]
-                    [generate_imports_code(m) for m in get_args(obj_type)]
-                else:
-                    raise NotImplementedError(f"Unsupported typing origin: {typing_origin}")
-            elif param_type_util.has_param_model(obj_type):
-                if not exclude_nested_models:
-                    _, model_file_name = api_class.__module__.rsplit(".", 1)
-                    param_models = param_type_util.get_param_model(obj_type)
-                    assert param_models
-                    if not isinstance(param_models, list):
-                        param_models = [param_models]
-                    for m in param_models:
-                        model_name = m.__forward_arg__ if isinstance(m, ForwardRef) else m.__name__
-                        module_and_name_pairs.add((f"..{API_MODEL_CLASS_DIR_NAME}.{model_file_name}", model_name))
-            else:
-                if inspect.isclass(obj_type):
-                    name = obj_type.__name__
-                else:
-                    name = type(obj_type).__name__
-                module_and_name_pairs.add((obj_type.__module__, name))
-
-    has_unset_field = False
-    for field_name, field_obj in model.__dataclass_fields__.items():
-        if field_obj.default is Unset:
-            has_unset_field = True
-        field_type = field_obj.type
-        generate_imports_code(field_type)
-
-    if has_unset_field:
-        imports_code = _add_unset_import_code(imports_code)
-
-    for module, name in module_and_name_pairs:
-        imports_code += f"from {module} import {name}\n"
-
-    return imports_code
-
-
-def generate_model_code_from_model(api_class: type[APIBase], model: type[ParamModel]) -> tuple[str, str]:
-    """Generate dataclass code from the model
-
-    :param api_class: The API class the model is for
-    :param model: A dataclass obj
-    """
-    model_code = f"@dataclass\nclass {model.__name__}(ParamModel):\n"
-    imports_code = (
-        f"from __future__ import annotations\n\n"  # workaround for NameError when 2 models depend on each other
-        f"{generate_imports_code_from_model(api_class, model, exclude_nested_models=True)}"
-    )
-    if dataclass_field_items := model.__dataclass_fields__.items():
-        imports_code = _add_unset_import_code(imports_code)
-        for field_name, field_obj in dataclass_field_items:
-            model_code += f"{TAB}{field_name}: {param_type_util.get_type_annotation_as_str(field_obj.type)} = Unset\n"
-    else:
-        model_code += (
-            f"{TAB}# No parameters are documented for this model\n"
-            f"{TAB}# The model can take any parameters you want\n"
-            f"{TAB}..."
-        )
-    model_code += "\n"
-
-    return imports_code, model_code
-
-
 def get_param_models(model: type[EndpointModel | ParamModel], recursive: bool = True) -> list[type[ParamModel]]:
     """Get param models defined as the given model's fields
 
@@ -254,51 +156,6 @@ def get_param_models(model: type[EndpointModel | ParamModel], recursive: bool = 
     collected_param_models: list[type[ParamModel]] = []
     collect_param_models(model)
     return collected_param_models
-
-
-def dedup_models_by_name(models: list[type[ParamModel]]) -> list[type[ParamModel]]:
-    """Dedup models by model name
-
-    :param models: Param models
-    """
-    models_per_name = defaultdict(list)
-    for model in models:
-        models_per_name[model.__name__].append(model)
-
-    deduped_models = []
-    for models_with_same_name in models_per_name.values():
-        deduped_models.append(merge_models(*models_with_same_name))
-
-    return deduped_models
-
-
-def sort_models_by_dependency(models: list[type[ParamModel]]) -> list[type[ParamModel]]:
-    """Sort param models by dependencies so that Unresolved reference error will not occur when dumping them as
-    dataclass mode code.
-
-    :param models: Param models. Each model name MUST be unique. Apply dedup in advance if there are multiple models
-                   that have the same name with different fields
-    """
-    if len([m.__name__ for m in models]) != len(models):
-        # Explicitly reject this case to be safe. Dedup should be explicitly done by users
-        raise RuntimeError("One or more models unexpectedly have the same model name. Apply dedup if needed")
-
-    nested_model_names = {m.__name__: [x.__name__ for x in get_param_models(m)] for m in models}
-    visited_model_names = set()
-    sorted_models_names = []
-
-    def visit(model_name: str) -> None:
-        if model_name not in visited_model_names:
-            visited_model_names.add(model_name)
-            for nested_model_name in nested_model_names.get(model_name, []):
-                visit(nested_model_name)
-            if model_name not in sorted_models_names:
-                sorted_models_names.append(model_name)
-
-    for model in models:
-        visit(model.__name__)
-    assert len(models) == len(sorted_models_names)
-    return sorted(models, key=lambda x: sorted_models_names.index(x.__name__))
 
 
 @lru_cache
@@ -427,8 +284,3 @@ def merge_models(*models: type[ParamModel]) -> type[ParamModel]:
         for field_name, field_obj in merged_dataclass_fields.items()
     ]
     return cast(type[ParamModel], make_dataclass(models[0].__name__, new_fields, bases=(ParamModel,)))
-
-
-def _add_unset_import_code(imports_code: str) -> str:
-    imports_code += f"from {types_module.__name__} import Unset\n"
-    return imports_code

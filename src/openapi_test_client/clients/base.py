@@ -105,7 +105,7 @@ class OpenAPIClient:
         :param app_name: App name
         :param init_options: Options passed to the client initialization
         """
-        from openapi_test_client.libraries.api.api_client_generator import get_client_dir
+        from openapi_test_client.libraries.code_gen.client_generator import get_client_dir
 
         client_file = get_client_dir(app_name) / f"{app_name}_client.py"
         if not client_file.exists():

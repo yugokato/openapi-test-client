@@ -88,7 +88,7 @@ from openapi_test_client import (
     is_external_project,
 )
 from openapi_test_client.clients import OpenAPIClient
-from openapi_test_client.libraries.api import api_client_generator as generator
+from openapi_test_client.libraries.code_gen import client_generator as generator
 from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
 
 if TYPE_CHECKING:

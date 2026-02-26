@@ -28,6 +28,13 @@ from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.libraries.api import APIBase
 from openapi_test_client.libraries.api.api_classes import get_api_classes, init_api_classes
 from openapi_test_client.libraries.api.types import ParamModel
+from openapi_test_client.libraries.code_gen.utils import (
+    dedup_models_by_name,
+    generate_func_signature_code,
+    generate_imports_code_from_model,
+    generate_model_code_from_model,
+    sort_models_by_dependency,
+)
 from openapi_test_client.libraries.common.code import diff_code, format_code
 from openapi_test_client.libraries.common.constants import BACKSLASH, TAB, VALID_METHODS
 from openapi_test_client.libraries.common.misc import (
@@ -41,7 +48,6 @@ from openapi_test_client.libraries.common.misc import (
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
-    from openapi_test_client.libraries.api.api_classes.base import APIBase
 
 
 logger = get_logger(__name__)
@@ -374,7 +380,7 @@ def update_endpoint_functions(
             # Collect all param models for this endpoint
             param_models.extend(param_model_util.get_param_models(endpoint_model))
             # Fill missing imports (typing and custom param model classes). Duplicates will be removed at the end
-            if missing_imports_code := param_model_util.generate_imports_code_from_model(api_class, endpoint_model):
+            if missing_imports_code := generate_imports_code_from_model(api_class, endpoint_model):
                 new_code = missing_imports_code + new_code
 
             updated_api_func_code = matched_api_function_def
@@ -392,9 +398,7 @@ def update_endpoint_functions(
                     updated_api_func_code = updated_api_func_code.replace(func_body, f"{TAB * 2}...\n")
 
             # Update API function signatures
-            new_func_signature = endpoint_model_util.generate_func_signature_in_str(endpoint_model).replace(
-                BACKSLASH, BACKSLASH * 2
-            )
+            new_func_signature = generate_func_signature_code(endpoint_model).replace(BACKSLASH, BACKSLASH * 2)
             updated_api_func_code = re.sub(re.escape(signature), new_func_signature, updated_api_func_code)
 
             # Update func body if missing
@@ -547,10 +551,8 @@ def update_endpoint_functions(
             modified_model_code = (
                 f"from dataclasses import dataclass\n\nfrom {ParamModel.__module__} import {ParamModel.__name__}\n\n"
             )
-            for model in param_model_util.sort_models_by_dependency(
-                param_model_util.dedup_models_by_name(param_models)
-            ):
-                imports_code, model_code = param_model_util.generate_model_code_from_model(api_class, model)
+            for model in sort_models_by_dependency(dedup_models_by_name(param_models)):
+                imports_code, model_code = generate_model_code_from_model(api_class, model)
                 # Stack all imports to the top, then append model code at the end
                 modified_model_code = imports_code + modified_model_code + model_code
             modified_model_code = format_code(DO_NOT_DELETE_COMMENT + modified_model_code)

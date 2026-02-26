@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import inspect
+import re
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from types import NoneType
+from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
 
 import pytest
 from pytest_mock import MockerFixture
@@ -10,13 +13,22 @@ from pytest_mock import MockerFixture
 from openapi_test_client.clients.base import OpenAPIClient
 from openapi_test_client.libraries.api import Endpoint, EndpointFunc
 from openapi_test_client.libraries.api.api_classes.base import APIBase
-from openapi_test_client.libraries.api.api_client_generator import (
+from openapi_test_client.libraries.api.types import (
+    Alias,
+    Constraint,
+    Format,
+    Optional,
+    ParamModel,
+    UncacheableLiteralArg,
+    Unset,
+)
+from openapi_test_client.libraries.code_gen import utils
+from openapi_test_client.libraries.code_gen.client_generator import (
     generate_api_class,
     generate_api_client,
     generate_base_api_class,
     update_endpoint_functions,
 )
-from openapi_test_client.libraries.api.types import ParamModel
 from openapi_test_client.libraries.common.misc import reload_obj
 from tests.unit import helper
 
@@ -221,6 +233,77 @@ class TestGenerateApiClient:
         )
         api_client.TestSomething1._unnamed_endpoint_1()
         mock.assert_called_once()
+
+
+class TestCodeGenUtils:
+    """Tests for code_gen utils"""
+
+    class MyClass: ...
+
+    @dataclass
+    class MyParamModel(ParamModel):
+        param1: str = Unset
+        param2: str = Unset
+
+    @pytest.mark.parametrize("as_list", [False, True])
+    @pytest.mark.parametrize("is_optional", [False, True])
+    @pytest.mark.parametrize(
+        ("tp", "expected_tp_code"),
+        [
+            (None, "None"),
+            (NoneType, "None"),
+            (Any, "Any"),
+            (str, "str"),
+            (int, "int"),
+            (bool, "bool"),
+            (list, "list"),
+            (dict, "dict"),
+            (dict[str, Any], "dict[str, Any]"),
+            (Literal[None], "Literal[None]"),
+            (Literal[UncacheableLiteralArg(None)], "Literal[None]"),
+            (Literal["1", "2"], "Literal['1', '2']"),
+            (Literal[UncacheableLiteralArg("1"), UncacheableLiteralArg("2")], "Literal['1', '2']"),
+            (MyClass, MyClass.__name__),
+            (MyParamModel, MyParamModel.__name__),
+            (ForwardRef(MyParamModel.__name__), MyParamModel.__name__),
+            # Union/Optional
+            (str | int, "str | int"),
+            (dict[str, Any] | MyParamModel, f"dict[str, Any] | {MyParamModel.__name__}"),
+            (int | None, "Optional[int]"),
+            (int | None | MyParamModel, f"Optional[int | {MyParamModel.__name__}]"),
+            # Annotated
+            (Annotated[str, "meta"], "Annotated[str, 'meta']"),
+            (
+                Annotated[str, "meta1", "meta2", Format(value="uuid"), Alias("foo"), Constraint(min=1)],
+                "Annotated[str, 'meta1', 'meta2', Format('uuid'), Alias('foo'), Constraint(min=1)]",
+            ),
+            (
+                Annotated[str, "meta", Constraint(pattern=r"^[A-Z]+$")],
+                "Annotated[str, 'meta', Constraint(pattern=r'^[A-Z]+$')]",
+            ),
+            (Annotated[str | int, "meta"], "Annotated[str | int, 'meta']"),
+        ],
+    )
+    def test_generate_type_annotation_code(
+        self, tp: Any, expected_tp_code: str, is_optional: bool, as_list: bool
+    ) -> None:
+        """Test that a string version of type annotation can be generated from various annotated types"""
+        if (tp in [NoneType, None] or isinstance(tp, str)) and (is_optional or as_list):
+            pytest.skip("Not applicable")
+
+        if as_list:
+            if get_origin(tp) is Annotated:
+                inner_type = get_args(tp)[0]
+                tp = Annotated[list[inner_type], *tp.__metadata__]  # type: ignore[valid-type]
+                expected_tp_code = re.sub(r"Annotated\[([^,]+)", r"Annotated[list[\1]", expected_tp_code)
+            else:
+                tp = list[tp]
+                expected_tp_code = f"list[{expected_tp_code}]"
+        if is_optional and not expected_tp_code.startswith("Optional["):
+            tp = Optional[tp]
+            expected_tp_code = f"Optional[{expected_tp_code}]"
+
+        assert utils.generate_type_annotation_code(tp) == expected_tp_code
 
 
 def do_generate_api_class(

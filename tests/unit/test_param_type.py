@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import sys
 from dataclasses import dataclass, make_dataclass
 from functools import reduce
@@ -11,15 +10,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, cast, get
 import pytest
 
 import openapi_test_client.libraries.api.api_functions.utils.param_type as param_type_util
-from openapi_test_client.libraries.api.types import (
-    Alias,
-    Constraint,
-    Format,
-    Optional,
-    ParamModel,
-    UncacheableLiteralArg,
-    Unset,
-)
+from openapi_test_client.libraries.api.types import Alias, Constraint, Format, Optional, ParamModel, Unset
 
 if TYPE_CHECKING:
     from typing import _AnnotatedAlias  # type: ignore[attr-defined]
@@ -45,68 +36,6 @@ MyParamModel3 = cast(
 MyAnotherParamModel = cast(
     type[ParamModel], make_dataclass("MyAnotherParamModel", [("foobar", int, Unset)], bases=(ParamModel,))
 )
-
-
-class TestGetTypeAnnotationAsStr:
-    """Tests for param_type_util.get_type_annotation_as_str()"""
-
-    @pytest.mark.parametrize("as_list", [False, True])
-    @pytest.mark.parametrize("is_optional", [False, True])
-    @pytest.mark.parametrize(
-        ("tp", "expected_tp_str"),
-        [
-            (None, "None"),
-            (NoneType, "None"),
-            (Any, "Any"),
-            (str, "str"),
-            (int, "int"),
-            (bool, "bool"),
-            (list, "list"),
-            (dict, "dict"),
-            (dict[str, Any], "dict[str, Any]"),
-            (Literal[None], "Literal[None]"),
-            (Literal[UncacheableLiteralArg(None)], "Literal[None]"),
-            (Literal["1", "2"], "Literal['1', '2']"),
-            (Literal[UncacheableLiteralArg("1"), UncacheableLiteralArg("2")], "Literal['1', '2']"),
-            (MyClass, MyClass.__name__),
-            (MyParamModel, MyParamModel.__name__),
-            (ForwardRef(MyParamModel.__name__), MyParamModel.__name__),
-            # Union/Optional
-            (str | int, "str | int"),
-            (dict[str, Any] | MyParamModel, f"dict[str, Any] | {MyParamModel.__name__}"),
-            (int | None, "Optional[int]"),
-            (int | None | MyParamModel, f"Optional[int | {MyParamModel.__name__}]"),
-            # Annotated
-            (Annotated[str, "meta"], "Annotated[str, 'meta']"),
-            (
-                Annotated[str, "meta1", "meta2", Format(value="uuid"), Alias("foo"), Constraint(min=1)],
-                "Annotated[str, 'meta1', 'meta2', Format('uuid'), Alias('foo'), Constraint(min=1)]",
-            ),
-            (
-                Annotated[str, "meta", Constraint(pattern=r"^[A-Z]+$")],
-                "Annotated[str, 'meta', Constraint(pattern=r'^[A-Z]+$')]",
-            ),
-            (Annotated[str | int, "meta"], "Annotated[str | int, 'meta']"),
-        ],
-    )
-    def test_get_type_annotation_as_str(self, tp: Any, expected_tp_str: str, is_optional: bool, as_list: bool) -> None:
-        """Test that a string version of type annotation can be generated from various annotated types"""
-        if (tp in [NoneType, None] or isinstance(tp, str)) and (is_optional or as_list):
-            pytest.skip("Not applicable")
-
-        if as_list:
-            if get_origin(tp) is Annotated:
-                inner_type = get_args(tp)[0]
-                tp = Annotated[list[inner_type], *tp.__metadata__]  # type: ignore[valid-type]
-                expected_tp_str = re.sub(r"Annotated\[([^,]+)", r"Annotated[list[\1]", expected_tp_str)
-            else:
-                tp = list[tp]
-                expected_tp_str = f"list[{expected_tp_str}]"
-        if is_optional and not expected_tp_str.startswith("Optional["):
-            tp = Optional[tp]
-            expected_tp_str = f"Optional[{expected_tp_str}]"
-
-        assert param_type_util.get_type_annotation_as_str(tp) == expected_tp_str
 
 
 class TestGetBaseType:

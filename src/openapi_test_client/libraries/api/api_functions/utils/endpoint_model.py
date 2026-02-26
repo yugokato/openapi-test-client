@@ -5,14 +5,14 @@ import json
 import re
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import MISSING, field, make_dataclass
+from dataclasses import field, make_dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from common_libs.logging import get_logger
 
 from openapi_test_client.libraries.api.api_functions.utils import param_model as param_model_util
 from openapi_test_client.libraries.api.api_functions.utils import param_type as param_type_util
-from openapi_test_client.libraries.api.types import DataclassModelField, EndpointModel, File, Kwargs, ParamDef, Unset
+from openapi_test_client.libraries.api.types import DataclassModelField, EndpointModel, File, ParamDef, Unset
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.api import EndpointFunc
@@ -92,42 +92,6 @@ def create_endpoint_model(endpoint_func: EndpointFunc, api_spec: dict[str, Any] 
             frozen=True,
         ),
     )
-
-
-def generate_func_signature_in_str(model: type[EndpointModel]) -> str:
-    """Convert model to type annotated function signature in string
-
-    :param model: Endpoint model
-    """
-    model_dataclass_fields = model.__dataclass_fields__
-    signatures = ["self"]
-    has_path_var = False
-    has_params = False
-    positional_only_added = False
-    for field_name, field_obj in model_dataclass_fields.items():
-        is_path_var = field_obj.default is MISSING
-        type_annotation = param_type_util.get_type_annotation_as_str(field_obj.type)
-        if is_path_var:
-            has_path_var = True
-            sig = f"{field_name}: {type_annotation}"
-        else:
-            if has_path_var and not positional_only_added:
-                signatures.append("/")
-            positional_only_added = True
-            if not has_params:
-                signatures.append("*")
-            has_params = True
-            sig = f"{field_name}: {type_annotation} = Unset"
-        signatures.append(sig)
-    if has_path_var and not positional_only_added:
-        signatures.append("/")
-
-    kwargs_arg = "**kwargs"
-    kwargs_type = f"Unpack[{Kwargs.__name__}]"
-    if any("kwargs:" in s for s in signatures):
-        kwargs_arg = kwargs_arg + "_"
-    signatures.append(f"{kwargs_arg}: {kwargs_type}")
-    return ", ".join(signatures)
 
 
 def _parse_parameter_objects(

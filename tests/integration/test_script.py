@@ -10,11 +10,11 @@ from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.api import API_CLASSES
 from openapi_test_client.clients.demo_app.api.users import UsersAPI
-from openapi_test_client.libraries.api.api_client_generator import (
+from openapi_test_client.libraries.code_gen.client_generator import (
     API_MODEL_CLASS_DIR_NAME,
-    TAB,
     update_endpoint_functions,
 )
+from openapi_test_client.libraries.common.constants import TAB
 from tests.integration import helper
 from tests.integration.conftest import demo_app_openapi_spec_url, petstore_openapi_spec_url
 

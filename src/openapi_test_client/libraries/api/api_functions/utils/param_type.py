@@ -12,8 +12,6 @@ from common_libs.logging import get_logger
 
 import openapi_test_client.libraries.api.api_functions.utils.param_model as param_model_util
 from openapi_test_client.libraries.api.types import (
-    Alias,
-    Constraint,
     Format,
     ParamAnnotationType,
     ParamDef,
@@ -21,7 +19,6 @@ from openapi_test_client.libraries.api.types import (
     UncacheableLiteralArg,
 )
 from openapi_test_client.libraries.api.types import Optional as Optional_
-from openapi_test_client.libraries.common.constants import BACKSLASH
 from openapi_test_client.libraries.common.misc import dedup
 
 if TYPE_CHECKING:
@@ -37,57 +34,6 @@ NUMBER_PARAM_TYPES = ["number", "integer", "int", "int64", "int32"]
 BOOL_PARAM_TYPES = ["boolean", "bool"]
 LIST_PARAM_TYPES = ["array"]
 NULL_PARAM_TYPES = ["null", None]
-
-
-def get_type_annotation_as_str(tp: Any) -> str:
-    """Get type annotation for the given type as string
-
-    :param tp: Type annotation
-    """
-    if isinstance(tp, str):
-        return repr(tp)
-    elif tp is Ellipsis:
-        return "..."
-    elif isinstance(tp, ForwardRef):
-        return tp.__forward_arg__
-    elif get_origin(tp) is Annotated:
-        orig_type = get_type_annotation_as_str(tp.__origin__)
-        metadata_types = ", ".join(get_type_annotation_as_str(m) for m in tp.__metadata__)
-        return f"{Annotated.__name__}[{orig_type}, {metadata_types}]"  # type: ignore[attr-defined]
-    elif is_union_type(tp):
-        args = get_args(tp)
-        if NoneType in args:
-            inner_types = [x for x in args if x is not NoneType]
-            if len(inner_types) == 1:
-                return f"{Optional.__name__}[{get_type_annotation_as_str(inner_types[0])}]"  # type: ignore[attr-defined]
-            else:
-                inner_types_union = " | ".join(get_type_annotation_as_str(x) for x in inner_types)
-                # Note: This is actually Union[tp1, ..., None] in Python, but we annotate this as
-                # Optional[tp1 | ...] in code
-                return f"{Optional.__name__}[{inner_types_union}]"  # type: ignore[attr-defined]
-        else:
-            return " | ".join(get_type_annotation_as_str(x) for x in args)
-    elif get_origin(tp) in [list, dict, tuple]:
-        args_str: str = ", ".join(get_type_annotation_as_str(t) for t in get_args(tp))
-        return f"{tp.__origin__.__name__}[{args_str}]"
-    elif get_origin(tp) is Literal:
-        return repr(tp).replace("typing.", "")
-    elif isinstance(tp, Alias | Format):
-        return f"{type(tp).__name__}({tp.value!r})"
-    elif isinstance(tp, Constraint):
-        const = ", ".join(
-            f"{k}={('r' + repr(v).replace(BACKSLASH * 2, BACKSLASH) if k == 'pattern' else repr(v))}"
-            for k, v in asdict(tp).items()
-            if v is not None
-        )
-        return f"{type(tp).__name__}({const})"
-    elif tp in [NoneType, None]:
-        return "None"
-    else:
-        if inspect.isclass(tp):
-            return tp.__name__
-        else:
-            return type(tp).__name__
 
 
 def resolve_type_annotation(

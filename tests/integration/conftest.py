@@ -15,7 +15,7 @@ from pytest_mock import MockerFixture
 from openapi_test_client import ENV_VAR_PACKAGE_DIR, get_config_dir
 from openapi_test_client.clients import OpenAPIClient
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from openapi_test_client.libraries.api.api_client_generator import get_client_dir
+from openapi_test_client.libraries.code_gen.client_generator import get_client_dir
 from tests.conftest import temp_dir
 from tests.integration import helper
 from tests.integration.helper import DemoAppLifecycleManager
