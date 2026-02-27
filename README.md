@@ -465,7 +465,7 @@ For example, if the OpenAPI spec defines Auth APIs like this:
       }
     },
     "/v1/auth/logout": {
-      "get": {
+      "post": {
         "parameters": [],
         "responses": {},
         "description": "",
@@ -473,8 +473,8 @@ For example, if the OpenAPI spec defines Auth APIs like this:
         "tags": [
           "Auth"
         ],
-        "security":[],
-        "operationId": "get_logout"
+        "security": [],
+        "operationId": "post_logout"
       }
     },
 ```
@@ -503,7 +503,7 @@ class AuthAPI(DemoAppBaseAPI):
         ...
 
     @endpoint.is_public
-    @endpoint.get("/v1/auth/logout")
+    @endpoint.post("/v1/auth/logout")
     def logout(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
         """Logout"""
         ...
@@ -541,7 +541,7 @@ Some attributes available from the API class:
           is_deprecated=False),
  Endpoint(tags=('Auth',),
           api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
-          method='get',
+          method='post',
           path='/v1/auth/logout',
           func_name='logout',
           model=<class 'openapi_test_client.libraries.core.endpoints.utils.endpoint_model.AuthAPILoginEndpointModel'>,
@@ -562,7 +562,7 @@ A list of defined API classes are available as `API_CLASSES`.
 ...     print(endpoint)
 ... 
 POST /v1/auth/login
-GET /v1/auth/logout
+POST /v1/auth/logout
 POST /v1/users
 GET /v1/users/{user_id}
 GET /v1/users

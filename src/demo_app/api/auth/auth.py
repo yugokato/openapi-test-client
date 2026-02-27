@@ -24,7 +24,7 @@ async def login(data: LoginData) -> tuple[Response, int]:
     return jsonify({"token": token}), 201
 
 
-@bp_auth.get("/logout")
+@bp_auth.post("/logout")
 @tag_auth
 @security_scheme([])
 async def logout() -> tuple[Response, int]:
