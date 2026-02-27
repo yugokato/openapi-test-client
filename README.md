@@ -1,7 +1,9 @@
 OpenAPI Test Client
 ======================
+
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![test](https://github.com/yugokato/openapi-test-client/actions/workflows/test.yml/badge.svg)](https://github.com/yugokato/openapi-test-client/actions/workflows/test.yml)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Code style ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://docs.astral.sh/ruff/)
 
 # Overview
 
@@ -36,7 +38,7 @@ work on, and the test client will provide everything needed for testing APIs.
 
 # Async Support
 The same client code can support both `sync` (the default) and `async` modes. You can switch to the async mode by 
-giving `async_mode=True` when instantiating an API client, then specify `await` to each API function call. 
+giving `async_mode=True` when instantiating an API client, then specify `await` to each API function call.
 
 
 # Try it out
@@ -53,7 +55,7 @@ giving `async_mode=True` when instantiating an API client, then specify `await` 
 pip install git+https://github.com/yugokato/openapi-test-client.git
 ```
 
-Or, if you want to try the demo client with the Quart-based [demo backend app](src/demo_app):  
+Or, if you want to try the demo client with the Quart-based [demo backend app](src/demo_app) (A local API server):  
 ```
 pip install "openapi-test-client[app] @ git+https://github.com/yugokato/openapi-test-client.git"
 ```
@@ -180,7 +182,7 @@ Once you have generated an API client, the client class will be importable as
 ```
 </details>
 
-Make sure to replace the "openapi_test_clients" part with your own module name when importing your own clients.
+Make sure to replace the "openapi_test_client" part with your own module name when importing your own clients.
 
 Alternatively, you can instantiate your client directly from the parent `OpenAPIClient` class.
 
@@ -201,12 +203,24 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 ```
 </details>
 
+> [!TIP]
+> The recommended way to use a client is as a context manager. This will ensure that connections are properly cleaned up when leaving the with block:
+> ```python
+> # sync
+> with DemoAppAPIClient() as client:
+>     ...
+> 
+> # async
+> async with DemoAppAPIClient(async_mode=True) as client:
+>     ...
+> ```
+
 ### Make an API request
 
 To make an API request with your API client, call an API function as  `client.<ApiTag>.<api_function_name>()`. 
 The function will take all parameters documented in the OpenAPI specs as keyword arguments. 
 
-eg. To call the login API defined under the Auth tag:
+eg. To call the login API (`/v1/auth/login`) defined under the `Auth` tag:
 
 <details open>
 <summary>Sync Client</summary>
@@ -268,7 +282,7 @@ RestResponse(_response=<Response [201 ],
              ok=True,
              is_stream=False)
 ```
-Note that we extend the `httpx` library's `Request` and `Client` classes to add a few small capabilities. 
+Note that we extend the `httpx` library's `Request` and `Client`/`AsyncClient` classes to add a few small capabilities. 
 As an example, you can get the request start/end time (UTC) through `request` as a `datatime` object.
  
 ```pycon
@@ -349,6 +363,17 @@ Hooks work similarly to decorators but are more useful for applying general cont
 
 For examples and usage, see [demo_app client hooks](src/openapi_test_client/clients/demo_app/api/request_hooks)
 
+> [!TIP]
+> If both decorator(s) and request hooks are configured, the request will be processed in the following order:  
+> 1. Decorators (before-call)
+> 2. Request wrapper hook (before-call)
+> 3. Pre-request hook
+> 4. Request (call)
+> 5. Post-request hook
+> 6. Request wrapper hook (after-call)
+> 7. Decorators (after-call)
+
+
 
 # Deep Dive 
 
@@ -381,8 +406,8 @@ from .api.users import UsersAPI
 class DemoAppAPIClient(OpenAPIClient):
     """API client for demo_app"""
 
-    def __init__(self, env: str = "dev", async_mode: bool = False) -> None:
-        super().__init__("demo_app", env=env, doc="openapi.json", async_mode=async_mode)
+    def __init__(self, env: str = "dev", base_url: str | None = None, async_mode: bool = False) -> None:
+        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode)
 
     @cached_property
     def Auth(self) -> AuthAPI:
@@ -534,7 +559,7 @@ A list of defined API classes are available as `API_CLASSES`.
 # list all endpoints
 >>> all_endpoints = chain(*[x.endpoints for x in API_CLASSES])
 >>> for endpoint in all_endpoints:
-...     print(endpint)
+...     print(endpoint)
 ... 
 POST /v1/auth/login
 GET /v1/auth/logout
@@ -551,11 +576,11 @@ DELETE /v1/users/{user_id}
 Each API class function is decorated with a `@endpoint.<method>(<path>)` endpoint decorator. This decorator converts the original function into an instance of the `EndpointHandler` class at runtime. The `EndpointHandler` object acts as a proxy to a per-endpoint `EndpointFunc` object, which is also created at runtime and is responsible for handling the actual API calls via its base class's `__call__()` method. Additionally, the `EndpointFunc` object provides various capabilities and attributes related to the endpoint.
 
 eg. The Login API is accessible via `client.Auth.login()` API function, which is actually an instance of 
-`AuthAPILoginEndpointFunc` class returned by its associated `EndpointHandler` obj.
+`AuthAPILoginEndpointFunc` class returned by its associated `EndpointHandler` obj's `__get__()` descriptor.
 
 ```pycon
 >>> client.Auth.login
-<openapi_test_client.libraries.core.endpoints.endpoints.AuthAPILoginEndpointFunc object at 0x1074abf10>
+<openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc object at 0x1074abf10>
 (mapped to: <function AuthAPI.login at 0x10751c360>)
 ```
 
@@ -563,7 +588,7 @@ The endpoint function is also accessible directly from the API class:
 ```pycon
 >>> from openapi_test_client.clients.demo_app.api.auth import AuthAPI
 >>> AuthAPI.login
-<openapi_test_client.libraries.core.endpoints.endpoints.AuthAPILoginEndpointFunc object at 0x107650b50>
+<openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc object at 0x107650b50>
 (mapped to: <function AuthAPI.login at 0x10751c360>)
 ```
 
@@ -642,7 +667,9 @@ An example of the additional capability the `EndpointFunc` obj provides - Automa
 }
 - response_time: 0.005143s
 >>> 
->>> r.request.retried.request_id
+>>> r.request.request_id
+'1a34195e-5cec-4d4e-abe0-61acbfcdae1a'
+>>> r.request.retried.request_id    # The original request
 '1b028ff7-0880-430c-b5a3-12aa057892cf'
 ```
 
@@ -962,21 +989,21 @@ ValueError: Request parameter validation failed.
 6 validation errors for UsersAPICreateUserEndpointModelPydantic
 first_name
   Input should be a valid string [type=string_type, input_value=123, input_type=int]
-    For further information visit https://errors.pydantic.dev/2.9/v/string_type
+    For further information visit https://errors.pydantic.dev/2.12/v/string_type
 last_name
   Field required [type=missing, input_value={'first_name': 123, 'emai... 'test'}}, 'extra': 123}, input_type=dict]
-    For further information visit https://errors.pydantic.dev/2.9/v/missing
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
 email
   value is not a valid email address: An email address must have an @-sign. [type=value_error, input_value='foo', input_type=str]
 role
   Input should be 'admin', 'viewer' or 'support' [type=literal_error, input_value='something', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.9/v/literal_error
+    For further information visit https://errors.pydantic.dev/2.12/v/literal_error
 metadata.social_links.facebook
   Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='test', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.9/v/url_parsing
+    For further information visit https://errors.pydantic.dev/2.12/v/url_parsing
 extra
   Extra inputs are not permitted [type=extra_forbidden, input_value=123, input_type=int]
-    For further information visit https://errors.pydantic.dev/2.9/v/extra_forbidden
+    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden
 ```
 
 > [!TIP]
