@@ -2,7 +2,7 @@ import pytest
 
 from demo_app.api.user.user import USERS
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from openapi_test_client.clients.demo_app.models.users import Metadata, Preferences, SocialLinks
+from openapi_test_client.clients.demo_app.models.users import MetadataInput, Preferences, SocialLinks
 from openapi_test_client.libraries.core.types import File
 from tests.integration import helper
 
@@ -17,7 +17,7 @@ def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool) -> Non
         last_name="test",
         email="test@demo.app.net",
         role="admin",
-        metadata=Metadata(
+        metadata=MetadataInput(
             preferences=Preferences(theme="dark", font_size=10),
             social_links=SocialLinks(github="https://github.com/foo/bar"),
         ),
@@ -92,7 +92,7 @@ def test_create_user_with_invalid_params(api_client: DemoAppAPIClient, validatio
             first_name=123,
             email="test",
             role="test",
-            metadata=Metadata(
+            metadata=MetadataInput(
                 preferences=Preferences(theme="test", font_size=3),
                 social_links=SocialLinks(github="test"),
             ),

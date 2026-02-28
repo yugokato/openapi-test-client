@@ -1,11 +1,11 @@
-from quart import Blueprint, Response, abort, jsonify
-from quart_auth import login_required
-from quart_schema import DataSource, tag, validate_querystring, validate_request
+from typing import Annotated
 
-from .models import User, UserImage, UserQuery, UserRequest, UserRole
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
+from fastapi.security import HTTPBearer
 
-bp_user = Blueprint("User", __name__, url_prefix="/users")
-tag_users = tag(["Users"])
+from .models import User, UserQuery, UserRequest, UserRole
+
+router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(HTTPBearer())])
 
 USER_ROLES = list(UserRole._member_map_.values())
 USERS = [
@@ -21,61 +21,45 @@ USERS = [
 _next_user_id = len(USERS) + 1
 
 
-@bp_user.post("")
-@tag_users
-@login_required
-@validate_request(UserRequest)
-async def create_user(data: UserRequest) -> tuple[Response, int]:
+@router.post("", status_code=201)
+async def create_user(data: UserRequest) -> User:
     """Create a new user"""
     global _next_user_id  # noqa: PLW0603
     user = User(id=_next_user_id, **data.model_dump(mode="json"))
     _next_user_id += 1
     # This is just a demo app. There's no fancy lock here
     USERS.append(user)
-    return jsonify(user), 201
+    return user
 
 
-@bp_user.get("/<int:user_id>")
-@tag_users
-@login_required
-async def get_user(user_id: int) -> tuple[Response, int]:
+@router.get("/{user_id}")
+async def get_user(user_id: int) -> User:
     """Get user"""
     if users := _filter_users(UserQuery(id=user_id)):
-        return jsonify(users[0]), 200
-    else:
-        abort(404, f"User ID {user_id} does not exist")
+        return users[0]
+    raise HTTPException(404, f"User ID {user_id} does not exist")
 
 
-@bp_user.get("")
-@tag_users
-@login_required
-@validate_querystring(UserQuery)
-async def get_users(query_args: UserQuery) -> tuple[Response, int]:
+@router.get("")
+async def get_users(query_args: Annotated[UserQuery, Query()]) -> list[User]:
     """Get users"""
-    users = _filter_users(query_args)
-    return jsonify(users), 200
+    return _filter_users(query_args)
 
 
-@bp_user.post("/images")
-@tag_users
-@login_required
-@validate_request(UserImage, source=DataSource.FORM_MULTIPART)
-async def upload_image(data: UserImage) -> tuple[Response, int]:
+@router.post("/images", status_code=201)
+async def upload_image(file: UploadFile, description: Annotated[str | None, Form()] = None) -> dict[str, str]:
     """Upload user image"""
     # This won't actually save anything. Just return a fake response
-    return jsonify({"message": f"Image '{data.file.filename}' uploaded"}), 201
+    return {"message": f"Image '{file.filename}' uploaded"}
 
 
-@bp_user.delete("/<int:user_id>")
-@tag_users
-@login_required
-async def delete_user(user_id: int) -> tuple[Response, int]:
+@router.delete("/{user_id}")
+async def delete_user(user_id: int) -> dict[str, str]:
     """Delete user"""
     if users := _filter_users(UserQuery(id=user_id)):
         USERS.remove(users[0])
-    else:
-        abort(404, f"User ID {user_id} does not exist")
-    return jsonify({"message": f"Deleted user {user_id}"}), 200
+        return {"message": f"Deleted user {user_id}"}
+    raise HTTPException(404, f"User ID {user_id} does not exist")
 
 
 def _filter_users(query: UserQuery) -> list[User]:

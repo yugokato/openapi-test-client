@@ -1,33 +1,20 @@
-import uuid
+import secrets
 
-from quart import Blueprint, Response, jsonify
-from quart_auth import logout_user
-from quart_schema import security_scheme, tag, validate_request
+from fastapi import APIRouter
 
-from demo_app import auth_manager
+from .models import LoginRequest, LoginResponse, LogoutResponse
 
-from .models import LoginData
-
-bp_auth = Blueprint("Auth", __name__, url_prefix="/auth")
-tag_auth = tag(["Auth"])
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@bp_auth.post("/login")
-@tag_auth
-@security_scheme([])
-@validate_request(LoginData)
-async def login(data: LoginData) -> tuple[Response, int]:
+@router.post("/login", status_code=201)
+async def login(data: LoginRequest) -> LoginResponse:
     """Login"""
-    # Just assign a random uuid for this user as there's no actual BE
-    user_uuid = str(uuid.uuid4())
-    token = auth_manager.dump_token(user_uuid)
-    return jsonify({"token": token}), 201
+    # Just return a random value as there's no actual BE
+    return LoginResponse(token=secrets.token_hex(32))
 
 
-@bp_auth.post("/logout")
-@tag_auth
-@security_scheme([])
-async def logout() -> tuple[Response, int]:
+@router.post("/logout")
+async def logout() -> LogoutResponse:
     """Logout"""
-    logout_user()
-    return jsonify({"message": "logged out"}), 200
+    return LogoutResponse(message="logged out")

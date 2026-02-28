@@ -1,7 +1,6 @@
 from enum import Enum
 
-from pydantic import AnyUrl, BaseModel, EmailStr, Field
-from quart_schema.pydantic import File
+from pydantic import AnyUrl, BaseModel, EmailStr, Field, PositiveInt
 
 
 class UserRole(Enum):
@@ -17,7 +16,7 @@ class UserTheme(Enum):
 
 
 class UserQuery(BaseModel):
-    id: int | None = None
+    id: PositiveInt | None = None
     email: EmailStr | None = None
     role: UserRole | None = None
 
@@ -49,9 +48,4 @@ class UserRequest(BaseModel):
 
 
 class User(UserRequest):
-    id: int
-
-
-class UserImage(BaseModel):
-    file: File
-    description: str | None = None
+    id: PositiveInt

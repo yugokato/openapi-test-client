@@ -21,7 +21,7 @@ from common_libs.network import find_open_port, is_port_in_use
 from common_libs.utils import wait_until
 from pytest import FixtureRequest, TempPathFactory
 
-from openapi_test_client import logger
+from openapi_test_client import _PACKAGE_DIR, logger
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.openapi import OpenAPIClient
 
@@ -160,7 +160,8 @@ class DemoAppLifecycleManager:
         return f"http://{self.host}:{self.port}"
 
     def _start_app(self) -> None:
-        args = ["quart", "-A", self.app_name, "run", "--host", self.host, "--port", str(self.port)]
+        app_dir = _PACKAGE_DIR.parent / "demo_app"
+        args = ["fastapi", "run", app_dir, "--host", self.host, "--port", str(self.port)]
         self.proc = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
@@ -192,14 +193,14 @@ class DemoAppLifecycleManager:
             func_kwargs={"host": self.host},
             stop_condition=lambda x: x is True,
             interval=0.5,
-            timeout=10,
+            timeout=15,
         )
         logger.info(f"App has been started on {self.host}:{self.port}")
 
     def _wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
             try:
-                return httpx.get(self.base_url).is_success
+                return httpx.get(f"{self.base_url}/healthcheck").is_success
             except (httpx.ConnectError, httpcore.ConnectError):
                 return False
 
