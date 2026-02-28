@@ -45,7 +45,7 @@ class UserRequest(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
     role: UserRole
-    metadata: Metadata | None = Field(default_factory=dict)
+    metadata: Metadata | None = None
 
 
 class User(UserRequest):

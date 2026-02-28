@@ -27,7 +27,7 @@ def test_create_user_contract(
         "last_name": match.str("last_name"),
         "email": match.str("user@demo.app.net"),
         "role": match.str("admin"),
-        "metadata": {},
+        "metadata": None,
     }
 
     with pact_factory("user") as pact:
@@ -61,7 +61,7 @@ def test_get_user_contract(
         "first_name": match.str(f"first_name_{user_id}"),
         "last_name": match.str(f"last_name_{user_id}"),
         "email": match.str(f"user{user_id}@demo.app.net"),
-        "metadata": {},
+        "metadata": None,
     }
 
     with pact_factory("user") as pact:
@@ -100,7 +100,7 @@ def test_get_users_contract(
             "first_name": match.str(f"first_name_{user_id}"),
             "last_name": match.str(f"last_name_{user_id}"),
             "email": match.str(f"user{user_id}@demo.app.net"),
-            "metadata": {},
+            "metadata": None,
         }
     )
 

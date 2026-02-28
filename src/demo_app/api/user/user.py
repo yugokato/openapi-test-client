@@ -18,6 +18,7 @@ USERS = [
     )
     for i in range(1, 11)
 ]
+_next_user_id = len(USERS) + 1
 
 
 @bp_user.post("")
@@ -26,7 +27,9 @@ USERS = [
 @validate_request(UserRequest)
 async def create_user(data: UserRequest) -> tuple[Response, int]:
     """Create a new user"""
-    user = User(id=len(USERS) + 1, **data.model_dump(mode="json"))
+    global _next_user_id  # noqa: PLW0603
+    user = User(id=_next_user_id, **data.model_dump(mode="json"))
+    _next_user_id += 1
     # This is just a demo app. There's no fancy lock here
     USERS.append(user)
     return jsonify(user), 201
