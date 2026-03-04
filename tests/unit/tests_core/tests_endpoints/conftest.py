@@ -61,5 +61,5 @@ def api_class(api_client: OpenAPIClient) -> type[APIBase]:
 
 
 @pytest.fixture(autouse=True)
-def clear_cache(mocker: MockerFixture) -> None:
-    mocker.patch.dict(EndpointHandler._endpoint_functions, {}, clear=True)
+def clear_cache() -> None:
+    EndpointHandler.clear_cache()

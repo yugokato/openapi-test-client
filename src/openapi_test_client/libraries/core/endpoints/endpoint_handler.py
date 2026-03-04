@@ -71,6 +71,12 @@ class EndpointHandler:
         """Returns decorators that should be applied on an endpoint function"""
         return self.__decorators
 
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear the cached endpoint function objects"""
+        with cls._lock:
+            cls._endpoint_functions.clear()
+
     def register_decorator(self, *decorator: EndpointDecorator) -> None:
         """Register a decorator that will be applied on an endpoint function"""
         self.__decorators.extend([d for d in decorator])

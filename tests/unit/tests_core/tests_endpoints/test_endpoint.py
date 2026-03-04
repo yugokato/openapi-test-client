@@ -10,6 +10,8 @@ from pytest_mock import MockerFixture
 from openapi_test_client.clients.openapi import OpenAPIClient
 from openapi_test_client.libraries.core import APIBase, Endpoint, endpoint
 
+pytestmark = [pytest.mark.unittest]
+
 
 class TestEndpointObject:
     """Tests for the Endpoint object attached to EndpointFunc"""
@@ -130,16 +132,20 @@ class TestEndpointObject:
         assert ep.is_public is False
         assert ep.is_deprecated is True
 
-    @pytest.mark.parametrize("api_client", ["sync", "async"], indirect=True)
     def test_endpoint_call(self, mocker: MockerFixture, api_client: OpenAPIClient, api_class: type[APIBase]) -> None:
-        """Test that Endpoint.__call__ makes the correct HTTP call and returns RestResponse in sync/async mode"""
-        if api_client.async_mode:
-            httpx_client_class = AsyncClient
-        else:
-            httpx_client_class = Client
-
-        mock_httpx_request = mocker.patch.object(httpx_client_class, "request")
+        """Test that Endpoint.__call__ makes the correct HTTP call and returns RestResponse in sync mode"""
+        mock_httpx_request = mocker.patch.object(Client, "request")
         ep = api_class.get_something.endpoint
         r = ep(api_client)
+        assert isinstance(r, RestResponse)
+        mock_httpx_request.assert_called_once()
+
+    async def test_endpoint_call_async(
+        self, mocker: MockerFixture, api_client_async: OpenAPIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that Endpoint.__call__ makes the correct HTTP call and returns RestResponse in async mode"""
+        mock_httpx_request = mocker.patch.object(AsyncClient, "request")
+        ep = api_class.get_something.endpoint
+        r = await ep(api_client_async)
         assert isinstance(r, RestResponse)
         mock_httpx_request.assert_called_once()

@@ -14,6 +14,7 @@ from httpx import AsyncClient, Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.clients.openapi import OpenAPIClient
+from openapi_test_client.libraries.core import Endpoint
 from openapi_test_client.libraries.core.api_classes.base import APIBase
 from openapi_test_client.libraries.core.endpoints import AsyncEndpointFunc, EndpointFunc, SyncEndpointFunc, endpoint
 from openapi_test_client.libraries.core.endpoints.utils.endpoint_call import generate_rest_func_params
@@ -52,6 +53,18 @@ class TestEndpointFunc:
         repr_str = repr(instance.get_something)
 
         assert "mapped to" in repr_str
+
+    @pytest.mark.parametrize("access_by", ["instance", "class"])
+    def test_endpoint_property_returns_endpoint_object(
+        self, api_client: OpenAPIClient, api_class: type[APIBase], access_by: str
+    ) -> None:
+        """Test that EndpointFunc.endpoint returns an Endpoint object"""
+        if access_by == "instance":
+            api_class_or_instance = api_class(api_client)
+        else:
+            api_class_or_instance = api_class
+        endpoint = api_class_or_instance.get_something.endpoint
+        assert isinstance(endpoint, Endpoint)
 
     def test_model_property_returns_endpoint_model(self, api_client: OpenAPIClient, api_class: type[APIBase]) -> None:
         """Test that EndpointFunc.model returns a subclass of EndpointModel"""

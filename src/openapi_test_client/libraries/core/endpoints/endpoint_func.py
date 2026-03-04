@@ -24,7 +24,6 @@ from openapi_test_client.libraries.core.types import EndpointModel
 
 if TYPE_CHECKING:
     from openapi_test_client.clients.openapi import OpenAPIClient
-    from openapi_test_client.libraries.core.endpoints.endpoint import Endpoint
     from openapi_test_client.libraries.core.endpoints.endpoint_handler import EndpointHandler
 
 
@@ -192,13 +191,7 @@ class EndpointFunc:
             with_hooks = False
             raise
         finally:
-            if with_hooks:
-                try:
-                    self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
-                except AssertionError:
-                    raise
-                except Exception as e:
-                    logger.exception(e)
+            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
 
     @property
     def model(self) -> type[EndpointModel]:
@@ -274,6 +267,54 @@ class EndpointFunc:
         class_name = f"{api_class.__name__}{generate_class_name(orig_func.__name__, suffix=EndpointFunc.__name__)}"
         return type(class_name, (base_class,), {})
 
+    def _prepare_stream_request(
+        self,
+        path_params: tuple[Any, ...],
+        quiet: bool,
+        validate: bool | None,
+        with_hooks: bool | None,
+        raw_options: dict[str, Any] | None,
+        body_or_query_params: dict[str, Any],
+    ) -> tuple[str, dict[str, Any]]:
+        """Validate params, run pre-request hook, generate REST params for streaming.
+
+        Returns (path, params) tuple.
+        """
+        if validate is None:
+            validate = pydantic_model_util.is_validation_mode()
+        path = endpoint_call_util.validate_path_and_params(
+            self, *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        )
+        if with_hooks:
+            self._instance.pre_request_hook(self.endpoint, *path_params, **body_or_query_params)
+        params = endpoint_call_util.generate_rest_func_params(
+            self.endpoint,
+            body_or_query_params,
+            self.rest_client.client.headers,
+            quiet=quiet,
+            use_query_string=self._use_query_string,
+            is_validation_mode=validate,
+            **self._raw_options | (raw_options or {}),
+        )
+        return path, params
+
+    def _run_post_hook(
+        self,
+        r: RestResponse | None,
+        exception: Exception | None,
+        with_hooks: bool | None,
+        path_params: tuple[Any, ...],
+        body_or_query_params: dict[str, Any],
+    ) -> None:
+        """Run post-request hook with standard error handling."""
+        if with_hooks:
+            try:
+                self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
+            except AssertionError:
+                raise
+            except Exception as e:
+                logger.exception(e)
+
     async def _call_original_func(
         self, path_params: tuple[str, ...], body_or_query_params: dict[str, Any], kwargs: dict[str, Any]
     ) -> RestResponse:
@@ -332,29 +373,12 @@ class SyncEndpointFunc(EndpointFunc):
         **body_or_query_params: Any,
     ) -> Generator[RestResponse]:
         """Stream the response"""
-        if validate is None:
-            validate = pydantic_model_util.is_validation_mode()
-        path = endpoint_call_util.validate_path_and_params(
-            self, *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        path, params = self._prepare_stream_request(
+            path_params, quiet, validate, with_hooks, raw_options, body_or_query_params
         )
-
-        # pre-request hook
-        if with_hooks:
-            self._instance.pre_request_hook(self.endpoint, *path_params, **body_or_query_params)
-
-        # Make a request
         r = None
         exception = None
         try:
-            params = endpoint_call_util.generate_rest_func_params(
-                self.endpoint,
-                body_or_query_params,
-                self.rest_client.client.headers,
-                quiet=quiet,
-                use_query_string=self._use_query_string,
-                is_validation_mode=validate,
-                **self._raw_options | (raw_options or {}),
-            )
             with self.executor.execute_stream(self, path, params) as r:
                 yield r
         except HTTPError as e:
@@ -363,15 +387,8 @@ class SyncEndpointFunc(EndpointFunc):
         except (Exception, KeyboardInterrupt):
             with_hooks = False
             raise
-        # post-request hook
         finally:
-            if with_hooks:
-                try:
-                    self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
-                except AssertionError:
-                    raise
-                except Exception as e:
-                    logger.exception(e)
+            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
 
 
 class AsyncEndpointFunc(EndpointFunc):
@@ -420,29 +437,12 @@ class AsyncEndpointFunc(EndpointFunc):
         :param raw_options: Raw request options passed to the underlying HTTP library
         :param body_or_query_params: Request body or query parameters
         """
-        if validate is None:
-            validate = pydantic_model_util.is_validation_mode()
-        path = endpoint_call_util.validate_path_and_params(
-            self, *path_params, validate=validate, raw_options=raw_options, **body_or_query_params
+        path, params = self._prepare_stream_request(
+            path_params, quiet, validate, with_hooks, raw_options, body_or_query_params
         )
-
-        # pre-request hook
-        if with_hooks:
-            self._instance.pre_request_hook(self.endpoint, *path_params, **body_or_query_params)
-
-        # Make a request
         r = None
         exception = None
         try:
-            params = endpoint_call_util.generate_rest_func_params(
-                self.endpoint,
-                body_or_query_params,
-                self.rest_client.client.headers,
-                quiet=quiet,
-                use_query_string=self._use_query_string,
-                is_validation_mode=validate,
-                **self._raw_options | (raw_options or {}),
-            )
             async with self.executor.execute_stream(self, path, params) as r:
                 yield r
         except HTTPError as e:
@@ -452,13 +452,7 @@ class AsyncEndpointFunc(EndpointFunc):
             with_hooks = False
             raise
         finally:
-            if with_hooks:
-                try:
-                    self._instance.post_request_hook(self.endpoint, r, exception, *path_params, **body_or_query_params)
-                except AssertionError:
-                    raise
-                except Exception as e:
-                    logger.exception(e)
+            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
 
 
 if TYPE_CHECKING:

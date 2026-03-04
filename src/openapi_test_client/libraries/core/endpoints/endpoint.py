@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
-from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from common_libs.clients.rest_client import APIResponse
@@ -12,7 +10,6 @@ from openapi_test_client.libraries.core.types import EndpointModel
 if TYPE_CHECKING:
     from openapi_test_client.clients.openapi import OpenAPIClient
     from openapi_test_client.libraries.core.api_classes import APIBase
-    from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointFunc
 
 
 __all__ = ["Endpoint"]
@@ -58,6 +55,9 @@ class Endpoint:
     ) -> APIResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
+        NOTE: If the provided API client is in async mode, the returned value is a coroutine that needs be awaited by
+        the caller
+
         :param path_params: Path parameters
         :param quiet: A flag to suppress API request/response log
         :param validate: Validate the request parameter in Pydantic strict mode
@@ -75,9 +75,8 @@ class Endpoint:
             >>> r2 = endpoint(client, username="foo", password="bar")
         """
         api_class = self.api_class(api_client)
-        endpoint_func: EndpointFunc = getattr(api_class, self.func_name)
-        func_call = partial(
-            endpoint_func,
+        endpoint_func = getattr(api_class, self.func_name)
+        return endpoint_func(
             *path_params,
             quiet=quiet,
             with_hooks=with_hooks,
@@ -85,7 +84,3 @@ class Endpoint:
             raw_options=raw_options,
             **body_or_query_params,
         )
-        if api_client.async_mode:
-            return asyncio.run(func_call())
-        else:
-            return func_call()
