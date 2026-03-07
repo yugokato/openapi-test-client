@@ -347,7 +347,7 @@ def update_endpoint_functions(
             ):
                 continue
 
-            endpoint_function: EndpointFunc = getattr(target_api_class, func_name)
+            endpoint_function: EndpointFunc[Any] = getattr(target_api_class, func_name)
             if verbose:
                 print(f"{TAB}- {method.upper()} {path}")  # noqa:T201
 

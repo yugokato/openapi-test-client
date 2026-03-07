@@ -3,21 +3,24 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import update_wrapper
 from threading import RLock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeAlias
 from weakref import WeakKeyDictionary
 
 from ..types import APIResponse
+from .endpoint_func import AsyncEndpointFunc, EndpointFunc, SyncEndpointFunc
 
 if TYPE_CHECKING:
     from ..base import APIBase
-    from .endpoint_func import EndpointDecorator, EndpointFunc
+
+P = ParamSpec("P")
+EndpointDecorator: TypeAlias = Callable[[Callable[..., Any]], Callable[..., Any]]
 
 __all__ = ["EndpointHandler"]
 
-DeferredOperation = Callable[["EndpointHandler"], None]
+DeferredOperation = Callable[["EndpointHandler[P]"], None]
 
 
-class PendingHandler:
+class PendingHandler(Generic[P]):
     """Carries endpoint operations applied before the @endpoint.<method>() factory decorator.
 
     Enables @endpoint.<method>() to work at any position in the decorator stack, not just immediately
@@ -25,12 +28,12 @@ class PendingHandler:
     newly created EndpointHandler.
     """
 
-    def __init__(self, f: Callable[..., APIResponse]) -> None:
+    def __init__(self, f: Callable[P, APIResponse]) -> None:
         self.func = f
-        self.deferred_operations: list[DeferredOperation] = []
+        self.deferred_operations: list[DeferredOperation[P]] = []
 
 
-class EndpointHandler:
+class EndpointHandler(Generic[P]):
     """A class to encapsulate each API class function (original function) inside a dynamically generated
     EndpointFunc class
 
@@ -61,15 +64,16 @@ class EndpointHandler:
         self.is_documented = True
         self.is_deprecated = False
         self._lock = RLock()
-        self._cache: WeakKeyDictionary[APIBase[Any] | type[APIBase[Any]], dict[bool, EndpointFunc]] = (
-            WeakKeyDictionary()
-        )
+        self._cache: WeakKeyDictionary[
+            APIBase[Any] | type[APIBase[Any]], dict[bool, SyncEndpointFunc[P] | AsyncEndpointFunc[P]]
+        ] = WeakKeyDictionary()
         self.__decorators: list[EndpointDecorator] = []
 
-    def __get__(self, instance: APIBase[Any] | None, owner: type[APIBase[Any]]) -> EndpointFunc:
+    def __get__(
+        self, instance: APIBase[Any] | None, owner: type[APIBase[Any]]
+    ) -> SyncEndpointFunc[P] | AsyncEndpointFunc[P]:
         """Return an EndpointFunc object"""
         from ..base.api_class import APIBase as APIBaseClass
-        from .endpoint_func import EndpointFunc
 
         if not (isinstance(owner, type) and issubclass(owner, APIBaseClass)):
             raise NotImplementedError(f"Unsupported API class: {owner}")

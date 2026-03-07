@@ -3,10 +3,9 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from functools import partial, wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeVar
 
 from ..types import APIResponse
-from .endpoint_func import EndpointDecorator, EndpointFunction
 from .endpoint_handler import (
     DeferredOperation,
     EndpointHandler,
@@ -17,11 +16,16 @@ if TYPE_CHECKING:
     from ..base import APIBase
 
 
+T = TypeVar("T", bound="APIBase[Any]")
+P = ParamSpec("P")
+R = TypeVar("R", bound=APIResponse)
+
 __all__ = ["endpoint"]
 
 
 class endpoint:
-    """An endpoint factory that converts a wrapped API class function to a dynamically-created EndpointFunc instance
+    """An endpoint factory that converts a wrapped API class function to an EndpointHandler instance that returns a
+    dynamically-created EndpointFunc instance when accessed
 
     An EndpointFunc instance can be accessed by the following two ways:
     - class-level:    <API Class>.<API class function>
@@ -47,6 +51,7 @@ class endpoint:
         <class 'openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc'>
         >>> type(AuthAPI.login)
         <class 'openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc'>
+        >>> from openapi_test_client.libraries.core import EndpointFunc
         >>> isinstance(client.Auth.login, EndpointFunc) and isinstance(AuthAPI.login, EndpointFunc)
         True
         >>> client.Auth.login.endpoint
@@ -65,7 +70,7 @@ class endpoint:
     """  # noqa: E501
 
     @staticmethod
-    def get(path: str, **default_raw_options: Any) -> Callable[..., EndpointFunction[Any]]:
+    def get(path: str, **default_raw_options: Any) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
@@ -76,7 +81,7 @@ class endpoint:
     @staticmethod
     def post(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
@@ -90,7 +95,7 @@ class endpoint:
     @staticmethod
     def delete(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
         :param path: The endpoint path
@@ -104,7 +109,7 @@ class endpoint:
     @staticmethod
     def put(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
@@ -118,7 +123,7 @@ class endpoint:
     @staticmethod
     def patch(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
         :param path: The endpoint path
@@ -132,7 +137,7 @@ class endpoint:
     @staticmethod
     def options(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
         :param path: The endpoint path
@@ -146,7 +151,7 @@ class endpoint:
     @staticmethod
     def head(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
@@ -160,7 +165,7 @@ class endpoint:
     @staticmethod
     def trace(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
         :param path: The endpoint path
@@ -172,13 +177,12 @@ class endpoint:
         return endpoint._create("trace", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def undocumented(obj: EndpointHandler | type[APIBase[Any]] | EndpointFunction[Any]) -> EndpointFunction[Any]:
+    def undocumented(obj: EndpointHandler[P] | type[T]) -> EndpointHandler[P] | type[T]:
         """Mark an endpoint as undocumented. If an API class is decorated, all endpoints on the class will be
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
 
         :param obj: Endpoint handler, API class, or API function
-        NOTE: EndpointFunction type was added for mypy only
         """
         from ..base import APIBase
 
@@ -188,22 +192,20 @@ class endpoint:
         return endpoint._apply_operations(obj, lambda h: setattr(h, "is_documented", False))
 
     @staticmethod
-    def is_public(obj: EndpointHandler | EndpointFunction[Any]) -> EndpointFunction[Any]:
+    def is_public(obj: EndpointHandler[P]) -> EndpointHandler[P]:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
 
         :param obj: Endpoint handler or API function
-        NOTE: EndpointFunction type was added for mypy only
         """
         return endpoint._apply_operations(obj, lambda h: setattr(h, "is_public", True))
 
     @staticmethod
-    def is_deprecated(obj: EndpointHandler | type[APIBase[Any]] | EndpointFunction[Any]) -> EndpointFunction[Any]:
+    def is_deprecated(obj: EndpointHandler[P] | type[T]) -> EndpointHandler[P] | type[T]:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
 
         :param obj: Endpoint handler, API class, or API function
-        NOTE: EndpointFunction type was added for mypy only
         """
         from ..base import APIBase
 
@@ -213,21 +215,21 @@ class endpoint:
         return endpoint._apply_operations(obj, lambda h: setattr(h, "is_deprecated", True))
 
     @staticmethod
-    def content_type(content_type: str) -> Callable[..., EndpointFunction[Any]]:
+    def content_type(
+        content_type: str,
+    ) -> Callable[[EndpointHandler[P] | PendingHandler[P]], EndpointHandler[P] | PendingHandler[P]]:
         """Explicitly set Content-Type for this endpoint
 
         :param content_type: Content type to explicitly set
         """
 
-        def wrapper(obj: EndpointHandler | EndpointFunction[Any]) -> EndpointFunction[Any]:
+        def wrapper(obj: EndpointHandler[P] | PendingHandler[P]) -> EndpointHandler[P] | PendingHandler[P]:
             return endpoint._apply_operations(obj, lambda h: setattr(h, "content_type", content_type))
 
         return wrapper
 
     @staticmethod
-    def decorator(
-        f: EndpointDecorator | Callable[..., EndpointDecorator],
-    ) -> EndpointDecorator | Callable[..., EndpointDecorator]:
+    def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         """Convert a regular decorator to be usable on API functions. This supports both regular decorators and
         decorators with arguments
 
@@ -272,14 +274,14 @@ class endpoint:
     @staticmethod
     def _create(
         method: str, path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction[Any]]:
+    ) -> Callable[[Callable[Concatenate[T, P], R]], EndpointHandler[P]]:
         """Returns an endpoint factory that creates an endpoint handler object, which will return an
         EndpointFunc object when accessing the associated API class function
         """
 
-        def endpoint_factory(f: Callable[..., APIResponse] | PendingHandler) -> EndpointHandler:
+        def endpoint_factory(f: Callable[Concatenate[T, P], R] | PendingHandler[P]) -> EndpointHandler[P]:
             if isinstance(f, PendingHandler):
-                handler = EndpointHandler(
+                handler: EndpointHandler[P] = EndpointHandler(
                     f.func, method, path, use_query_string=use_query_string, **default_raw_options
                 )
                 for modifier in f.deferred_operations:
@@ -291,7 +293,7 @@ class endpoint:
 
     @staticmethod
     def _apply_operations(
-        obj: EndpointHandler | PendingHandler | Callable[..., APIResponse], operation: DeferredOperation
+        obj: EndpointHandler[P] | PendingHandler[P] | Callable[P, APIResponse], operation: DeferredOperation[P]
     ) -> Any:
         """Apply an endpoint operation immediately (EndpointHandler) or defer it (function / PendingEndpoint)
 
@@ -305,7 +307,7 @@ class endpoint:
             obj.deferred_operations.append(operation)
             return obj
         elif inspect.isfunction(obj):
-            pending_handler = PendingHandler(obj)
+            pending_handler: PendingHandler[P] = PendingHandler(obj)
             pending_handler.deferred_operations.append(operation)
             return pending_handler
         else:

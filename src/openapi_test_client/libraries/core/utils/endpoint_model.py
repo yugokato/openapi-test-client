@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 
 def create_endpoint_model(
-    endpoint_func: EndpointFunc,
+    endpoint_func: EndpointFunc[Any],
     field_name_sanitizer: Callable[[str, list[DataclassModelField]], None] | None = None,
 ) -> type[EndpointModel]:
     """Create a model class for the endpoint from the current function signature.
@@ -74,7 +74,7 @@ def create_endpoint_model(
 
 
 def build_endpoint_model(
-    endpoint_func: EndpointFunc,
+    endpoint_func: EndpointFunc[Any],
     path_param_fields: list[DataclassModelField],
     body_or_query_param_fields: list[DataclassModelField],
     content_type: str | None = None,

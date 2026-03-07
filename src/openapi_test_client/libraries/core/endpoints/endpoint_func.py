@@ -6,7 +6,18 @@ from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequ
 from contextlib import asynccontextmanager, contextmanager
 from copy import copy
 from functools import cache, partial, wraps
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Self, TypeAlias, TypeVar, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Concatenate,
+    Generic,
+    Literal,
+    ParamSpec,
+    Self,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from common_libs.clients.rest_client import RestClient, RestResponse
 from common_libs.clients.rest_client.utils import retry_on
@@ -28,44 +39,36 @@ if TYPE_CHECKING:
 
 
 P = ParamSpec("P")
-R = TypeVar("R")
-
-
-_EndpointFunc = TypeVar(
-    # TODO: Remove this
-    # A workaround for https://youtrack.jetbrains.com/issue/PY-57765
-    "_EndpointFunc",
-    bound=Callable[..., APIResponse],
-)
-EndpointFunction: TypeAlias = Union[_EndpointFunc, "EndpointFunc", "SyncEndpointFunc", "AsyncEndpointFunc"]
-EndpointDecorator: TypeAlias = Callable[[EndpointFunction[Any]], EndpointFunction[Any]]
+# _T is intentionally unparameterized: bound="EndpointFunc[Any]" widens the class-scoped P to Any in the return type of
+# requires_instance-decorated methods that return Callable[P, R], which breaks the propagation of P
+_T = TypeVar("_T", bound="EndpointFunc")  # type: ignore[type-arg]
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 _SAFE_HTTP_METHODS: frozenset[str] = frozenset({"GET", "HEAD", "OPTIONS"})
 
 __all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
 
-
 logger = get_logger(__name__)
 
 
-def requires_instance(f: Callable[P, R]) -> Callable[P, R]:
+def requires_instance(f: Callable[Concatenate[_T, _P], _R]) -> Callable[Concatenate[_T, _P], _R]:
     @wraps(f)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        self = cast(EndpointFunc, args[0])
+    def wrapper(self: _T, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         if self._instance is None:
             func_name = self._original_func.__name__ if f.__name__ == "__call__" else f.__name__
             raise TypeError(f"You can not access {func_name}() directly through the {self._owner.__name__} class.")
-        return f(*args, **kwargs)
+        return f(self, *args, **kwargs)
 
     return wrapper
 
 
-class EndpointFunc:
+class EndpointFunc(Generic[P]):
     """Base class for Sync/Async Endpoint function classes"""
 
-    executor: SyncExecutor | AsyncExecutor | None = None
+    executor: SyncExecutor[P] | AsyncExecutor[P] | None = None
 
-    def __init__(self, endpoint_handler: EndpointHandler, instance: APIBase[Any] | None, owner: type[APIBase[Any]]):
+    def __init__(self, endpoint_handler: EndpointHandler[P], instance: APIBase[Any] | None, owner: type[APIBase[Any]]):
         """Initialize endpoint function"""
         self.method = endpoint_handler.method
         self.path = endpoint_handler.path
@@ -131,7 +134,11 @@ class EndpointFunc:
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
     @requires_instance
-    async def __call__(
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> APIResponse:
+        """Make an API call to the endpoint. This logic is commonly used for sync/acync API calls"""
+        return await self._call(*args, **kwargs)  # type: ignore[arg-type]
+
+    async def _call(
         self,
         *args: Any,
         quiet: bool = False,
@@ -419,11 +426,13 @@ class EndpointFunc:
 
     @staticmethod
     @cache
-    def _create(api_class: type[APIBase[Any]], orig_func: Callable[..., Any], async_mode: bool) -> type[EndpointFunc]:
+    def _create(
+        api_class: type[APIBase[Any]], orig_func: Callable[..., Any], async_mode: bool
+    ) -> type[SyncEndpointFunc[Any]] | type[AsyncEndpointFunc[Any]]:
         """Dynamically create an EndpointFunc class for the given endpoint function"""
         base_class = api_class._async_endpoint_func_class if async_mode else api_class._sync_endpoint_func_class
         class_name = f"{api_class.__name__}{to_class_name(orig_func.__name__, suffix=EndpointFunc.__name__)}"
-        return type(class_name, (base_class,), {})
+        return cast(type[SyncEndpointFunc[Any]] | type[AsyncEndpointFunc[Any]], type(class_name, (base_class,), {}))
 
     def _prepare_stream_request(
         self,
@@ -512,7 +521,7 @@ class EndpointFunc:
         return _self
 
 
-class SyncEndpointFunc(EndpointFunc):
+class SyncEndpointFunc(EndpointFunc[P]):
     """Endpoint function class (Sync)
 
     All parameters passed to the original API class function call will be passed through to the __call__()
@@ -521,8 +530,7 @@ class SyncEndpointFunc(EndpointFunc):
     executor = SyncExecutor()
 
     @requires_instance
-    @wraps(EndpointFunc.__call__)
-    def __call__(self, *args: Any, **kwargs: Any) -> APIResponse:
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> APIResponse:
         """Make a sync API call to the endpoint"""
         return asyncio.run(super().__call__(*args, **kwargs))
 
@@ -568,15 +576,15 @@ class SyncEndpointFunc(EndpointFunc):
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[..., list[APIResponse]]: ...
+    ) -> Callable[P, list[APIResponse]]: ...
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[..., list[APIResponse | Exception]]: ...
+    ) -> Callable[P, list[APIResponse | Exception]]: ...
     @requires_instance
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: bool = False
-    ) -> Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]]:
+    ) -> Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]]:
         """Return a callable that concurrently makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters.
@@ -594,22 +602,22 @@ class SyncEndpointFunc(EndpointFunc):
             return wrapper
 
         return cast(
-            Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]],
+            Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]],
             self._with_call_wrapper(call_with_concurrency),
         )
 
     @overload
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[..., list[APIResponse]]: ...
+    ) -> Callable[P, list[APIResponse]]: ...
     @overload
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[..., list[APIResponse | Exception]]: ...
+    ) -> Callable[P, list[APIResponse | Exception]]: ...
     @requires_instance
     def with_repeat(
         self, num: int = 2, *, return_exceptions: bool = False
-    ) -> Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]]:
+    ) -> Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]]:
         """Return a callable that sequentially makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
@@ -638,12 +646,12 @@ class SyncEndpointFunc(EndpointFunc):
             return wrapper
 
         return cast(
-            Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]],
+            Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]],
             self._with_call_wrapper(call_with_repeat),
         )
 
 
-class AsyncEndpointFunc(EndpointFunc):
+class AsyncEndpointFunc(EndpointFunc[P]):
     """Endpoint function class (Async)
 
     All parameters passed to the original API class function call will be passed through to the __call__()
@@ -652,8 +660,7 @@ class AsyncEndpointFunc(EndpointFunc):
     executor = AsyncExecutor()
 
     @requires_instance
-    @wraps(EndpointFunc.__call__)
-    async def __call__(self, *args: Any, **kwargs: Any) -> APIResponse:
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> APIResponse:
         """Make an async API call to the endpoint"""
         return await super().__call__(*args, **kwargs)
 
@@ -699,17 +706,17 @@ class AsyncEndpointFunc(EndpointFunc):
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse]]]: ...
+    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse]]]: ...
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
+    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
     @requires_instance
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: bool = False
     ) -> (
-        Callable[..., Coroutine[Any, Any, list[APIResponse]]]
-        | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]
+        Callable[P, Coroutine[Any, Any, list[APIResponse]]]
+        | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]
     ):
         """Return a coroutine callable that concurrently makes duplicated API calls to the endpoint.
 
@@ -741,25 +748,25 @@ class AsyncEndpointFunc(EndpointFunc):
             return wrapper
 
         return cast(
-            Callable[..., Coroutine[Any, Any, list[APIResponse]]]
-            | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]],
+            Callable[P, Coroutine[Any, Any, list[APIResponse]]]
+            | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]],
             self._with_call_wrapper(call_with_concurrency),
         )
 
     @overload
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse]]]: ...
+    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse]]]: ...
     @overload
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
+    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
     @requires_instance
     def with_repeat(
         self, num: int = 2, *, return_exceptions: bool = False
     ) -> (
-        Callable[..., Coroutine[Any, Any, list[APIResponse]]]
-        | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]
+        Callable[P, Coroutine[Any, Any, list[APIResponse]]]
+        | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]
     ):
         """Return a coroutine callable that sequentially makes duplicated API calls to the endpoint.
 
@@ -789,7 +796,7 @@ class AsyncEndpointFunc(EndpointFunc):
             return wrapper
 
         return cast(
-            Callable[..., Coroutine[Any, Any, list[APIResponse]]]
-            | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]],
+            Callable[P, Coroutine[Any, Any, list[APIResponse]]]
+            | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]],
             self._with_call_wrapper(call_with_repeat),
         )

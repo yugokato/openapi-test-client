@@ -33,8 +33,8 @@ class OpenAPIBase(APIBase[T]):
 
     TAGs: ClassVar[tuple[str, ...]]
     _endpoint_class: ClassVar[type[Endpoint]] = Endpoint
-    _sync_endpoint_func_class: ClassVar[type[SyncEndpointFunc]] = SyncEndpointFunc
-    _async_endpoint_func_class: ClassVar[type[AsyncEndpointFunc]] = AsyncEndpointFunc
+    _sync_endpoint_func_class: ClassVar[type[SyncEndpointFunc[Any]]] = SyncEndpointFunc
+    _async_endpoint_func_class: ClassVar[type[AsyncEndpointFunc[Any]]] = AsyncEndpointFunc
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

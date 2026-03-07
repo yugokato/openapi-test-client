@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ParamSpec
+
 from common_libs.ansi_colors import ColorCodes, color
 
 import openapi_test_client.libraries.core.utils.endpoint_model as core_endpoint_model_util
@@ -13,8 +15,10 @@ from openapi_test_client.libraries.openapi.types import EndpointModel
 
 __all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
 
+P = ParamSpec("P")
 
-class EndpointFunc(_EndpointFunc):
+
+class EndpointFunc(_EndpointFunc[P]):
     """EndpointFunc subclass with OpenAPI-specific helpers (docs, get_usage)."""
 
     @property
@@ -44,9 +48,9 @@ class EndpointFunc(_EndpointFunc):
                 return api_spec.get_endpoint_usage(self.endpoint)
 
 
-class SyncEndpointFunc(EndpointFunc, _SyncEndpointFunc):
+class SyncEndpointFunc(EndpointFunc[P], _SyncEndpointFunc[P]):
     """Sync endpoint function with OpenAPI-specific helpers."""
 
 
-class AsyncEndpointFunc(EndpointFunc, _AsyncEndpointFunc):
+class AsyncEndpointFunc(EndpointFunc[P], _AsyncEndpointFunc[P]):
     """Async endpoint function with OpenAPI-specific helpers."""

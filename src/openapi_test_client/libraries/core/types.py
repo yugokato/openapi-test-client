@@ -77,7 +77,7 @@ class EndpointModel(DataclassModel):
     """Protocol for endpoint parameter models"""
 
     content_type: str | None
-    endpoint_func: EndpointFunc
+    endpoint_func: EndpointFunc[Any]
 
 
 @dataclass

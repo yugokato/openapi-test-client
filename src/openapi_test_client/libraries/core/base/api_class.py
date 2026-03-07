@@ -34,8 +34,8 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
     is_deprecated: bool = False
     endpoints: list[Endpoint] | None = None
     _endpoint_class: ClassVar[type[Endpoint]] = Endpoint
-    _sync_endpoint_func_class: ClassVar[type[SyncEndpointFunc]] = SyncEndpointFunc
-    _async_endpoint_func_class: ClassVar[type[AsyncEndpointFunc]] = AsyncEndpointFunc
+    _sync_endpoint_func_class: ClassVar[type[SyncEndpointFunc[Any]]] = SyncEndpointFunc
+    _async_endpoint_func_class: ClassVar[type[AsyncEndpointFunc[Any]]] = AsyncEndpointFunc
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Validate the endpoint decorator stack when an API class is defined."""
@@ -157,7 +157,7 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
             api_class.endpoints = []
             for attr_name, attr in api_class.__dict__.items():
                 if isinstance(attr, EndpointHandler):
-                    endpoint_func: EndpointFunc = getattr(api_class, attr_name)
+                    endpoint_func: EndpointFunc[Any] = getattr(api_class, attr_name)
                     assert isinstance(endpoint_func, EndpointFunc)
                     api_class.endpoints.append(endpoint_func.endpoint)
 

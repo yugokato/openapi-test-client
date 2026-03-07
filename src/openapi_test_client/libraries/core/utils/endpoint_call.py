@@ -148,7 +148,7 @@ def get_signature_defaults(func: Callable[..., Any], path: str) -> dict[str, Any
 
 
 def validate_path_and_params(
-    endpoint_func: EndpointFunc,
+    endpoint_func: EndpointFunc[Any],
     *path_params: Any,
     raw_options: dict[str, Any] | None,
     **body_or_query_params: dict[str, Any],

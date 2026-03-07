@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 
 def create_endpoint_model_from_spec(
-    endpoint_func: EndpointFunc,
+    endpoint_func: EndpointFunc[Any],
     api_spec: dict[str, Any],
 ) -> type[EndpointModel]:
     """Create an EndpointModel from the OpenAPI spec.
@@ -47,7 +47,7 @@ def create_endpoint_model_from_spec(
 
 
 def _parse_endpoint_model_from_spec(
-    endpoint_func: EndpointFunc,
+    endpoint_func: EndpointFunc[Any],
     api_spec: dict[str, Any],
     path_param_fields: list[DataclassModelField],
     body_or_query_param_fields: list[DataclassModelField],
