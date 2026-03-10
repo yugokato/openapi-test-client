@@ -5,10 +5,9 @@ from collections.abc import Callable
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any
 
-from common_libs.clients.rest_client import RestResponse
-
 from openapi_test_client.libraries.core.api_classes import APIBase
 from openapi_test_client.libraries.core.endpoints.endpoint_handler import EndpointHandler
+from openapi_test_client.libraries.core.types import APIResponse
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointDecorator, EndpointFunction
@@ -24,13 +23,17 @@ class endpoint:
     - instance-level: <API Class instance>.<API class function>
 
     Example:
+        >>> from typing import Unpack
+        >>>
         >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
         >>> from openapi_test_client.clients.demo_app.api import DemoAppBaseAPI
-        >>> from openapi_test_client.libraries.core.types import Unset
+        >>> from openapi_test_client.libraries.core.types import Unset, Kwargs
         >>>
         >>> class AuthAPI(DemoAppBaseAPI):
         >>>     @endpoint.post("/v1/login")
-        >>>     def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Any) -> RestResponse:
+        >>>     def login(
+        >>>         self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]
+        >>>     ) -> APIResponse:
         >>>         ...
         >>>
         >>> client = DemoAppAPIClient()
@@ -255,7 +258,7 @@ class endpoint:
         EndpointFunc object when accessing the associated API class function
         """
 
-        def endpoint_factory(f: Callable[..., RestResponse]) -> EndpointHandler:
+        def endpoint_factory(f: Callable[..., APIResponse]) -> EndpointHandler:
             return EndpointHandler(f, method, path, use_query_string=use_query_string, **default_raw_options)
 
         return endpoint_factory

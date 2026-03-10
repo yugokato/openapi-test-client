@@ -4,9 +4,10 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from common_libs.clients.rest_client import RestResponse
 from common_libs.logging import get_logger
 from httpx import HTTPError
+
+from openapi_test_client.libraries.core.types import APIResponse
 
 if TYPE_CHECKING:
     from openapi_test_client.clients.openapi import OpenAPIClient
@@ -52,7 +53,7 @@ class APIBase(Generic[T], metaclass=ABCMeta):
     def post_request_hook(
         self,
         endpoint: Endpoint,
-        response: RestResponse | None,
+        response: APIResponse | None,
         exception: HTTPError | None,
         *path_params: Any,
         **params: Any,

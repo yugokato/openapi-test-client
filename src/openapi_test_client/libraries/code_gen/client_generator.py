@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from common_libs.ansi_colors import ColorCodes, color
-from common_libs.clients.rest_client.ext import RestResponse
 from common_libs.logging import get_logger
 
 import openapi_test_client.libraries.core.endpoints.utils.endpoint_model as endpoint_model_util
 import openapi_test_client.libraries.core.endpoints.utils.param_model as param_model_util
+import openapi_test_client.libraries.core.types as types_module
 from openapi_test_client import (
     _CONFIG_DIR,
     _PACKAGE_DIR,
@@ -185,7 +185,7 @@ def generate_api_class(
     from openapi_test_client.libraries.core import endpoint
 
     code = "\n".join([f"from {_get_package(m)} import {m.__name__}" for m in [base_class, endpoint]]) + "\n"
-    code += f"from {_get_package(RestResponse)} import APIResponse\n\n"
+    code += f"from {inspect.getmodule(types_module).__name__} import APIResponse\n\n"
     code += f"class {class_name}({base_class.__name__}):\n{TAB}TAGs = {tuple([tag])}\n\n"
     code = format_code(code, remove_unused_imports=False)
     if is_temp_client:
@@ -252,11 +252,11 @@ def update_endpoint_functions(
     :param show_diff: Show diff when update is required
 
     The API class file would look like this:
-        >>> from common_libs.clients.rest_client import RestResponse
+        >>> from typing import Unpack
         >>>
         >>> from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
         >>> from openapi_test_client.libraries.core.endpoints import endpoint
-        >>> from openapi_test_client.libraries.core.types import Unset
+        >>> from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Unset
         >>>
         >>>
         >>> class SomeDemoAPI(DemoAppBaseAPI):
@@ -264,8 +264,8 @@ def update_endpoint_functions(
         >>>
         >>>     @endpoint.get("/v1/something/{uuid}")
         >>>     def do_something(
-        >>>         self, uuid: str, /, *, param1: str = Unset, param2: int = Unset, **kwargs
-        >>>     ) -> RestResponse:
+        >>>         self, uuid: str, /, *, param1: str = Unset, param2: int = Unset, **kwargs: Unpack[Kwargs]
+        >>>     ) -> APIResponse:
         >>>     """Do something"""
         >>>     ...
         >>>

@@ -486,11 +486,9 @@ Then the API class and functions will be generated like this:
 
 from typing import Unpack
 
-from common_libs.clients.rest_client import APIResponse
-
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.core.endpoints import endpoint
-from openapi_test_client.libraries.core.types import Kwargs, Unset
+from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Unset
 
 
 class AuthAPI(DemoAppBaseAPI):
@@ -701,11 +699,9 @@ eg.
 
 from typing import Annotated, Literal, Unpack
 
-from common_libs.clients.rest_client import APIResponse
-
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.core.endpoints import endpoint
-from openapi_test_client.libraries.core.types import Constraint, Format, Kwargs, Optional, Unset
+from openapi_test_client.libraries.core.types import APIResponse, Constraint, Format, Kwargs, Optional, Unset
 
 from ..models.users import Metadata
 

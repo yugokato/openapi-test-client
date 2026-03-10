@@ -7,7 +7,7 @@ from functools import cache, wraps
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeAlias, TypeVar, Union, cast
 
 from common_libs.ansi_colors import ColorCodes, color
-from common_libs.clients.rest_client import APIResponse, RestClient, RestResponse
+from common_libs.clients.rest_client import RestClient, RestResponse
 from common_libs.clients.rest_client.utils import retry_on
 from common_libs.job_executor import Job, run_concurrent
 from common_libs.lock import Lock
@@ -20,7 +20,7 @@ import openapi_test_client.libraries.core.endpoints.utils.pydantic_model as pyda
 from openapi_test_client.libraries.common.misc import generate_class_name
 from openapi_test_client.libraries.core.api_classes import APIBase
 from openapi_test_client.libraries.core.endpoints.executors import AsyncExecutor, SyncExecutor
-from openapi_test_client.libraries.core.types import EndpointModel
+from openapi_test_client.libraries.core.types import APIResponse, EndpointModel
 
 if TYPE_CHECKING:
     from openapi_test_client.clients.openapi import OpenAPIClient
@@ -35,7 +35,7 @@ _EndpointFunc = TypeVar(
     # TODO: Remove this
     # A workaround for https://youtrack.jetbrains.com/issue/PY-57765
     "_EndpointFunc",
-    bound=Callable[..., RestResponse],
+    bound=Callable[..., APIResponse],
 )
 EndpointFunction: TypeAlias = Union[_EndpointFunc, "EndpointFunc", "SyncEndpointFunc", "AsyncEndpointFunc"]
 EndpointDecorator: TypeAlias = Callable[[EndpointFunction], EndpointFunction]
@@ -84,7 +84,7 @@ class EndpointFunc:
 
         self._instance: APIBase | None = instance
         self._owner: type[APIBase] = owner
-        self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
+        self._original_func: Callable[..., APIResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
         self._raw_options = endpoint_handler.default_raw_options
 
@@ -133,7 +133,7 @@ class EndpointFunc:
         with_hooks: bool | None = True,
         raw_options: dict[str, Any] | None = None,
         **body_or_query_params: Any,
-    ) -> RestResponse:
+    ) -> APIResponse:
         """Make an API call to the endpoint. This logic is commonly used for sync/acync API calls
 
         :param path_params: Path parameters
@@ -300,7 +300,7 @@ class EndpointFunc:
 
     def _run_post_hook(
         self,
-        r: RestResponse | None,
+        r: APIResponse | None,
         exception: Exception | None,
         with_hooks: bool | None,
         path_params: tuple[Any, ...],
@@ -317,7 +317,7 @@ class EndpointFunc:
 
     async def _call_original_func(
         self, path_params: tuple[str, ...], body_or_query_params: dict[str, Any], kwargs: dict[str, Any]
-    ) -> RestResponse:
+    ) -> APIResponse | None:
         r = self._original_func(self._instance, *path_params, **body_or_query_params, **kwargs)
         if self.api_client.async_mode and asyncio.iscoroutine(r):
             # The original function is a not an async function but rest_client used inside the original function is
@@ -326,7 +326,7 @@ class EndpointFunc:
             r = await r
         return r
 
-    async def _call_api_func(self, path: str, params: dict[str, Any]) -> RestResponse:
+    async def _call_api_func(self, path: str, params: dict[str, Any]) -> APIResponse:
         if self.api_client.async_mode:
             assert isinstance(self, AsyncEndpointFunc)
             assert isinstance(self.executor, AsyncExecutor)
@@ -347,7 +347,7 @@ class SyncEndpointFunc(EndpointFunc):
 
     @requires_instance
     @wraps(EndpointFunc.__call__)
-    def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
+    def __call__(self, *args: Any, **kwargs: Any) -> APIResponse:
         """Make a sync API call to the endpoint"""
         return asyncio.run(super().__call__(*args, **kwargs))
 
@@ -371,7 +371,7 @@ class SyncEndpointFunc(EndpointFunc):
         with_hooks: bool | None = True,
         raw_options: dict[str, Any] | None = None,
         **body_or_query_params: Any,
-    ) -> Generator[RestResponse]:
+    ) -> Generator[APIResponse]:
         """Stream the response"""
         path, params = self._prepare_stream_request(
             path_params, quiet, validate, with_hooks, raw_options, body_or_query_params
@@ -401,7 +401,7 @@ class AsyncEndpointFunc(EndpointFunc):
 
     @requires_instance
     @wraps(EndpointFunc.__call__)
-    async def __call__(self, *args: Any, **kwargs: Any) -> RestResponse:
+    async def __call__(self, *args: Any, **kwargs: Any) -> APIResponse:
         """Make an async API call to the endpoint"""
         return await super().__call__(*args, **kwargs)
 
@@ -427,7 +427,7 @@ class AsyncEndpointFunc(EndpointFunc):
         with_hooks: bool | None = True,
         raw_options: dict[str, Any] | None = None,
         **body_or_query_params: Any,
-    ) -> AsyncGenerator[RestResponse]:
+    ) -> AsyncGenerator[APIResponse]:
         """Stream response from an API call to the endpoint
 
         :param path_params: Path parameters

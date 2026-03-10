@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterator, Mapping, MutableMapping, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Mapping, MutableMapping, Sequence
 from dataclasses import (
     MISSING,
     Field,
@@ -15,6 +15,7 @@ from dataclasses import (
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypedDict, TypeVar, cast
 
+from common_libs.clients.rest_client import RestResponse
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
 from pydantic import BaseModel, ConfigDict, create_model
@@ -22,15 +23,27 @@ from pydantic import BaseModel, ConfigDict, create_model
 from openapi_test_client.libraries.common.json_encoder import CustomJsonEncoder
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from dataclasses import _MISSING_TYPE, _DataclassParams  # type: ignore
     from typing import Protocol
 
+    from common_libs.clients.rest_client import RestResponse as _RestResponse
+
     from openapi_test_client.libraries.core.endpoints import EndpointFunc
+
+    class RestResponse(_RestResponse):  # type: ignore[no-redef]
+        """TYPE_CHECKING-only type that is both RestResponse and awaitable.
+
+        Enables IDE support for both sync and async (await) usage patterns:
+        """
+
+        def __await__(self) -> Generator[Any, None, _RestResponse]: ...
 else:
     Protocol = object
 
 
 T = TypeVar("T")
+APIResponse: TypeAlias = RestResponse | Awaitable[RestResponse]
 
 # As a workaround for https://github.com/astral-sh/ruff/issues/4858, we temporarily define an alias of typing.Optional
 # to avoid UP007 been reported by ruff for API classes and models, where we currently intentionally use `Optional` to

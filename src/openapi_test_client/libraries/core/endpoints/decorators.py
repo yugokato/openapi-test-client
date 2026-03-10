@@ -2,13 +2,13 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
-from common_libs.clients.rest_client import RestResponse
 from common_libs.logging import get_logger
 
 from openapi_test_client.libraries.core import endpoint
+from openapi_test_client.libraries.core.types import APIResponse
 
 P = ParamSpec("P")
-R = TypeVar("R", bound=RestResponse)
+R = TypeVar("R", bound=APIResponse)
 
 
 logger = get_logger(__name__)
@@ -25,7 +25,7 @@ def my_endpoint_decorator(f: Callable[P, R]) -> Callable[P, R]:
     Usage:
         >>> @my_endpoint_decorator
         >>> @endpoint.get("/v1/something")
-        >>> def get_something(self) -> RestResponse:
+        >>> def get_something(self) -> APIResponse:
         >>>     ...
     """
 
@@ -47,13 +47,15 @@ def apply_default(**params_with_default_value: Any) -> Callable[[Callable[P, R]]
     Usage:
         >>> @apply_default(param_a=123, param_b="test")
         >>> @endpoint.get("/v1/something")
-        >>> def get_something(self, *, param_a: int = Unset, param_b: str = Unset, **kwargs) -> RestResponse:
+        >>> def get_something(
+        >>>     self, *, param_a: int = Unset, param_b: str = Unset, **kwargs: Unpack[Kwargs]
+        >>> ) -> APIResponse:
         >>>     ...
     """
 
     def decorator_with_args(f: Callable[P, R]) -> Callable[P, R]:
         @wraps(f)
-        def wrapper(*_: P.args, **params: P.kwargs) -> RestResponse:
+        def wrapper(*_: P.args, **params: P.kwargs) -> R:
             for param_name, default_value in params_with_default_value.items():
                 if param_name not in params:
                     params[param_name] = default_value

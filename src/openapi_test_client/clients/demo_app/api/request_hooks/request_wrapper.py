@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
-from typing import ParamSpec
+from typing import ParamSpec, TypeVar
 
-from common_libs.clients.rest_client import RestResponse
+from openapi_test_client.libraries.core.types import APIResponse
 
 P = ParamSpec("P")
+R = TypeVar("R", bound=APIResponse)
 
 
-def do_something_before_and_after_request(f: Callable[P, RestResponse]) -> Callable[P, RestResponse]:
-    """This is a template of the request wrapper that will decorate an API request"
+def do_something_before_and_after_request(f: Callable[P, R]) -> Callable[P, R]:
+    """This is a template of the request wrapper that will decorate an API request
 
     To enable this hook, add this function to the parent class's `request_wrapper` inside the base API class's
     pre_request_hook():
@@ -26,7 +27,7 @@ def do_something_before_and_after_request(f: Callable[P, RestResponse]) -> Calla
     """
 
     @wraps(f)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> RestResponse:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         # Do something before request
         r = f(*args, **kwargs)
         # Do something after request

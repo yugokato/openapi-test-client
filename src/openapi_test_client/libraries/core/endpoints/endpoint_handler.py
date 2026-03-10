@@ -4,7 +4,7 @@ from collections.abc import Callable
 from threading import RLock
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from common_libs.clients.rest_client import RestResponse
+from openapi_test_client.libraries.core.types import APIResponse
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.core.api_classes import APIBase
@@ -30,7 +30,7 @@ class EndpointHandler:
 
     def __init__(
         self,
-        original_func: Callable[..., RestResponse],
+        original_func: Callable[..., APIResponse],
         method: str,
         path: str,
         use_query_string: bool = False,

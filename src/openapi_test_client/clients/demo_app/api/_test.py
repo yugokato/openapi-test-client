@@ -1,10 +1,8 @@
 from typing import Any, Unpack
 
-from common_libs.clients.rest_client import APIResponse
-
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.core.endpoints import endpoint
-from openapi_test_client.libraries.core.types import Kwargs
+from openapi_test_client.libraries.core.types import APIResponse, Kwargs
 
 
 class _TestAPI(DemoAppBaseAPI):

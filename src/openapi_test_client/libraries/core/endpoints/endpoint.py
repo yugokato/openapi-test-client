@@ -3,9 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from common_libs.clients.rest_client import APIResponse
-
-from openapi_test_client.libraries.core.types import EndpointModel
+from openapi_test_client.libraries.core.types import APIResponse, EndpointModel
 
 if TYPE_CHECKING:
     from openapi_test_client.clients.openapi import OpenAPIClient

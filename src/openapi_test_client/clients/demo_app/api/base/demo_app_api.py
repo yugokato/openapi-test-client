@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from common_libs.clients.rest_client import RestResponse
 from httpx import HTTPError
 
 from openapi_test_client.libraries.core.api_classes.base import APIBase
+from openapi_test_client.libraries.core.types import APIResponse
 
 from ..request_hooks.post_request import manage_auth_session
 
@@ -22,7 +22,7 @@ class DemoAppBaseAPI(APIBase):
     def post_request_hook(
         self,
         endpoint: Endpoint,
-        response: RestResponse | None,
+        response: APIResponse | None,
         exception: HTTPError | None,
         *path_params: Any,
         **params: Any,
