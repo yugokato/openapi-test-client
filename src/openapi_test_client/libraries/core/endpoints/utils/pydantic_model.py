@@ -70,7 +70,7 @@ def in_validation_mode() -> Generator[None, Any, None]:
 
 
 def generate_pydantic_model_field(
-    original_model: type[DataclassModel | EndpointModel | ParamModel], model_field: DataclassField
+    original_model: type[DataclassModel | EndpointModel | ParamModel], model_field: DataclassField[Any]
 ) -> tuple[Any, EllipsisType | None]:
     """Generate Pydantic field definition for validation mode
 

@@ -70,7 +70,7 @@ Do NOT manually update the content.
 
 
 @lru_cache
-def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIBase]:
+def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[APIBase[Any]]:
     """Generate new base API class file for the given temporary API client"""
     from openapi_test_client.libraries.core import Endpoint
 
@@ -131,7 +131,7 @@ def generate_api_class(
     add_endpoint_functions: bool = True,
     dry_run: bool = False,
     show_generated_code: bool = True,
-) -> type[APIBase] | tuple[str, Exception] | None:
+) -> type[APIBase[Any]] | tuple[str, Exception] | None:
     """Generate new API class file for the given API tag.
 
     If an exception is thrown during the process, API tag, API class name, and the exception will be returned.
@@ -222,7 +222,7 @@ def generate_api_class(
 
 
 def update_endpoint_functions(
-    api_class: type[APIBase],
+    api_class: type[APIBase[Any]],
     api_spec: dict[str, Any],
     is_new_api_class: bool = False,
     target_endpoints: list[str] | None = None,
@@ -311,7 +311,7 @@ def update_endpoint_functions(
     defined_endpoints = []
     param_models = []
 
-    def update_existing_endpoints(target_api_class: type[APIBase] = api_class) -> None:
+    def update_existing_endpoints(target_api_class: type[APIBase[Any]] = api_class) -> None:
         """Updated existing endpoint functions"""
         nonlocal modified_api_cls_code, method, path, func_name
         new_code = current_code = modified_api_cls_code
@@ -709,7 +709,7 @@ def _is_temp_client(api_client: OpenAPIClient) -> bool:
     return type(api_client) is OpenAPIClient
 
 
-def _get_base_api_class(api_client: OpenAPIClient) -> type[APIBase]:
+def _get_base_api_class(api_client: OpenAPIClient) -> type[APIBase[Any]]:
     client_file_path = Path(inspect.getabsfile(type(api_client)))
     app_client_dir = client_file_path.parent
     base_api_class_name = generate_class_name(api_client.app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)

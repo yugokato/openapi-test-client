@@ -25,7 +25,7 @@ class EndpointHandler:
     """
 
     # cache endpoint function objects
-    _endpoint_functions: ClassVar[dict[tuple[str, APIBase | None, type[APIBase]], EndpointFunc]] = {}
+    _endpoint_functions: ClassVar[dict[tuple[str, APIBase[Any] | None, type[APIBase[Any]]], EndpointFunc]] = {}
     _lock = RLock()
 
     def __init__(
@@ -49,7 +49,7 @@ class EndpointHandler:
         self.is_deprecated = False
         self.__decorators: list[EndpointDecorator] = []
 
-    def __get__(self, instance: APIBase | None, owner: type[APIBase]) -> EndpointFunc:
+    def __get__(self, instance: APIBase[Any] | None, owner: type[APIBase[Any]]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointFunc
 

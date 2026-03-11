@@ -119,6 +119,5 @@ disable_error_code = [
     "operator",
     "override",
     "return",
-    "type-arg",
     "union-attr"
 ]

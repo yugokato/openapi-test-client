@@ -72,7 +72,7 @@ import re
 import sys
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from common_libs.clients.rest_client import RestClient
 from common_libs.logging import get_logger
@@ -419,7 +419,7 @@ def update_client(args: argparse.Namespace) -> None:
             _log_errors(args.action, failed_results)
 
 
-def _get_api_classes(app: str) -> list[type[APIBase]]:
+def _get_api_classes(app: str) -> list[type[APIBase[Any]]]:
     mod = importlib.import_module(
         f"{get_module_name_by_file_path(API_CLIENTS_DIR)}.{app}.{generator.API_CLASS_DIR_NAME}"
     )

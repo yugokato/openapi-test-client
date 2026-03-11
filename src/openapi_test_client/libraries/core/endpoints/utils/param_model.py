@@ -251,7 +251,7 @@ def merge_models(*models: type[ParamModel]) -> type[ParamModel]:
     """
     assert models
     assert len(set(m.__name__ for m in models)) == 1
-    merged_dataclass_fields: dict[str, Field] = {}
+    merged_dataclass_fields: dict[str, Field[Any]] = {}
     for model in models:
         for field_name, field_obj in model.__dataclass_fields__.items():
             if field_name in merged_dataclass_fields:

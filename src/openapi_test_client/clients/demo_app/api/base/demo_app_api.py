@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from openapi_test_client.libraries.core import Endpoint
 
 
-class DemoAppBaseAPI(APIBase):
+class DemoAppBaseAPI(APIBase[Any]):
     """Base class for demo_app API classes"""
 
     app_name = "demo_app"

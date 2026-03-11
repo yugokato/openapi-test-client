@@ -59,7 +59,7 @@ class endpoint:
     """  # noqa: E501
 
     @staticmethod
-    def get(path: str, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
+    def get(path: str, **default_raw_options: Any) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for a GET API function
 
         :param path: The endpoint path
@@ -68,7 +68,9 @@ class endpoint:
         return endpoint._create("get", path, use_query_string=True, **default_raw_options)
 
     @staticmethod
-    def post(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
+    def post(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for a POST API function
 
         :param path: The endpoint path
@@ -82,7 +84,7 @@ class endpoint:
     @staticmethod
     def delete(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for a DELETE API function
 
         :param path: The endpoint path
@@ -94,7 +96,9 @@ class endpoint:
         return endpoint._create("delete", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def put(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
+    def put(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for a PUT API function
 
         :param path: The endpoint path
@@ -106,7 +110,9 @@ class endpoint:
         return endpoint._create("put", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def patch(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
+    def patch(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for a PATCH API function
 
         :param path: The endpoint path
@@ -120,7 +126,7 @@ class endpoint:
     @staticmethod
     def options(
         path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for an OPTIONS API function
 
         :param path: The endpoint path
@@ -132,7 +138,9 @@ class endpoint:
         return endpoint._create("options", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def head(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
+    def head(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for an HEAD API function
 
         :param path: The endpoint path
@@ -144,7 +152,9 @@ class endpoint:
         return endpoint._create("head", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def trace(path: str, use_query_string: bool = False, **default_raw_options: Any) -> Callable[..., EndpointFunction]:
+    def trace(
+        path: str, use_query_string: bool = False, **default_raw_options: Any
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns a decorator that generates an endpoint handler for an TRACE API function
 
         :param path: The endpoint path
@@ -156,7 +166,7 @@ class endpoint:
         return endpoint._create("trace", path, use_query_string=use_query_string, **default_raw_options)
 
     @staticmethod
-    def undocumented(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
+    def undocumented(obj: EndpointHandler | type[APIBase[Any]] | EndpointFunction[Any]) -> EndpointFunction[Any]:
         """Mark an endpoint as undocumented. If an API class is decorated, all endpoints on the class will be
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
@@ -169,7 +179,7 @@ class endpoint:
         return obj
 
     @staticmethod
-    def is_public(obj: EndpointHandler | EndpointFunction) -> EndpointFunction:
+    def is_public(obj: EndpointHandler | EndpointFunction[Any]) -> EndpointFunction[Any]:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
 
@@ -181,7 +191,7 @@ class endpoint:
         return obj
 
     @staticmethod
-    def is_deprecated(obj: EndpointHandler | type[APIBase] | EndpointFunction) -> EndpointFunction:
+    def is_deprecated(obj: EndpointHandler | type[APIBase[Any]] | EndpointFunction[Any]) -> EndpointFunction[Any]:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
 
@@ -193,7 +203,7 @@ class endpoint:
         return obj
 
     @staticmethod
-    def content_type(content_type: str) -> Callable[..., EndpointFunction]:
+    def content_type(content_type: str) -> Callable[..., EndpointFunction[Any]]:
         """Explicitly set Content-Type for this endpoint
 
         :param content_type: Content type to explicitly set
@@ -253,7 +263,7 @@ class endpoint:
     @staticmethod
     def _create(
         method: str, path: str, use_query_string: bool = False, **default_raw_options: Any
-    ) -> Callable[..., EndpointFunction]:
+    ) -> Callable[..., EndpointFunction[Any]]:
         """Returns an endpoint factory that creates an endpoint handler object, which will return an
         EndpointFunc object when accessing the associated API class function
         """

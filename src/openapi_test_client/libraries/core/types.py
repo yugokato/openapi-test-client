@@ -126,7 +126,7 @@ class ParamDef(HashableDict):
         def is_deprecated(self) -> bool:
             return self.get("deprecated") is True
 
-    class ParamGroup(tuple):
+    class ParamGroup(tuple[Any, ...]):
         @property
         def is_required(self) -> bool:
             return any(p.is_required for p in self)
@@ -247,7 +247,7 @@ class DataclassModelField(NamedTuple):
 
     name: str
     type: Any
-    default: Field | _MISSING_TYPE | object = MISSING
+    default: Field[Any] | _MISSING_TYPE | object = MISSING
 
 
 class EndpointModel(DataclassModel):
@@ -274,7 +274,7 @@ class _ParamModelMeta(type):
 
 
 @dataclass
-class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
+class ParamModel(dict[str, Any], DataclassModel, metaclass=_ParamModelMeta):
     """Base class for our param model classes for making a dataclass obj to also work as a regular dictionary.
 
     When validtion mode is enabled, the model will be converted to a Pydantic model, and validation in strict mode will
@@ -447,7 +447,7 @@ class ParamModel(dict, DataclassModel, metaclass=_ParamModelMeta):
 
 
 @dataclass
-class File(dict, DataclassModel):
+class File(dict[str, Any], DataclassModel):
     """A file to pass to MultipartFormData class"""
 
     filename: str
@@ -461,7 +461,7 @@ class File(dict, DataclassModel):
         return astuple(self)
 
 
-class MultipartFormData(MutableMapping):
+class MultipartFormData(MutableMapping[str, Any]):
     """Multipart Form data
 
     >>> files = MultipartFormData(

@@ -91,7 +91,7 @@ class DemoAppLifecycleManager:
         self.host = host
         self.port = port or self.port_manager.reserve_port()
         self.start = start
-        self.proc: subprocess.Popen | None = None
+        self.proc: subprocess.Popen[str] | None = None
         self.worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         self.xdist_identifier = f"xdist-{self.port}"
         if self.start and self.is_xdist:
@@ -228,7 +228,7 @@ def run_command(args: str) -> tuple[str, str]:
         return stream_output(proc)
 
 
-def stream_output(proc: subprocess.Popen) -> tuple[str, str]:
+def stream_output(proc: subprocess.Popen[str]) -> tuple[str, str]:
     stdout_lines = []
     stderr_lines = []
     for line in proc.stdout:

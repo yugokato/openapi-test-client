@@ -38,7 +38,7 @@ _EndpointFunc = TypeVar(
     bound=Callable[..., APIResponse],
 )
 EndpointFunction: TypeAlias = Union[_EndpointFunc, "EndpointFunc", "SyncEndpointFunc", "AsyncEndpointFunc"]
-EndpointDecorator: TypeAlias = Callable[[EndpointFunction], EndpointFunction]
+EndpointDecorator: TypeAlias = Callable[[EndpointFunction[Any]], EndpointFunction[Any]]
 
 __all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
 
@@ -63,7 +63,7 @@ class EndpointFunc:
 
     executor: SyncExecutor | AsyncExecutor | None = None
 
-    def __init__(self, endpoint_handler: EndpointHandler, instance: APIBase | None, owner: type[APIBase]):
+    def __init__(self, endpoint_handler: EndpointHandler, instance: APIBase[Any] | None, owner: type[APIBase[Any]]):
         """Initialize endpoint function"""
         if not issubclass(owner, APIBase):
             raise NotImplementedError(f"Unsupported API class: {owner}")
@@ -82,8 +82,8 @@ class EndpointFunc:
         # Control a retry in a request wrapper to prevent a loop
         self.retried = False
 
-        self._instance: APIBase | None = instance
-        self._owner: type[APIBase] = owner
+        self._instance: APIBase[Any] | None = instance
+        self._owner: type[APIBase[Any]] = owner
         self._original_func: Callable[..., APIResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
         self._raw_options = endpoint_handler.default_raw_options
@@ -261,7 +261,7 @@ class EndpointFunc:
 
     @staticmethod
     @cache
-    def _create(api_class: type[APIBase], orig_func: Callable[..., Any], async_mode: bool) -> type[EndpointFunc]:
+    def _create(api_class: type[APIBase[Any]], orig_func: Callable[..., Any], async_mode: bool) -> type[EndpointFunc]:
         """Dynamically create an EndpointFunc class for the given endpoint function"""
         base_class = AsyncEndpointFunc if async_mode else SyncEndpointFunc
         class_name = f"{api_class.__name__}{generate_class_name(orig_func.__name__, suffix=EndpointFunc.__name__)}"
@@ -453,9 +453,3 @@ class AsyncEndpointFunc(EndpointFunc):
             raise
         finally:
             self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
-
-
-if TYPE_CHECKING:
-    # For making IDE happy
-    # TODO: Remove this
-    EndpointFunc: TypeAlias = _EndpointFunc | EndpointFunc | SyncEndpointFunc | AsyncEndpointFunc  # type: ignore[no-redef]

@@ -21,7 +21,7 @@ class Endpoint:
     """
 
     tags: tuple[str, ...]
-    api_class: type[APIBase]
+    api_class: type[APIBase[Any]]
     method: str
     path: str
     func_name: str

@@ -3,13 +3,14 @@ from __future__ import annotations
 import inspect
 import itertools
 from pathlib import Path
+from typing import Any
 
 from openapi_test_client.libraries.common.misc import import_module_from_file_path
 
 from .base import APIBase
 
 
-def init_api_classes(base_api_class: type[APIBase]) -> list[type[APIBase]]:
+def init_api_classes(base_api_class: type[APIBase[Any]]) -> list[type[APIBase[Any]]]:
     """Initialize API classes and return a list of API classes.
 
     - A list of Endpoint objects for an API class is available via its `endpoints` attribute
@@ -59,7 +60,7 @@ def init_api_classes(base_api_class: type[APIBase]) -> list[type[APIBase]]:
     return sorted(api_classes, key=lambda x: x.TAGs)  # type: ignore[arg-type, return-value]
 
 
-def get_api_classes(api_class_dir: Path, base_api_class: type[APIBase]) -> list[type[APIBase]]:
+def get_api_classes(api_class_dir: Path, base_api_class: type[APIBase[Any]]) -> list[type[APIBase[Any]]]:
     """Get all API classes defined under the given API class directory"""
     assert api_class_dir.is_dir()
 
