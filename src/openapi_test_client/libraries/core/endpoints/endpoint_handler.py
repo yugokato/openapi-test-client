@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import update_wrapper
 from threading import RLock
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any
+from weakref import WeakKeyDictionary
 
 from openapi_test_client.libraries.core.types import APIResponse
 
@@ -24,10 +26,6 @@ class EndpointHandler:
     eg: Accessing <class AuthAPI>.login will return AuthAPILoginEndpointFunc class object
     """
 
-    # cache endpoint function objects
-    _endpoint_functions: ClassVar[dict[tuple[str, APIBase[Any] | None, type[APIBase[Any]]], EndpointFunc]] = {}
-    _lock = RLock()
-
     def __init__(
         self,
         original_func: Callable[..., APIResponse],
@@ -47,35 +45,35 @@ class EndpointHandler:
         self.is_public = False
         self.is_documented = True
         self.is_deprecated = False
+        self._lock = RLock()
+        self._cache: WeakKeyDictionary[APIBase[Any] | type[APIBase[Any]], dict[bool, EndpointFunc]] = (
+            WeakKeyDictionary()
+        )
         self.__decorators: list[EndpointDecorator] = []
 
     def __get__(self, instance: APIBase[Any] | None, owner: type[APIBase[Any]]) -> EndpointFunc:
         """Return an EndpointFunc object"""
         from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointFunc
 
-        key = (self.original_func.__name__, instance, owner)
         is_async = bool(instance and instance.api_client.async_mode)
-        from functools import update_wrapper
-
-        with EndpointHandler._lock:
-            if not (endpoint_func := EndpointHandler._endpoint_functions.get(key)):
+        cache_key = instance or owner
+        with self._lock:
+            endpoint_map = self._cache.setdefault(cache_key, {})
+            if not (endpoint_func := endpoint_map.get(is_async)):
                 EndpointFuncClass = EndpointFunc._create(owner, self.original_func, is_async)
                 endpoint_func = EndpointFuncClass(self, instance, owner)
-                EndpointHandler._endpoint_functions[key] = cast(
-                    EndpointFunc, update_wrapper(endpoint_func, self.original_func)
-                )
+                update_wrapper(endpoint_func, self.original_func)
+                endpoint_map[is_async] = endpoint_func
+
+            # Descriptor self-replacement optimization
+            if instance is not None:
+                instance.__dict__[self.original_func.__name__] = endpoint_func
         return endpoint_func
 
     @property
     def decorators(self) -> list[EndpointDecorator]:
         """Returns decorators that should be applied on an endpoint function"""
         return self.__decorators
-
-    @classmethod
-    def clear_cache(cls) -> None:
-        """Clear the cached endpoint function objects"""
-        with cls._lock:
-            cls._endpoint_functions.clear()
 
     def register_decorator(self, *decorator: EndpointDecorator) -> None:
         """Register a decorator that will be applied on an endpoint function"""

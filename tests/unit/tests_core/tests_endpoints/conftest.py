@@ -8,7 +8,7 @@ from pytest_mock import MockerFixture
 
 from openapi_test_client.clients.openapi import OpenAPIClient
 from openapi_test_client.libraries.core.api_classes.base import APIBase
-from openapi_test_client.libraries.core.endpoints import EndpointHandler, endpoint
+from openapi_test_client.libraries.core.endpoints import endpoint
 
 
 @pytest.fixture(scope="session")
@@ -58,8 +58,3 @@ def api_class(api_client: OpenAPIClient) -> type[APIBase]:
         def get_something(self) -> RestResponse: ...
 
     return TestAPI
-
-
-@pytest.fixture(autouse=True)
-def clear_cache() -> None:
-    EndpointHandler.clear_cache()

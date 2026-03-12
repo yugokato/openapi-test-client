@@ -3,14 +3,12 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from functools import partial, wraps
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from openapi_test_client.libraries.core.api_classes import APIBase
+from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointDecorator, EndpointFunction
 from openapi_test_client.libraries.core.endpoints.endpoint_handler import EndpointHandler
 from openapi_test_client.libraries.core.types import APIResponse
-
-if TYPE_CHECKING:
-    from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointDecorator, EndpointFunction
 
 __all__ = ["endpoint"]
 

@@ -78,16 +78,16 @@ class TestEndpointHandlerGet:
         assert result1 is result2
 
     @pytest.mark.parametrize("with_instance", [True, False])
-    def test_cache_key_is_func_name_instance_owner(
-        self, api_class: type[APIBase], api_client: OpenAPIClient, with_instance: bool
-    ) -> None:
-        """Test that __get__() stores results using (func_name, instance, owner) as cache key"""
+    def test_cache_key(self, api_class: type[APIBase], api_client: OpenAPIClient, with_instance: bool) -> None:
+        """Test that __get__() stores results using a cache key"""
         handler = EndpointHandler(api_class.get_something, "get", "/something")
         instance = api_class(api_client) if with_instance else None
+        is_async = instance.api_client.async_mode if instance else False
         handler.__get__(instance, api_class)
 
-        expected_key = (api_class.get_something.__name__, instance, api_class)
-        assert expected_key in EndpointHandler._endpoint_functions
+        expected_key = instance or api_class
+        assert expected_key in handler._cache
+        assert is_async in handler._cache[expected_key]
 
     def test_non_api_base_owner_raises_not_implemented(self) -> None:
         """Test that passing a non-APIBase class as owner raises NotImplementedError"""
