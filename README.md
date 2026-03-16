@@ -681,8 +681,8 @@ parameter (eg. type annotation).
 >>> print(model)
 <class 'openapi_test_client.libraries.core.endpoints.utils.endpoint_model.AuthAPILoginEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
-{'username': Field(name='username',type=<class 'str'>,default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'password': Field(name='password',type=<class 'str'>,default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
+{'username': Field(name='username',type=<class 'str'>,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
+ 'password': Field(name='password',type=<class 'str'>,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD)}
 ```
 
 ## API parameter model
@@ -865,11 +865,11 @@ Here are some comparisons between regular models and pydantic models:
 >>> print(model)
 <class 'openapi_test_client.libraries.core.endpoints.utils.endpoint_model.UsersAPICreateUserEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
-{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.Metadata],default=<object object at 0x107b410b0>,default_factory=<dataclasses._MISSING_TYPE object at 0x107ea61d0>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
+{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
+ 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
+ 'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
+ 'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
+ 'metadata': Field(name='metadata',type=openapi_test_client.clients.demo_app.models.users.Metadata | None,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD)}
 >>>
 >>> # Make an API request with the invalid parameter values
 >>> r = client.Users.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123)

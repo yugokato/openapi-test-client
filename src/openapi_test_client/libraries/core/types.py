@@ -51,9 +51,20 @@ APIResponse: TypeAlias = RestResponse | Awaitable[RestResponse]
 # in the future since typing.Optional doesn't actually mean optional, but it just means nullable
 Optional: TypeAlias = T | None
 
+
 # The sentinel value set as a default value for endpoint body/query parameters and models.
 # Any parameters with this value will not be included in actual API call parameters
-Unset: Any = object()
+class _UnsetType:
+    """Sentinel type for unset parameter values"""
+
+    def __repr__(self) -> str:
+        return "Unset"
+
+    def __bool__(self) -> bool:
+        return False
+
+
+Unset: Any = _UnsetType()
 
 
 class Kwargs(TypedDict, total=False):
@@ -281,7 +292,7 @@ class ParamModel(dict[str, Any], DataclassModel, metaclass=_ParamModelMeta):
     be performed.
 
     NOTE:
-        - Each field value in a param model will always be defined as Ellipsis (...)
+        - Each field value in a param model will always be defined as Unset
         - Unlike a regular dataclass, our param model will:
             - NOT have any fields that aren't explicitly given (equivalent to Pydantic's exclude_unset=True behavior)
             - take ANY fields if the model class doesn't define any fields (**kwargs behavior)
