@@ -15,7 +15,7 @@ from dataclasses import (
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypedDict, TypeVar, cast
 
-from common_libs.clients.rest_client import RestResponse
+from common_libs.clients.rest_client import JSONType, RestResponse
 from common_libs.decorators import freeze_args
 from common_libs.hash import HashableDict
 from pydantic import BaseModel, ConfigDict, create_model
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from openapi_test_client.libraries.core.endpoints import EndpointFunc
 
-    class RestResponse(_RestResponse):  # type: ignore[no-redef]
+    class RestResponse(_RestResponse[JSONType]):  # type: ignore[no-redef]
         """TYPE_CHECKING-only type that is both RestResponse and awaitable.
 
         Enables IDE support for both sync and async (await) usage patterns:
