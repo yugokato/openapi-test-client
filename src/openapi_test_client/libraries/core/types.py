@@ -408,22 +408,47 @@ class ParamModel(dict[str, Any], DataclassModel, metaclass=_ParamModelMeta):
     def __delitem__(self, key: str) -> None:
         self.__delattr__(key)
 
-    def pop(self, key: str, default: Any = object) -> Any:
-        if default is object:
-            v = super().pop(key)
-        else:
-            v = super().pop(key, default)
-        if hasattr(self, key):
-            delattr(self, key)
+    def pop(self, key: str, *args: Any) -> Any:
+        """Remove and return value for key; raise KeyError if missing and no default given.
+
+        :param key: The key to remove
+        :param args: Optional default value to return if key is not present
+        """
+        if key not in self:
+            if args:
+                return args[0]
+            raise KeyError(key)
+        v = self[key]
+        delattr(self, key)
         return v
 
     def update(self, other: dict[str, Any] | None = None, **kwargs: Any) -> None:
         if other is not None:
             for k, v in other.items() if isinstance(other, Mapping) else other:
                 setattr(self, k, v)
-        else:
-            for k, v in kwargs.items():
-                setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    def clear(self) -> None:
+        for key in list(self.keys()):
+            delattr(self, key)
+
+    def popitem(self) -> tuple[str, Any]:
+        """Remove and return the last (key, value) pair."""
+        if not self:
+            raise KeyError("popitem(): dictionary is empty")
+        key = next(reversed(self))
+        value = self[key]
+        delattr(self, key)
+        return key, value
+
+    def __ior__(self, other: dict[str, Any]) -> ParamModel:
+        self.update(other)
+        return self
+
+    def copy(self) -> ParamModel:
+        """Return a shallow copy as a new ParamModel instance."""
+        return type(self)(**dict(self))
 
     def setdefault(self, key: str, default: Any = None) -> Any:
         if key in self:

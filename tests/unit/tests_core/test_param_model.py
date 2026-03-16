@@ -5,7 +5,7 @@ import pytest
 from pytest import Subtests
 
 from openapi_test_client.libraries.core.endpoints.utils.pydantic_model import in_validation_mode
-from openapi_test_client.libraries.core.types import ParamModel, PydanticModel
+from openapi_test_client.libraries.core.types import ParamModel, PydanticModel, Unset
 
 pytestmark = [pytest.mark.unittest]
 
@@ -243,3 +243,136 @@ class TestParamModel:
                     check_recursively(field_value, param_value)
 
         check_recursively(model_obj, model_params)
+
+    def test_param_model_pop(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test pop() removes and returns the value for an existing key, returns default for missing key,
+        and raises KeyError for missing key without default.
+        """
+        model = RegularParamModel(param1="foo", param2="bar")
+
+        # Existing key: returns the value and removes it from both dict and dataclass sides
+        value = model.pop("param1")
+        assert value == "foo"
+        assert "param1" not in dict(model)
+        assert "param1" not in model.__dataclass_fields__
+
+        # Missing key with default: returns default without raising
+        default = "default"
+        result = model.pop("nonexistent", default)
+        assert result == default
+
+        # Missing key without default: raises KeyError
+        with pytest.raises(KeyError):
+            model.pop("nonexistent")
+
+    def test_param_model_update(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test update() syncs both dict and dataclass sides when called with other dict only,
+        kwargs only, and both simultaneously.
+        """
+        param1_v = "foo"
+        param2_v = "bar"
+        param1_v_new = "foo_new"
+        param2_v_new = "bar_new2"
+
+        # other dict only
+        model = RegularParamModel(param1=param1_v, param2=param2_v)
+        model.update({"param1": param1_v_new})
+        assert dict(model)["param1"] == param1_v_new
+        assert getattr(model, "param1") == param1_v_new
+
+        # kwargs only
+        model2 = RegularParamModel(param1=param1_v, param2=param2_v)
+        model2.update(param2=param2_v_new)
+        assert dict(model2)["param2"] == param2_v_new
+        assert getattr(model2, "param2") == param2_v_new
+
+        # both other and kwargs simultaneously
+        model3 = RegularParamModel(param1=param1_v, param2=param2_v)
+        model3.update({"param1": param1_v_new}, param2=param2_v_new)
+        assert dict(model3)["param1"] == param1_v_new
+        assert getattr(model3, "param1") == param1_v_new
+        assert dict(model3)["param2"] == param2_v_new
+        assert getattr(model3, "param2") == param2_v_new
+
+    def test_param_model_setdefault(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test setdefault() returns existing value without overwriting when key exists,
+        and sets and returns the default when key is absent.
+        """
+        param1_v = "foo"
+        default = "default"
+        model = RegularParamModel(param1=param1_v)
+
+        # Key already exists: returns existing value, doesn't overwrite
+        key = "param1"
+        result = model.setdefault(key, default)
+        assert result == param1_v
+        assert dict(model)[key] == param1_v
+        assert getattr(model, key) == param1_v
+
+        # Key doesn't exist: sets the key and returns default
+        new_key = "new_key"
+        result2 = model.setdefault(new_key, default)
+        assert result2 == default
+        assert dict(model)[new_key] == default
+        assert getattr(model, new_key) == default
+
+    def test_param_model_clear(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test clear() removes all fields from both dict and dataclass sides."""
+        model = RegularParamModel(param1="foo", param2="bar")
+        model.clear()
+        assert dict(model) == {}
+        assert model.__dataclass_fields__ == {}
+
+    def test_param_model_popitem(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test popitem() returns a (key, value) tuple and removes the entry from both dict and dataclass sides."""
+        param1_v = "foo"
+        param2_v = "bar"
+        model = RegularParamModel(param1=param1_v, param2=param2_v)
+        initial_length = len(dict(model))
+
+        key, value = model.popitem()
+
+        assert len(dict(model)) == initial_length - 1
+        assert key not in dict(model)
+        assert key not in model.__dataclass_fields__
+        # The returned value must match what was stored
+        assert value in (param1_v, param2_v)
+
+    def test_param_model_ior(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test |= operator (__ior__) updates the model and syncs both dict and dataclass sides."""
+        param1_v = "foo"
+        param2_v = "bar"
+        new_key = "foobar"
+
+        model = RegularParamModel(param1=param1_v)
+        model |= {"param2": param2_v, "new_key": new_key}
+
+        assert dict(model)["param1"] == param1_v
+        assert getattr(model, "param1") == param1_v
+        assert dict(model)["param2"] == param2_v
+        assert getattr(model, "param2") == param2_v
+        assert dict(model)["new_key"] == new_key
+        assert getattr(model, "new_key") == new_key
+
+    def test_param_model_copy(self, RegularParamModel: type[ParamModel]) -> None:
+        """Test copy() returns a new ParamModel instance with the same content but independent from the original."""
+        param1_v = "foo"
+        param2_v = "bar"
+        model = RegularParamModel(param1=param1_v, param2=param2_v)
+        copy = model.copy()
+
+        assert isinstance(copy, ParamModel)
+        assert dict(copy) == dict(model)
+
+        # Modifying copy doesn't affect original
+        copy["param1"] = "modified"
+        assert dict(model)["param1"] == param1_v
+
+        # Modifying original doesn't affect copy
+        model["param2"] = "changed"
+        assert dict(copy)["param2"] == param2_v
+
+    def test_unset_repr(self) -> None:
+        """Test that Unset sentinel has repr 'Unset' and bool value False."""
+        assert repr(Unset) == "Unset"
+        assert bool(Unset) is False
