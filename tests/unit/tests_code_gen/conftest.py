@@ -26,7 +26,7 @@ def temp_api_client(
     mocker.patch.dict(os.environ, {ENV_VAR_PACKAGE_DIR: str(module_dir)})
     setup_external_directory(app_name, "http://localhost")
 
-    client = OpenAPIClient(app_name, "/docs")
+    client = OpenAPIClient(app_name, doc="/docs")
     mocker.patch.object(client.api_spec, "get_api_spec", return_value=openapi_specs)
 
     yield client

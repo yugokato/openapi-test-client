@@ -204,7 +204,7 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 </details>
 
 > [!TIP]
-> The recommended way to use a client is as a context manager. This will ensure that connections are properly cleaned up when leaving the with block:
+> - The recommended way to use a client is as a context manager. This will ensure that connections are properly cleaned up when leaving the with block:
 > ```python
 > # sync
 > with DemoAppAPIClient() as client:
@@ -214,6 +214,7 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 > async with DemoAppAPIClient(async_mode=True) as client:
 >     ...
 > ```
+> - A client can take any raw httpx client (`httpx.Client`/`httpx.AsyncClient`) options as `kwargs`
 
 ### Make an API request
 
@@ -396,6 +397,7 @@ managing APIs in multiple tags), where an API class instance will be returned.
 # openapi_test_client/clients/demo_app/demo_app_client.py
 
 from functools import cached_property
+from typing import Any
 
 from openapi_test_client.clients.openapi import OpenAPIClient
 
@@ -406,8 +408,10 @@ from .api.users import UsersAPI
 class DemoAppAPIClient(OpenAPIClient):
     """API client for demo_app"""
 
-    def __init__(self, env: str = "dev", base_url: str | None = None, async_mode: bool = False) -> None:
-        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode)
+    def __init__(
+        self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, **kwargs: Any
+    ) -> None:
+        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode, **kwargs)
 
     @cached_property
     def Auth(self) -> AuthAPI:

@@ -122,7 +122,7 @@ class TestGetApiSpec:
 
         def create_spec(ext: str | None = ".json") -> OpenAPISpec:
             doc_path = f"openapi{ext}"
-            api_client = OpenAPIClient("test", doc_path, base_url="https://example.com/api")
+            api_client = OpenAPIClient("test", doc=doc_path, base_url="https://example.com/api")
             return OpenAPISpec(api_client, doc_path)
 
         return create_spec

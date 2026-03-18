@@ -1,4 +1,5 @@
 from functools import cached_property
+from typing import Any
 
 from openapi_test_client.clients.demo_app.api._test import _TestAPI
 from openapi_test_client.clients.openapi import OpenAPIClient
@@ -17,8 +18,10 @@ class DemoAppAPIClient(OpenAPIClient):
     >>> token = r.response["token"]
     """
 
-    def __init__(self, env: str = "dev", base_url: str | None = None, async_mode: bool = False) -> None:
-        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode)
+    def __init__(
+        self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, **kwargs: Any
+    ) -> None:
+        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode, **kwargs)
 
     @cached_property
     def Auth(self) -> AuthAPI:

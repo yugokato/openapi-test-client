@@ -24,7 +24,7 @@ def api_client_factory(session_mocker: MockerFixture) -> Callable[..., OpenAPICl
             session_mocker.patch.object(Client, "request")
             rest_client = RestClient("https://example.com/api")
 
-        return OpenAPIClient("test", "/docs", rest_client=rest_client, async_mode=async_mode)
+        return OpenAPIClient("test", doc="/docs", rest_client=rest_client, async_mode=async_mode)
 
     return create
 

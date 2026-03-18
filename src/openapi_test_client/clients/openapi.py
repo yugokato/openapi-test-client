@@ -24,11 +24,14 @@ class OpenAPIClient:
     def __init__(
         self,
         app_name: str,
+        /,
+        *,
         doc: str,
         env: str = DEFAULT_ENV,
         base_url: str | None = None,
         rest_client: RestClient | AsyncRestClient | None = None,
         async_mode: bool = False,
+        **kwargs: Any,
     ):
         if app_name.lower() in ["open", "base"]:
             raise ValueError(f"app_name '{app_name}' is reserved for internal usage. Please use a different value")
@@ -71,9 +74,9 @@ class OpenAPIClient:
                     )
 
             if self.async_mode:
-                self.rest_client = AsyncRestClient(self.base_url)
+                self.rest_client = AsyncRestClient(self.base_url, **kwargs)
             else:
-                self.rest_client = RestClient(self.base_url)
+                self.rest_client = RestClient(self.base_url, **kwargs)
 
         self.api_spec = OpenAPISpec(self, doc)
 
@@ -122,4 +125,4 @@ class OpenAPIClient:
             raise RuntimeError(f"Unable to locate the API client for {app_name} from {mod}")
 
         APIClientClass = client_classes[0]
-        return APIClientClass(**init_options)
+        return APIClientClass(**init_options)  # type: ignore[call-arg]
