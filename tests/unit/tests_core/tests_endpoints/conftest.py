@@ -58,3 +58,17 @@ def api_class(api_client: OpenAPIClient) -> type[APIBase]:
         def get_something(self) -> RestResponse: ...
 
     return TestAPI
+
+
+@pytest.fixture(scope="session")
+def api_class_async(api_client_async: OpenAPIClient) -> type[APIBase]:
+    """Returns a testable API class with one endpoint function (async)"""
+
+    class TestAPI(APIBase):
+        TAGs = ("Test",)
+        app_name = api_client_async.app_name
+
+        @endpoint.get("/v1/something")
+        def get_something(self) -> RestResponse: ...
+
+    return TestAPI
