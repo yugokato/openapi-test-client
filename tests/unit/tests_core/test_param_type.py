@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, cast, get
 import pytest
 
 import openapi_test_client.libraries.core.endpoints.utils.param_type as param_type_util
-from openapi_test_client.libraries.core.types import Alias, Constraint, Format, Optional, ParamModel, Unset
+from openapi_test_client.libraries.core.types import Alias, Constraint, Format, Optional, ParamDef, ParamModel, Unset
 
 if TYPE_CHECKING:
     from typing import _AnnotatedAlias  # type: ignore[attr-defined]
@@ -280,7 +280,7 @@ class TestGenerateUnionType:
         tp = param_type_util.generate_union_type(types)
         orig_models = [x for x in types if param_type_util.is_param_model(x)]
         merged_model = param_type_util.get_param_model(tp)
-        check_merged_model(merged_model, *orig_models)
+        _check_merged_model(merged_model, *orig_models)
 
 
 class TestGenerateOptionalType:
@@ -638,10 +638,217 @@ class TestCustomOr:
         tp = param_type_util.or_(tp1, tp2)
         merged_model = param_type_util.get_param_model(tp)
         assert merged_model
-        check_merged_model(merged_model, model1, model2)
+        _check_merged_model(merged_model, model1, model2)
 
 
-def check_merged_model(merged_model: type[ParamModel], *original_models: type[ParamModel]) -> None:
+class TestResolveTypeAnnotation:
+    """Tests for param_type_util.resolve_type_annotation()"""
+
+    @pytest.mark.parametrize(
+        ("openapi_type", "expected"),
+        [
+            ("string", str),
+            ("str", str),  # non-standard but handled
+            ("integer", int),
+            ("int", int),  # non-standard but handled
+            ("int32", int),
+            ("int64", int),
+            ("boolean", bool),
+            ("bool", bool),  # non-standard but handled
+        ],
+    )
+    def test_basic_scalar_types_returns_correct_python_type(self, openapi_type: str, expected: type) -> None:
+        """Test that basic OpenAPI scalar types are resolved to the corresponding Python type."""
+        param_def = _make_param_def({"type": openapi_type, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result is expected
+
+    def test_number_type_without_format_returns_int_or_float(self) -> None:
+        """Test that number type without a format resolves to int | float."""
+        param_def = _make_param_def({"type": "number", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == int | float
+
+    @pytest.mark.parametrize("number_format", ["float", "double"])
+    def test_number_type_with_float_format_returns_float(self, number_format: str) -> None:
+        """Test that number type with float/double format resolves to float."""
+        param_def = _make_param_def({"type": "number", "format": number_format, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result is float
+
+    def test_null_type_returns_none(self) -> None:
+        """Test that null type resolves to None."""
+        param_def = _make_param_def({"type": "null", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result is None
+
+    def test_string_with_format_returns_annotated_str(self) -> None:
+        """Test that a string type with a format resolves to Annotated[str, Format(...)]."""
+        param_def = _make_param_def({"type": "string", "format": "uuid", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == Annotated[str, Format("uuid")]
+
+    def test_integer_with_format_returns_annotated_int(self) -> None:
+        """Test that an integer type with a format resolves to Annotated[int, Format(...)]."""
+        param_def = _make_param_def({"type": "int64", "format": "int64", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == Annotated[int, Format("int64")]
+
+    def test_required_param_is_not_optional(self) -> None:
+        """Test that a required parameter is not wrapped with Optional."""
+        param_def = _make_param_def({"type": "string", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result is str
+
+    def test_optional_param_is_wrapped_with_optional(self) -> None:
+        """Test that a non-required parameter is wrapped with Optional."""
+        param_def = _make_param_def({"type": "string"})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=False)
+        assert result == str | None
+
+    def test_param_without_required_flag_defaults_to_optional(self) -> None:
+        """Test that a parameter without a required flag is treated as optional."""
+        param_def = _make_param_def({"type": "integer"})
+        result = param_type_util.resolve_type_annotation("param", param_def)
+        assert result == int | None
+
+    def test_is_required_true_overrides_param_def_not_required(self) -> None:
+        """Test that _is_required=True prevents Optional wrapping even when param_def.is_required is False."""
+        param_def = _make_param_def({"type": "string"})  # not required by default
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result is str
+
+    def test_array_with_string_items_returns_list_of_str(self) -> None:
+        """Test that an array type with string items resolves to list[str]."""
+        param_def = _make_param_def({"type": "array", "items": {"type": "string"}, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == list[str]
+
+    def test_array_with_integer_items_returns_list_of_int(self) -> None:
+        """Test that an array type with integer items resolves to list[int]."""
+        param_def = _make_param_def({"type": "array", "items": {"type": "integer"}, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == list[int]
+
+    def test_array_without_items_returns_list_of_any(self) -> None:
+        """Test that an array type with no items definition resolves to list[Any]."""
+        param_def = _make_param_def({"type": "array", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == list[Any]
+
+    def test_nested_array_resolves_correctly(self) -> None:
+        """Test that a nested array (array of array of strings) resolves to list[list[str]]."""
+        param_def = _make_param_def(
+            {"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "required": True}
+        )
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == list[list[str]]
+
+    def test_object_type_without_properties_returns_dict(self) -> None:
+        """Test that an object type without properties resolves to dict[str, Any]."""
+        param_def = _make_param_def({"type": "object", "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result == dict[str, Any]
+
+    def test_object_type_with_properties_returns_param_model(self) -> None:
+        """Test that an object type with properties resolves to a ParamModel subclass."""
+        param_def = _make_param_def(
+            {
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
+                "required": True,
+            }
+        )
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert param_type_util.is_param_model(result, include_forward_ref=False)
+        assert issubclass(result, ParamModel)
+
+    def test_enum_resolves_to_literal_type(self) -> None:
+        """Test that a parameter with an enum resolves to a Literal type containing all enum values."""
+        from openapi_test_client.libraries.core.types import UncacheableLiteralArg
+
+        param_def = _make_param_def({"type": "string", "enum": ["a", "b", "c"], "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert get_origin(result) is Literal
+        # Args are wrapped in UncacheableLiteralArg; unwrap to get the actual values
+        raw_args = {arg.obj if isinstance(arg, UncacheableLiteralArg) else arg for arg in get_args(result)}
+        assert raw_args == {"a", "b", "c"}
+
+    def test_deprecated_param_is_annotated_with_deprecated_metadata(self) -> None:
+        """Test that a deprecated parameter has 'deprecated' in its Annotated metadata."""
+        param_def = _make_param_def({"type": "string", "deprecated": True, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert param_type_util.is_deprecated_param(result)
+
+    def test_param_with_constraint_is_annotated(self) -> None:
+        """Test that a parameter with constraints is wrapped with Annotated[..., Constraint(...)]."""
+        param_def = _make_param_def({"type": "integer", "minimum": 1, "maximum": 100, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        annotated = param_type_util.get_annotated_type(result)
+        assert annotated is not None
+        constraint = next((m for m in annotated.__metadata__ if isinstance(m, Constraint)), None)
+        assert constraint is not None
+        assert constraint.min == 1
+        assert constraint.max == 100
+
+    def test_string_with_length_constraint_is_annotated(self) -> None:
+        """Test that a string with length constraints is wrapped with Annotated[..., Constraint(...)]."""
+        param_def = _make_param_def({"type": "string", "minLength": 2, "maxLength": 50, "required": True})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        annotated = param_type_util.get_annotated_type(result)
+        assert annotated is not None
+        constraint = next((m for m in annotated.__metadata__ if isinstance(m, Constraint)), None)
+        assert constraint is not None
+        assert constraint.min_len == 2
+        assert constraint.max_len == 50
+
+    def test_any_of_param_resolves_to_union_type(self) -> None:
+        """Test that an anyOf parameter group resolves to a union of the member types."""
+        param_def = _make_param_def({"anyOf": [{"type": "string"}, {"type": "integer"}]})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert param_type_util.is_union_type(result, exclude_optional=True)
+        base = param_type_util.get_base_type(result)
+        assert param_type_util.is_union_type(base, exclude_optional=True)
+        assert str in get_args(base)
+        assert int in get_args(base)
+
+    def test_one_of_param_resolves_to_union_type(self) -> None:
+        """Test that a oneOf parameter group resolves to a union of the member types."""
+        param_def = _make_param_def({"oneOf": [{"type": "boolean"}, {"type": "string"}]})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert param_type_util.is_union_type(result, exclude_optional=True)
+        base = param_type_util.get_base_type(result)
+        assert param_type_util.is_union_type(base, exclude_optional=True)
+        assert bool in get_args(base)
+        assert str in get_args(base)
+
+    def test_unknown_type_resolves_to_any(self) -> None:
+        """Test that a parameter object with no recognizable type resolves to Any."""
+        # A dict with no 'type' key produces a ParamDef.UnknownType
+        param_def = _make_param_def({"description": "no type here"})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert result is Any
+
+    def test_raw_dict_input_is_converted_and_resolved(self) -> None:
+        """Test that passing a plain dict (not a ParamDef) is handled by converting it internally."""
+        # resolve_type_annotation accepts non-ParamDef and converts it via from_param_obj
+        raw = {"type": "string", "required": True}
+        result = param_type_util.resolve_type_annotation("param", raw, _is_required=True)
+        assert result is str
+
+    def test_unsupported_type_raises_not_implemented_error(self) -> None:
+        """Test that an unsupported OpenAPI type raises NotImplementedError."""
+        param_def = _make_param_def({"type": "unsupported_type", "required": True})
+        with pytest.raises(NotImplementedError, match="Unsupported type"):
+            param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+
+
+def _check_merged_model(merged_model: type[ParamModel], *original_models: type[ParamModel]) -> None:
     assert set((name, f.name, f.type, f.default) for name, f in merged_model.__dataclass_fields__.items()) == {
         *((name, f.name, f.type, f.default) for m in original_models for name, f in m.__dataclass_fields__.items()),
     }
+
+
+def _make_param_def(obj: dict[str, Any]) -> ParamDef:
+    """Helper to build a ParamDef from a raw OpenAPI parameter dict."""
+    return ParamDef.from_param_obj(obj)
