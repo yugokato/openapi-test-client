@@ -418,7 +418,7 @@ def replace_annotated_type(tp: Any, annotated_tp_from: Any, annotated_tp_to: Any
     :param annotated_tp_from: The current Annotated[] type
     :param annotated_tp_to: The new Annotated[] type
     """
-    if not (get_origin(annotated_tp_from) is Annotated and get_origin(annotated_tp_from) is Annotated):
+    if not (get_origin(annotated_tp_from) is Annotated and get_origin(annotated_tp_to) is Annotated):
         raise TypeError("annotated_tp_from and annotated_tp_to must be an Annotated[] type")
 
     if is_union_type(tp):
@@ -513,7 +513,7 @@ def get_annotated_type(
                         and any(isinstance(m, x) for m in metadata)
                     ):
                         return tp
-                    return None
+                return None
             return tp
         elif origin is list:
             return get_annotated_type(get_args(tp)[0], metadata_filter=metadata_filter)
@@ -566,7 +566,7 @@ def merge_annotation_types(tp1: Any, tp2: Any) -> Any:
                 annotation_types2 = [x for x in tp2.__metadata__ if isinstance(x, ParamAnnotationType)]
                 if (
                     annotation_types1
-                    and annotation_types1
+                    and annotation_types2
                     and (sorted(repr(x) for x in annotation_types1) == sorted(repr(y) for y in annotation_types2))
                 ) or not (annotation_types1 or annotation_types2):
                     combined_type = merge_annotation_types(get_args(tp1)[0], get_args(tp2)[0])

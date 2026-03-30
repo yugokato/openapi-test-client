@@ -186,9 +186,8 @@ class ParamDef(HashableDict):
                         ]
                     )
                 elif "schema" in obj:
-                    obj.update(obj["schema"])
-                    del obj["schema"]
-                    return convert(obj)
+                    merged = {k: v for k, v in obj.items() if k != "schema"} | obj["schema"]
+                    return convert(merged)
                 elif "type" in obj:
                     param_def = ParamDef(obj)
                     if param_def.type == "array" and "items" in param_def:

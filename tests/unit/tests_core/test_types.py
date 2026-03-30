@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
+from copy import deepcopy
 from dataclasses import MISSING, field
 from typing import Any
 
@@ -218,6 +219,13 @@ class TestParamDefFromParamObj:
         assert len(result) == 1
         assert isinstance(result[0], ParamDef.OneOf)
         assert len(result[0]) == 2
+
+    def test_with_schema_key_does_not_mutate_input(self) -> None:
+        """Test that from_param_obj does not mutate the caller's dict when 'schema' key is present."""
+        original = {"schema": {"type": "string"}, "description": "a param", "_id": "no_mutate"}
+        original_copy = deepcopy(original)
+        ParamDef.from_param_obj(original)
+        assert original == original_copy
 
 
 class TestFile:

@@ -391,6 +391,11 @@ class TestReplaceAnnotatedType:
         """Test that Annotated[] type inside a type annotation can be replaced with another Annotated[] type"""
         assert param_type_util.replace_annotated_type(tp, annotated_from, annotated_to) == expected_type
 
+    def test_replace_annotated_type_raises_when_annotated_tp_to_is_not_annotated(self) -> None:
+        """Test that TypeError is raised when annotated_tp_to is not an Annotated[] type"""
+        with pytest.raises(TypeError, match="annotated_tp_from and annotated_tp_to must be an Annotated\\[\\] type"):
+            param_type_util.replace_annotated_type(Annotated[int, "m"], Annotated[int, "m"], int)
+
 
 class TestModifyAnnotatedMetadata:
     """Tests for param_type_util.modify_annotated_metadata() with add/remove/replace actions"""
@@ -495,6 +500,25 @@ class TestGetAnnotatedType:
         """Test that an annotated type that may/may not be nested inside the given type can be retrieved"""
         assert param_type_util.get_annotated_type(tp) == annotated_type
 
+    @pytest.mark.parametrize(
+        ("tp", "metadata_filter", "expected"),
+        [
+            # first filter matches
+            (Annotated[str, Constraint(min_len=1)], [Constraint], Annotated[str, Constraint(min_len=1)]),
+            # second filter matches (regression for early-return bug in loop)
+            (Annotated[str, Constraint(min_len=1)], ["nonexistent", Constraint], Annotated[str, Constraint(min_len=1)]),
+            # string filter matches
+            (Annotated[str, "tag"], "tag", Annotated[str, "tag"]),
+            # no filter matches
+            (Annotated[str, Constraint(min_len=1)], [Format, "nonexistent"], None),
+            # type not annotated
+            (str, [Constraint], None),
+        ],
+    )
+    def test_get_annotated_type_with_metadata_filter(self, tp: Any, metadata_filter: list[Any], expected: Any) -> None:
+        """Test that get_annotated_type correctly filters annotated types by metadata"""
+        assert param_type_util.get_annotated_type(tp, metadata_filter=metadata_filter) == expected
+
 
 class TestMergeAnnotationTypes:
     """Tests for param_type_util.merge_annotation_types()"""
@@ -546,6 +570,15 @@ class TestMergeAnnotationTypes:
             assert repr(param_type_util.merge_annotation_types(tp1, tp2)) == repr(expected_type)
         else:
             assert param_type_util.merge_annotation_types(tp1, tp2) == expected_type
+
+    def test_merge_annotation_types_as_union(self) -> None:
+        """Test that types where only one of type annotations has ParamAnnotationType metadata are treated as a union,
+        not merged
+        """
+        tp1 = Annotated[str, Constraint(nullable=True)]
+        tp2 = Annotated[int, "meta"]
+        result = param_type_util.merge_annotation_types(tp1, tp2)
+        assert result == tp1 | tp2
 
 
 class TestMatchesType:
@@ -841,6 +874,43 @@ class TestResolveTypeAnnotation:
         param_def = _make_param_def({"type": "unsupported_type", "required": True})
         with pytest.raises(NotImplementedError, match="Unsupported type"):
             param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+
+    def test_all_of_param_resolves_to_union_type(self) -> None:
+        """Test that an allOf parameter group resolves to a union type.
+
+        Note: allOf is semantically an intersection but is currently treated as a union.
+        """
+        param_def = _make_param_def({"allOf": [{"type": "string"}, {"type": "integer"}]})
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert param_type_util.is_union_type(result, exclude_optional=True)
+        base = param_type_util.get_base_type(result)
+        assert param_type_util.is_union_type(base, exclude_optional=True)
+        assert str in get_args(base)
+        assert int in get_args(base)
+
+    def test_array_with_oneof_items_resolves_to_list_of_union(self) -> None:
+        """Test that an array type with oneOf items resolves to list[union_type]."""
+        param_def = _make_param_def(
+            {"type": "array", "items": {"oneOf": [{"type": "string"}, {"type": "integer"}]}, "required": True}
+        )
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert get_origin(result) is list
+        inner = get_args(result)[0]
+        assert param_type_util.is_union_type(inner, exclude_optional=True)
+        assert str in get_args(inner)
+        assert int in get_args(inner)
+
+    def test_array_with_anyof_items_resolves_to_list_of_union(self) -> None:
+        """Test that an array type with anyOf items resolves to list[union_type]."""
+        param_def = _make_param_def(
+            {"type": "array", "items": {"anyOf": [{"type": "boolean"}, {"type": "string"}]}, "required": True}
+        )
+        result = param_type_util.resolve_type_annotation("param", param_def, _is_required=True)
+        assert get_origin(result) is list
+        inner = get_args(result)[0]
+        assert param_type_util.is_union_type(inner, exclude_optional=True)
+        assert bool in get_args(inner)
+        assert str in get_args(inner)
 
 
 def _check_merged_model(merged_model: type[ParamModel], *original_models: type[ParamModel]) -> None:
