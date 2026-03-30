@@ -23,6 +23,8 @@ logger = get_logger(__name__)
 class OpenAPISpec:
     """Class to handle OpenAPI specs"""
 
+    _REF_PATTERN = re.compile(r"#?/([^/]+)")
+
     def __init__(self, api_client: OpenAPIClient, doc_path: str):
         self.api_client = api_client
         self.doc_path = doc_path
@@ -130,7 +132,6 @@ class OpenAPISpec:
     @staticmethod
     def _resolve_schemas(api_spec: dict[str, Any]) -> dict[str, Any]:
         """Resolve '$ref' and overwrite the spec data"""
-        ref_pattern = re.compile(r"#?/([^/]+)")
 
         def has_reference(obj: Any) -> bool:
             if isinstance(obj, dict):
@@ -147,14 +148,13 @@ class OpenAPISpec:
 
         def remove_circular_ref(reference: Any) -> Any:
             if isinstance(reference, dict):
-                for k, v in copy.deepcopy(reference).items():
-                    new_reference = reference[k]
+                for k in list(reference):
                     if k == "$ref":
                         del reference[k]
                         # Resolve with the temp object so that we can resolve this object as a param model later
                         reference.update(type="object", __circular_ref__=True)
                     else:
-                        remove_circular_ref(new_reference)
+                        remove_circular_ref(reference[k])
             elif isinstance(reference, list):
                 for item in reference:
                     remove_circular_ref(item)
@@ -164,13 +164,13 @@ class OpenAPISpec:
             if schemas_seen is None:
                 schemas_seen = []
             if isinstance(reference, dict):
-                for k, v in copy.deepcopy(reference).items():
+                for k, v in list(reference.items()):
                     new_reference = reference[k]
                     if k == "$ref":
                         if not isinstance(new_reference, str):
                             raise RuntimeError(f"Detected invalid $ref value: {new_reference}")
                         del reference[k]
-                        ref_keys = re.findall(ref_pattern, new_reference)
+                        ref_keys = re.findall(OpenAPISpec._REF_PATTERN, new_reference)
                         assert ref_keys
                         schema = "/".join(ref_keys)
                         schema_name = ref_keys[-1]
@@ -184,8 +184,7 @@ class OpenAPISpec:
                                 resolved_value = remove_circular_ref(resolved_value)
                             else:
                                 schemas_seen.append(schema)
-                                if has_reference(resolved_value):
-                                    resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
+                                resolved_value = resolve_recursive(resolved_value, schemas_seen=schemas_seen)
                                 schemas_seen.pop()
 
                             if isinstance(resolved_value, dict):
@@ -229,7 +228,7 @@ class OpenAPISpec:
             - Set `required` boolean flag to under each obj property for parameters defined as required at schema-level
             """
             if isinstance(reference, dict):
-                for k, v in copy.deepcopy(reference).items():
+                for k, v in list(reference.items()):
                     new_reference = reference[k]
                     if k == "additionalProperties":
                         if (
@@ -279,18 +278,13 @@ class OpenAPISpec:
 
     @staticmethod
     def _collect_endpoint_tags(resolved_api_spec: dict[str, Any]) -> list[str]:
-        collected_tags = []
-
-        def collect(obj: Any) -> None:
-            if isinstance(obj, dict):
-                tags = obj.get("tags")
-                if tags and isinstance(tags, list) and all(isinstance(t, str) for t in tags):
-                    collected_tags.extend(tags)
-                else:
-                    for k, v in obj.items():
-                        collect(obj[k])
-
-        collect(resolved_api_spec["paths"])
-        if not collected_tags:
-            collected_tags.append("default")
-        return list(set(collected_tags))
+        collected_tags: set[str] = set()
+        for path_obj in resolved_api_spec["paths"].values():
+            for method in VALID_METHODS:
+                if method in path_obj:
+                    tags = path_obj[method].get("tags")
+                    if tags and isinstance(tags, list) and all(isinstance(t, str) for t in tags):
+                        collected_tags.update(tags)
+        if collected_tags:
+            return list(collected_tags)
+        return ["default"]
