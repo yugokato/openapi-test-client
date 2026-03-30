@@ -43,27 +43,40 @@ def diff_code(code1: str, code2: str, fromfile: str = "before", tofile: str = "a
 
 
 def run_ruff(code: str, remove_unused_imports: bool = True) -> str:
-    """Run ruff check and ruff format"""
+    """Run 'ruff check' and 'ruff format' commands as a pipeline
+
     # TODO: Switch to use ruff public APIs once supported (https://github.com/astral-sh/ruff/issues/659)
-    return _run_ruff_format(_run_ruff_check(code, remove_unused_imports=remove_unused_imports))
-
-
-def _run_ruff_check(code: str, remove_unused_imports: bool = True) -> str:
-    selects = ["--select=I"]
+    """
+    select_rules = ["I"]
     if remove_unused_imports:
-        selects.append("--select=F401")
-    proc = subprocess.run(
-        ["ruff", "check", *selects, "--fix", "-"],
-        input=code,
-        capture_output=True,
+        select_rules.append("F401")
+
+    ruff_check = subprocess.Popen(
+        ["ruff", "check", f"--select={','.join(select_rules)}", "--fix", "-"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         encoding="utf-8",
-        check=False,
     )
-    if proc.returncode:
-        raise RuntimeError(f"Unexpected error occurred during ruff check\n{proc.stderr}")
-    assert proc.stdout
-    return proc.stdout
+    ruff_format = subprocess.Popen(
+        ["ruff", "format", "-"],
+        stdin=ruff_check.stdout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf-8",
+    )
 
+    # Close parent's copy so ruff_format sees EOF correctly (and can SIGPIPE if it exits)
+    ruff_check.stdout.close()
 
-def _run_ruff_format(code: str) -> str:
-    return subprocess.check_output(["ruff", "format", "-"], input=code, encoding="utf-8")
+    # Use communicate to avoid deadlocks
+    _, check_stderr = ruff_check.communicate(input=code)
+    formatted_code, format_stderr = ruff_format.communicate()
+
+    if ruff_check.returncode:
+        raise RuntimeError(f"ruff check failed:\n{check_stderr}")
+    if ruff_format.returncode:
+        raise RuntimeError(f"ruff format failed:\n{format_stderr}")
+
+    assert formatted_code
+    return formatted_code

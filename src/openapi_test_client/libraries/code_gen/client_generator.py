@@ -32,7 +32,7 @@ from openapi_test_client.libraries.code_gen.utils import (
     generate_model_code_from_model,
     sort_models_by_dependency,
 )
-from openapi_test_client.libraries.common.code import diff_code, format_code
+from openapi_test_client.libraries.common.code import diff_code, format_code, parse_code
 from openapi_test_client.libraries.common.constants import BACKSLASH, TAB, VALID_METHODS
 from openapi_test_client.libraries.common.misc import (
     camel_to_snake,
@@ -300,11 +300,9 @@ def update_endpoint_functions(
 
     api_cls_file_path = Path(inspect.getabsfile(api_class))
     model_file_path = api_cls_file_path.parent.parent / API_MODEL_CLASS_DIR_NAME / api_cls_file_path.name
-    original_api_cls_code = modified_api_cls_code = format_code(
-        api_cls_file_path.read_text(), remove_unused_imports=False
-    )
+    original_api_cls_code = modified_api_cls_code = api_cls_file_path.read_text()
     if model_file_path.exists():
-        original_model_code = format_code(model_file_path.read_text(), remove_unused_imports=False)
+        original_model_code = model_file_path.read_text()
     else:
         original_model_code = ""
     method = path = func_name = ""
@@ -447,7 +445,6 @@ def update_endpoint_functions(
                 )
 
         # Update code (if code changes)
-        new_code = format_code(new_code, remove_unused_imports=False)
         if current_code != new_code:
             modified_api_cls_code = new_code
 
@@ -492,7 +489,7 @@ def update_endpoint_functions(
                     )
                 if undefined_ep_functions:
                     new_code += undefined_ep_functions
-                    new_code = format_code(new_code, remove_unused_imports=False)
+                    parse_code(new_code)
                     modified_api_cls_code = new_code
 
                     # Add undefined model names to the model module to fake model definitions. This will prevent
