@@ -1,13 +1,54 @@
 import secrets
+from typing import ClassVar
 
-from quart import Blueprint, Quart
-from quart_auth import QuartAuth
+from quart import Blueprint, Quart, request
+from quart_auth import AuthUser
+from quart_auth import QuartAuth as _QuartAuth
 from quart_schema import Info, QuartSchema
+
+
+class QuartAuth(_QuartAuth):
+    """QuartAuth subclass that rejects revoked bearer tokens at resolution time.
+
+    Overrides resolve_user() so that quart_auth.login_required natively denies revoked tokens.
+    """
+
+    _revoked_tokens: ClassVar[set[str]] = set()
+
+    def resolve_user(self) -> AuthUser:
+        """Resolve the current request user, returning unauthenticated for revoked tokens."""
+        raw = request.headers.get("Authorization", "")
+        if raw.lower().startswith("bearer "):
+            token = raw[7:].strip()
+            if QuartAuth.is_token_revoked(token):
+                return self.user_class(None)
+        return super().resolve_user()
+
+    @staticmethod
+    def revoke_token(token: str) -> None:
+        """Add a token to the revocation set.
+
+        :param token: The bearer token to revoke.
+        """
+        QuartAuth._revoked_tokens.add(token)
+
+    @staticmethod
+    def is_token_revoked(token: str) -> bool:
+        """Check if a token has been revoked.
+
+        :param token: The bearer token to check.
+        """
+        return token in QuartAuth._revoked_tokens
+
 
 auth_manager = QuartAuth()
 
 
 def create_app(version: int = 1) -> Quart:
+    """Create and configure the demo Quart application.
+
+    :param version: API version number used as a URL prefix.
+    """
     app = Quart(__name__)
     QuartSchema(
         app,

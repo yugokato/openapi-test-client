@@ -1,7 +1,7 @@
 import uuid
 
-from quart import Blueprint, Response, jsonify
-from quart_auth import logout_user
+from quart import Blueprint, Response, jsonify, request
+from quart_auth import login_required
 from quart_schema import security_scheme, tag, validate_request
 
 from demo_app import auth_manager
@@ -26,8 +26,11 @@ async def login(data: LoginData) -> tuple[Response, int]:
 
 @bp_auth.post("/logout")
 @tag_auth
-@security_scheme([])
+@login_required
 async def logout() -> tuple[Response, int]:
     """Logout"""
-    logout_user()
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.removeprefix("Bearer ")
+        auth_manager.revoke_token(token)
     return jsonify({"message": "logged out"}), 200

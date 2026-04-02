@@ -57,6 +57,16 @@ def unauthenticated_api_client(port: int) -> Generator[DemoAppAPIClient]:
         yield client
 
 
+@pytest.fixture
+def authenticated_api_client(port: int) -> Generator[DemoAppAPIClient]:
+    with DemoAppAPIClient() as client:
+        if IS_TOX:
+            helper.update_client_base_url(client, port)
+        r = client.Auth.login(username="foo", password="bar")
+        assert r.ok
+        yield client
+
+
 @pytest.fixture(scope="module")
 def api_client(port: int) -> Generator[DemoAppAPIClient]:
     with DemoAppAPIClient() as client:

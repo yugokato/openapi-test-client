@@ -43,6 +43,7 @@ def test_auth_logout_contract(
     pact_factory: Callable[[str], AbstractContextManager[Pact]],
     pact_server_factory: Callable[[Pact, DemoAppAPIClient], AbstractContextManager[PactServer]],
     authenticated_client: DemoAppAPIClient,
+    fake_token: str,
 ) -> None:
     """Consumer contract test for the GET /v1/auth/logout endpoint"""
     endpoint_func = authenticated_client.Auth.logout
@@ -53,6 +54,7 @@ def test_auth_logout_contract(
         (
             pact.upon_receiving("logout request")
             .with_request(endpoint_func.method, endpoint_func.path)
+            .with_header("Authorization", f"Bearer {fake_token}")
             .will_respond_with(expected_status_code)
             .with_body(body=response, content_type="application/json")
         )

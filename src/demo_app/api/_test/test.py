@@ -4,7 +4,7 @@ from quart import Blueprint, Response, jsonify, redirect, url_for
 from quart_schema import tag
 
 bp_test = Blueprint("Test", __name__, url_prefix="/test")
-tag_test = tag(["Test"])
+tag_test = tag(["_Test"])
 
 
 @bp_test.get("/echo/<int:value>")

@@ -477,7 +477,6 @@ For example, if the OpenAPI spec defines Auth APIs like this:
         "tags": [
           "Auth"
         ],
-        "security": [],
         "operationId": "post_logout"
       }
     },
@@ -504,7 +503,6 @@ class AuthAPI(DemoAppBaseAPI):
         """Login"""
         ...
 
-    @endpoint.is_public
     @endpoint.post("/v1/auth/logout")
     def logout(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
         """Logout"""
@@ -549,7 +547,7 @@ Some attributes available from the API class:
           model=<class 'openapi_test_client.libraries.core.endpoints.utils.endpoint_model.AuthAPILoginEndpointModel'>,
           url=None,
           content_type=None,
-          is_public=True,
+          is_public=False,
           is_documented=True,
           is_deprecated=False)]
 ```

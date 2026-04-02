@@ -29,7 +29,7 @@ def port(demo_app_server: DemoAppLifecycleManager) -> int:
 
 @pytest.fixture(scope="module")
 def token(port: int) -> Generator[str]:
-    """Valid auth token"""
+    """Valid auth token for user provider verification"""
     client = DemoAppAPIClient()
     update_client_base_url(client, port)
     r = client.Auth.login(username="foo", password="bar")
@@ -37,3 +37,18 @@ def token(port: int) -> Generator[str]:
     yield client.rest_client.get_bearer_token()
     r = client.Auth.logout()
     assert r.ok
+
+
+@pytest.fixture
+def auth_provider_token(port: int) -> str:
+    """Fresh auth token for auth provider verification.
+
+    Function-scoped so the pact verifier's logout interaction (which revokes this token)
+    does not interfere with the module-scoped ``token`` used by other tests.
+    No teardown logout is needed because the verifier replays the logout interaction itself.
+    """
+    client = DemoAppAPIClient()
+    update_client_base_url(client, port)
+    r = client.Auth.login(username="foo", password="bar")
+    assert r.ok
+    return client.rest_client.get_bearer_token()

@@ -14,7 +14,6 @@ class AuthAPI(DemoAppBaseAPI):
         """Login"""
         ...
 
-    @endpoint.is_public
     @endpoint.post("/v1/auth/logout")
     def logout(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
         """Logout"""
