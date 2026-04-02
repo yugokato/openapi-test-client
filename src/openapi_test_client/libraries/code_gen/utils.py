@@ -76,10 +76,10 @@ def generate_imports_code_from_model(
         if obj_type not in [*primitive_types, None, NoneType] and not isinstance(obj_type, tuple(primitive_types)):
             if typing_origin := get_origin(obj_type):
                 if typing_origin is Annotated:
-                    module_and_name_pairs.add(("typing", Annotated.__name__))  # type: ignore[attr-defined]
+                    module_and_name_pairs.add(("typing", Annotated.__name__))
                     [generate_imports_code(m) for m in get_args(obj_type)]
                 elif typing_origin is Literal:
-                    module_and_name_pairs.add(("typing", Literal.__name__))  # type: ignore[attr-defined]
+                    module_and_name_pairs.add(("typing", Literal.__name__))
                 elif typing_origin in [list, dict, tuple]:
                     [generate_imports_code(m) for m in [x for x in get_args(obj_type)]]
                 elif typing_origin in [UnionType, Union]:
@@ -162,7 +162,7 @@ def generate_type_annotation_code(tp: Any) -> str:
     elif get_origin(tp) is Annotated:
         orig_type = generate_type_annotation_code(tp.__origin__)
         metadata_types = ", ".join(generate_type_annotation_code(m) for m in tp.__metadata__)
-        return f"{Annotated.__name__}[{orig_type}, {metadata_types}]"  # type: ignore[attr-defined]
+        return f"{Annotated.__name__}[{orig_type}, {metadata_types}]"
     elif is_union_type(tp):
         args = get_args(tp)
         if NoneType in args:
