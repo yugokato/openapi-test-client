@@ -35,7 +35,7 @@ class DemoAppPortManager:
     def __init__(self, identifier: str) -> None:
         self.identifier = identifier
         self.port_reservation_file = Path(tempfile.gettempdir(), "demo_app_port_reservation.json")
-        weakref.finalize(self, self.cleanup)
+        weakref.finalize(self, DemoAppPortManager.cleanup, self.identifier, self.port_reservation_file)
 
     def reserve_port(self) -> int:
         """Reserve an app port"""
@@ -57,15 +57,16 @@ class DemoAppPortManager:
             logger.debug(f"Reserved port: {reserved_port}")
         return int(reserved_port)
 
-    def cleanup(self) -> None:
+    @staticmethod
+    def cleanup(identifier: str, port_reservation_file: Path) -> None:
         with Lock("port_reservation"):
-            if self.port_reservation_file.exists():
-                if reserved_ports := json.loads(self.port_reservation_file.read_text() or "{}"):
-                    reserved_ports.pop(self.identifier, None)
+            if port_reservation_file.exists():
+                if reserved_ports := json.loads(port_reservation_file.read_text() or "{}"):
+                    reserved_ports.pop(identifier, None)
                     if reserved_ports:
-                        self.port_reservation_file.write_text(json.dumps(reserved_ports))
+                        port_reservation_file.write_text(json.dumps(reserved_ports))
                     else:
-                        self.port_reservation_file.unlink()
+                        port_reservation_file.unlink()
 
 
 class DemoAppLifecycleManager:
@@ -107,7 +108,7 @@ class DemoAppLifecycleManager:
             self.is_starter = True
 
         if self.is_starter:
-            weakref.finalize(self, self.stop_app)
+            weakref.finalize(self, _app_finalizer, weakref.ref(self))
 
     def __enter__(self) -> Self:
         if self.start:
@@ -179,6 +180,13 @@ class DemoAppLifecycleManager:
             stdout, stderr = self.proc.communicate()
             logger.info(f"Stopped app. App logs:\n{stderr or stdout}")
             self.proc = None
+
+    @staticmethod
+    def _stop_app(self_ref: weakref.ReferenceType):
+        """for weakref.finalizer()"""
+        self = self_ref()
+        if self is not None:
+            self.stop_app()
 
     def get_num_active_workers(self) -> int:
         with Lock(self.xdist_identifier):
@@ -276,3 +284,10 @@ def do_test_invalid_params(
 def update_client_base_url(client: OpenAPIClient | DemoAppAPIClient, port: int) -> None:
     base_url = client.base_url
     client.base_url = re.sub(r"(.+):\d+", rf"\1:{port}", base_url)
+
+
+def _app_finalizer(self_ref: weakref.ReferenceType):
+    """For safely stopping app with weakref.finalizer()"""
+    self = self_ref()
+    if self is not None:
+        self.stop_app()
