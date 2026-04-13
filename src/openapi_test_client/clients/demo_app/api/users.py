@@ -4,7 +4,7 @@ from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.core.endpoints import endpoint
 from openapi_test_client.libraries.core.types import APIResponse, Constraint, File, Format, Kwargs, Optional, Unset
 
-from ..models.users import Metadata
+from ..models.users import MetadataInput
 
 
 class UsersAPI(DemoAppBaseAPI):
@@ -18,7 +18,7 @@ class UsersAPI(DemoAppBaseAPI):
         last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
         email: Annotated[str, Format("email")] = Unset,
         role: Literal["admin", "viewer", "support"] = Unset,
-        metadata: Optional[Metadata] = Unset,
+        metadata: Optional[MetadataInput] = Unset,
         **kwargs: Unpack[Kwargs],
     ) -> APIResponse:
         """Create a new user"""
