@@ -14,6 +14,21 @@ if TYPE_CHECKING:
 
 __all__ = ["EndpointHandler"]
 
+DeferredOperation = Callable[["EndpointHandler"], None]
+
+
+class PendingHandler:
+    """Carries endpoint operations applied before the @endpoint.<method>() factory decorator.
+
+    Enables @endpoint.<method>() to work at any position in the decorator stack, not just immediately
+    above the function definition. Once the factory decorator runs, it drains all pending operations onto the
+    newly created EndpointHandler.
+    """
+
+    def __init__(self, f: Callable[..., APIResponse]) -> None:
+        self.func = f
+        self.deferred_operations: list[DeferredOperation] = []
+
 
 class EndpointHandler:
     """A class to encapsulate each API class function (original function) inside a dynamically generated

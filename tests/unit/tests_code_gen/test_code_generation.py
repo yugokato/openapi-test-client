@@ -198,6 +198,45 @@ class TestUpdateEndpointFunction:
             assert endpoint_param_to_add not in sig_endpoint3.parameters
             assert model_param_to_delete not in Metadata.__dataclass_fields__
 
+    def test_update_endpoint_function_when_decorator_below_endpoint_decorator(
+        self, temp_api_client: OpenAPIClient, openapi_specs: dict[str, Any]
+    ) -> None:
+        """Test that update_endpoint_functions() picks up endpoints where a decorator is placed below
+        @endpoint.<method>()"""
+        api_class_name = "TestSomethingAPI"
+        NewAPIClass = do_generate_api_class(temp_api_client, api_class_name, add_endpoint_functions=True)
+
+        # Generated code places @endpoint.is_public above @endpoint.<method>(). Swap the order so the
+        # flag decorator sits below @endpoint.<method>() to exercise the new position-independent style.
+        api_cls_file_path = Path(inspect.getfile(NewAPIClass))
+        original_code = api_cls_file_path.read_text()
+        reordered_code = re.sub(
+            r"(    @endpoint\.is_public\n)(    @endpoint\.\w+\([^\n]*\)\n)",
+            r"\2\1",
+            original_code,
+        )
+        assert reordered_code != original_code, (
+            "Reorder failed: expected @endpoint.is_public above @endpoint.<method>()"
+        )
+        api_cls_file_path.write_text(reordered_code)
+
+        # Update with new params added to all endpoints
+        endpoint_param_to_add = "new_param"
+        updated_openapi_specs = helper.generate_updated_specs(
+            openapi_specs, endpoint_param_to_add=endpoint_param_to_add, model_param_to_delete="additional_info"
+        )
+        result = update_endpoint_functions(NewAPIClass, updated_openapi_specs, add_missing_endpoints=False)
+        assert result is True
+
+        # The endpoint must have been matched and its signature updated, not silently skipped
+        UpdatedNewAPIClass = reload_obj(NewAPIClass)
+        sig = inspect.signature(UpdatedNewAPIClass._unnamed_endpoint_1)
+        assert endpoint_param_to_add in sig.parameters
+
+        # The below-decorator must be preserved without duplication (3 endpoints → 3 occurrences)
+        updated_code = api_cls_file_path.read_text()
+        assert updated_code.count("@endpoint.is_public") == 3
+
 
 class TestGenerateApiClient:
     """Tests for generate_api_client()"""

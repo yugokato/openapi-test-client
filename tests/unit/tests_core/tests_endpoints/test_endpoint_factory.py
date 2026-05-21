@@ -12,6 +12,7 @@ from common_libs.clients.rest_client import RestResponse
 from openapi_test_client.libraries.common.constants import VALID_METHODS
 from openapi_test_client.libraries.core.api_classes.base import APIBase
 from openapi_test_client.libraries.core.endpoints import EndpointHandler, endpoint
+from openapi_test_client.libraries.core.endpoints.endpoint_handler import PendingHandler
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -227,3 +228,187 @@ class TestEndpointDecoratorRegistration:
         assert isinstance(do_something, EndpointHandler)
         assert len(do_something.decorators) == 2
         assert do_something.decorators == [deco2.__wrapped__, deco1.__wrapped__]
+
+
+class TestDecoratorPositionIndependence:
+    """Tests for endpoint_factory.py position-independent decorator behavior"""
+
+    def test_method_decorator_above_is_public(self) -> None:
+        """Test that endpoint.is_public works when placed below @endpoint.<method>()"""
+
+        @endpoint.post("/v1/something")
+        @endpoint.is_public
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.is_public is True
+
+    def test_method_decorator_above_is_deprecated(self) -> None:
+        """Test that endpoint.is_deprecated works when placed below @endpoint.<method>()"""
+
+        @endpoint.post("/v1/something")
+        @endpoint.is_deprecated
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.is_deprecated is True
+
+    def test_method_decorator_above_undocumented(self) -> None:
+        """Test that endpoint.undocumented works when placed below @endpoint.<method>()"""
+
+        @endpoint.get("/v1/something")
+        @endpoint.undocumented
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.is_documented is False
+
+    def test_method_decorator_above_content_type(self) -> None:
+        """Test that endpoint.content_type() works when placed below @endpoint.<method>()"""
+
+        @endpoint.post("/v1/something")
+        @endpoint.content_type("application/xml")
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.content_type == "application/xml"
+
+    def test_method_decorator_outermost_all_flags_below(self) -> None:
+        """Test that @endpoint.<method>() works as the outermost decorator with all flags below it"""
+
+        @endpoint.post("/v1/something")
+        @endpoint.is_public
+        @endpoint.is_deprecated
+        @endpoint.content_type("application/xml")
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.is_public is True
+        assert do_something.is_deprecated is True
+        assert do_something.content_type == "application/xml"
+
+    def test_method_decorator_in_middle(self) -> None:
+        """Test that @endpoint.<method>() works in the middle with flags both above and below"""
+
+        @endpoint.is_public
+        @endpoint.post("/v1/something")
+        @endpoint.is_deprecated
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.is_public is True
+        assert do_something.is_deprecated is True
+
+    def test_original_func_preserved_when_factory_outermost(self) -> None:
+        """Test that original_func on the EndpointHandler points to the real function when flags are below"""
+
+        @endpoint.post("/v1/something")
+        @endpoint.is_public
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert do_something.original_func.__name__ == "do_something"
+
+    def test_endpoint_decorator_below_method_decorator(self) -> None:
+        """Test that an @endpoint.decorator-wrapped decorator works when placed below @endpoint.<method>()"""
+
+        @endpoint.decorator
+        def my_decorator(f: Callable[P, R]) -> Callable[P, R]:
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        @endpoint.get("/v1/something")
+        @my_decorator
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert len(do_something.decorators) == 1
+        assert do_something.decorators[0] is my_decorator.__wrapped__
+
+    def test_endpoint_decorator_order_preserved_when_mixed(self) -> None:
+        """Test that decorator registration order is the same regardless of position relative to @endpoint.<method>()"""
+
+        @endpoint.decorator
+        def deco1(f: Callable[P, R]) -> Callable[P, R]:
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        @endpoint.decorator
+        def deco2(f: Callable[P, R]) -> Callable[P, R]:
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        # All above (baseline)
+        @deco1
+        @deco2
+        @endpoint.get("/v1/something")
+        def all_above(self: Any) -> RestResponse: ...
+
+        # All below (method decorator outermost)
+        @endpoint.get("/v1/something")
+        @deco1
+        @deco2
+        def all_below(self: Any) -> RestResponse: ...
+
+        # Mixed (method decorator in the middle)
+        @deco1
+        @endpoint.get("/v1/something")
+        @deco2
+        def mixed(self: Any) -> RestResponse: ...
+
+        expected_order = [deco2.__wrapped__, deco1.__wrapped__]
+        assert all_above.decorators == expected_order
+        assert all_below.decorators == expected_order
+        assert mixed.decorators == expected_order
+
+    def test_endpoint_decorator_with_args_below_method_decorator(self) -> None:
+        """Test that @endpoint.decorator-wrapped decorators with args work when placed below the method decorator"""
+
+        @endpoint.decorator
+        def decorator_with_args(*deco_args: Any, **deco_kwargs: Any) -> Callable[[Callable[P, R]], Callable[P, R]]:
+            def decorator(f: Callable[P, R]) -> Callable[P, R]:
+                @wraps(f)
+                def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                    return f(*args, **kwargs)
+
+                return wrapper
+
+            return decorator
+
+        @endpoint.get("/v1/something")
+        @decorator_with_args("x", key="val")
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, EndpointHandler)
+        assert len(do_something.decorators) == 1
+        registered = do_something.decorators[0]
+        assert isinstance(registered, partial)
+        assert registered.func is decorator_with_args.__wrapped__
+
+    def test_missing_method_decorator_produces_pending_endpoint(self) -> None:
+        """Test that applying a flag decorator without @endpoint.<method>() produces a _PendingEndpoint"""
+
+        @endpoint.is_public
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, PendingHandler)
+        assert not isinstance(do_something, EndpointHandler)
+
+    def test_multiple_flags_without_method_decorator_accumulate_in_pending(self) -> None:
+        """Test that multiple flag decorators without @endpoint.<method>() accumulate ops in _PendingEndpoint"""
+
+        @endpoint.is_public
+        @endpoint.is_deprecated
+        def do_something(self: Any) -> RestResponse: ...
+
+        assert isinstance(do_something, PendingHandler)
+        assert len(do_something.deferred_operations) == 2

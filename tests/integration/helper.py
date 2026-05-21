@@ -182,7 +182,7 @@ class DemoAppLifecycleManager:
             self.proc = None
 
     @staticmethod
-    def _stop_app(self_ref: weakref.ReferenceType):
+    def _stop_app(self_ref: weakref.ReferenceType[Any]) -> None:
         """for weakref.finalizer()"""
         self = self_ref()
         if self is not None:
@@ -286,7 +286,7 @@ def update_client_base_url(client: OpenAPIClient | DemoAppAPIClient, port: int) 
     client.base_url = re.sub(r"(.+):\d+", rf"\1:{port}", base_url)
 
 
-def _app_finalizer(self_ref: weakref.ReferenceType):
+def _app_finalizer(self_ref: weakref.ReferenceType[Any]) -> None:
     """For safely stopping app with weakref.finalizer()"""
     self = self_ref()
     if self is not None:

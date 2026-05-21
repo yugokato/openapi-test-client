@@ -31,7 +31,8 @@ def init_api_classes(base_api_class: type[APIBase[Any]]) -> list[type[APIBase[An
         ]
 
     """  # noqa: E501
-    from openapi_test_client.libraries.core.endpoints import EndpointFunc, EndpointHandler
+    from openapi_test_client.libraries.core.endpoints import EndpointFunc
+    from openapi_test_client.libraries.core.endpoints.endpoint_handler import EndpointHandler, PendingHandler
 
     previous_frame = inspect.currentframe().f_back
     assert previous_frame
@@ -47,6 +48,11 @@ def init_api_classes(base_api_class: type[APIBase[Any]]) -> list[type[APIBase[An
             raise RuntimeError(f"API class {api_class.__name__} does not have TAGs been set")
         api_class.endpoints = []
         for attr_name, attr in api_class.__dict__.items():
+            if isinstance(attr, PendingHandler):
+                raise RuntimeError(
+                    f"{api_class.__name__}.{attr_name}: endpoint decorator(s) applied but "
+                    "no @endpoint.<method>() decorator found"
+                )
             if isinstance(attr, EndpointHandler):
                 endpoint_func: EndpointFunc = getattr(api_class, attr_name)
                 assert isinstance(endpoint_func, EndpointFunc)

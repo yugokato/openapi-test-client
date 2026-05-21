@@ -7,7 +7,11 @@ from typing import Any
 
 from openapi_test_client.libraries.core.api_classes import APIBase
 from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointDecorator, EndpointFunction
-from openapi_test_client.libraries.core.endpoints.endpoint_handler import EndpointHandler
+from openapi_test_client.libraries.core.endpoints.endpoint_handler import (
+    DeferredOperation,
+    EndpointHandler,
+    PendingHandler,
+)
 from openapi_test_client.libraries.core.types import APIResponse
 
 __all__ = ["endpoint"]
@@ -169,36 +173,36 @@ class endpoint:
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
 
-        :param obj: Endpoint handler or API class
+        :param obj: Endpoint handler, API class, or API function
         NOTE: EndpointFunction type was added for mypy only
         """
-        assert isinstance(obj, EndpointHandler) or (inspect.isclass(obj) and issubclass(obj, APIBase))
-        obj.is_documented = False
-        return obj
+        if inspect.isclass(obj) and issubclass(obj, APIBase):
+            obj.is_documented = False
+            return obj
+        return endpoint._apply_operations(obj, lambda h: setattr(h, "is_documented", False))
 
     @staticmethod
     def is_public(obj: EndpointHandler | EndpointFunction[Any]) -> EndpointFunction[Any]:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
 
-        :param obj: Endpoint handler
+        :param obj: Endpoint handler or API function
         NOTE: EndpointFunction type was added for mypy only
         """
-        assert isinstance(obj, EndpointHandler)
-        obj.is_public = True
-        return obj
+        return endpoint._apply_operations(obj, lambda h: setattr(h, "is_public", True))
 
     @staticmethod
     def is_deprecated(obj: EndpointHandler | type[APIBase[Any]] | EndpointFunction[Any]) -> EndpointFunction[Any]:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
 
-        :param obj: Endpoint handler or API class
+        :param obj: Endpoint handler, API class, or API function
         NOTE: EndpointFunction type was added for mypy only
         """
-        assert isinstance(obj, EndpointHandler) or (inspect.isclass(obj) and issubclass(obj, APIBase))
-        obj.is_deprecated = True
-        return obj
+        if inspect.isclass(obj) and issubclass(obj, APIBase):
+            obj.is_deprecated = True
+            return obj
+        return endpoint._apply_operations(obj, lambda h: setattr(h, "is_deprecated", True))
 
     @staticmethod
     def content_type(content_type: str) -> Callable[..., EndpointFunction[Any]]:
@@ -207,10 +211,8 @@ class endpoint:
         :param content_type: Content type to explicitly set
         """
 
-        def wrapper(endpoint_handler: EndpointHandler) -> EndpointHandler:
-            assert isinstance(endpoint_handler, EndpointHandler)
-            endpoint_handler.content_type = content_type
-            return endpoint_handler
+        def wrapper(obj: EndpointHandler | EndpointFunction[Any]) -> EndpointFunction[Any]:
+            return endpoint._apply_operations(obj, lambda h: setattr(h, "content_type", content_type))
 
         return wrapper
 
@@ -219,9 +221,9 @@ class endpoint:
         f: EndpointDecorator | Callable[..., EndpointDecorator],
     ) -> EndpointDecorator | Callable[..., EndpointDecorator]:
         """Convert a regular decorator to be usable on API functions. This supports both regular decorators and
-        decorators with arugments
+        decorators with arguments
 
-        Due to the way we encupsulate an API class function, the first argument of a regular decorator applied on our
+        Due to the way we encapsulate an API class function, the first argument of a regular decorator applied on our
         API function will be an EndpointHandler object instead of the decorated function. Decorating the decorator with
         this `endpoint.decorator` will make it usable on an API class function
 
@@ -241,18 +243,19 @@ class endpoint:
         """
 
         @wraps(f)
-        def wrapper(*args: Any, **kwargs: Any) -> EndpointHandler | Callable[[EndpointHandler], EndpointHandler]:
-            if not kwargs and args and len(args) == 1 and isinstance(args[0], EndpointHandler):
-                # This is a regular decorator
-                endpoint_handler: EndpointHandler = args[0]
-                endpoint_handler.register_decorator(f)
-                return endpoint_handler
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            if (
+                not kwargs
+                and len(args) == 1
+                and (isinstance(args[0], (EndpointHandler, PendingHandler)) or inspect.isfunction(args[0]))
+            ):
+                # Bare decorator: @my_decorator on EndpointHandler, PendingEndpoint, or plain API function
+                return endpoint._apply_operations(args[0], lambda h: h.register_decorator(f))
             else:
-                # The decorator takes arguments
+                # Decorator with arguments: @my_decorator(arg1, arg2, ...)
                 @wraps(f)
-                def _wrapper(endpoint_handler: EndpointHandler) -> EndpointHandler:
-                    endpoint_handler.register_decorator(partial(f, *args, **kwargs))
-                    return endpoint_handler
+                def _wrapper(obj: Any) -> Any:
+                    return endpoint._apply_operations(obj, lambda h: h.register_decorator(partial(f, *args, **kwargs)))
 
                 return _wrapper
 
@@ -266,7 +269,39 @@ class endpoint:
         EndpointFunc object when accessing the associated API class function
         """
 
-        def endpoint_factory(f: Callable[..., APIResponse]) -> EndpointHandler:
+        def endpoint_factory(f: Callable[..., APIResponse] | PendingHandler) -> EndpointHandler:
+            if isinstance(f, PendingHandler):
+                handler = EndpointHandler(
+                    f.func, method, path, use_query_string=use_query_string, **default_raw_options
+                )
+                for modifier in f.deferred_operations:
+                    modifier(handler)
+                return handler
             return EndpointHandler(f, method, path, use_query_string=use_query_string, **default_raw_options)
 
         return endpoint_factory
+
+    @staticmethod
+    def _apply_operations(
+        obj: EndpointHandler | PendingHandler | Callable[..., APIResponse], operation: DeferredOperation
+    ) -> Any:
+        """Apply an endpoint operation immediately (EndpointHandler) or defer it (function / PendingEndpoint)
+
+        :param obj: An EndpointHandler, PendingEndpoint, or a plain API function
+        :param operation: An operation to apply to the final EndpointHandler
+        """
+        if isinstance(obj, EndpointHandler):
+            operation(obj)
+            return obj
+        elif isinstance(obj, PendingHandler):
+            obj.deferred_operations.append(operation)
+            return obj
+        elif inspect.isfunction(obj):
+            pending_handler = PendingHandler(obj)
+            pending_handler.deferred_operations.append(operation)
+            return pending_handler
+        else:
+            raise TypeError(
+                f"Expected an {EndpointHandler.__name__} or API function, got {type(obj).__name__}. "
+                "Ensure @endpoint.<method>() is present in the decorator stack."
+            )

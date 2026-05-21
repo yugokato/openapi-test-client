@@ -289,6 +289,8 @@ def update_endpoint_functions(
         rf"{tab}@{endpoint.__name__}\.(?P<method>{'|'.join(VALID_METHODS)})\("
         # endpoint path and endpoint options
         rf"(\n{tab}{{2}})?\"(?P<path>.+?)\"(?P<ep_options>,.+?)?(\n{tab})?\)\n"
+        # decorator(s) below the endpoint decorator
+        rf"(?P<decorators_below>(?:{tab}@[^\n]+\n)*?)"
         # function def
         rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> APIResponse:\n?)"
         # docstring

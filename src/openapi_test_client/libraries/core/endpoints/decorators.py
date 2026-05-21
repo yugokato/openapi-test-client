@@ -20,7 +20,7 @@ def my_endpoint_decorator(f: Callable[P, R]) -> Callable[P, R]:
 
     NOTE:
         - All endpoint decorators must be decorated with `@endpoint.decorator`
-        - The decorator must be added above the `@endpoint.<method>(<path>)` decorator
+        - The decorator can be placed at any position relative to `@endpoint.<method>(<path>)`
 
     Usage:
         >>> @my_endpoint_decorator
