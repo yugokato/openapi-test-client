@@ -412,3 +412,130 @@ class TestDecoratorPositionIndependence:
 
         assert isinstance(do_something, PendingHandler)
         assert len(do_something.deferred_operations) == 2
+
+
+class TestUnregisteredDecoratorDetection:
+    """Tests for fail-fast detection of unregistered endpoint decorators in APIBase.__init_subclass__"""
+
+    def test_unregistered_decorator_above_method_decorator_raises(self) -> None:
+        """Test that a regular decorator applied above @endpoint.<method>() without @endpoint.decorator raises"""
+
+        def regular_decorator(f: Callable[P, R]) -> Callable[P, R]:
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        with pytest.raises(RuntimeError, match=r"@endpoint\.decorator"):
+
+            class BadAPI(APIBase):
+                @regular_decorator
+                @endpoint.get("/v1/something")
+                def do_something(self: Any) -> RestResponse: ...
+
+    def test_unregistered_decorator_without_wraps_raises(self) -> None:
+        """Test that a regular decorator applied without functools.wraps also raises RuntimeError"""
+
+        def regular_decorator_no_wraps(f: Callable[..., Any]) -> Callable[..., Any]:
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        with pytest.raises(RuntimeError, match=r"@endpoint\.decorator"):
+
+            class BadAPI(APIBase):
+                @regular_decorator_no_wraps
+                @endpoint.get("/v1/something")
+                def do_something(self: Any) -> RestResponse: ...
+
+    @pytest.mark.parametrize("use_wraps", [True, False], ids=["with_wraps", "without_wraps"])
+    def test_unregistered_stacked_decorators_raises(self, use_wraps: bool) -> None:
+        """Test that multiple regular decorators stacked above @endpoint.<method>() raises"""
+
+        def regular_decorator(f: Callable[P, R]) -> Callable[P, R]:
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wraps(f)(wrapper) if use_wraps else wrapper
+
+        with pytest.raises(RuntimeError, match=r"@endpoint\.decorator"):
+
+            class BadAPI(APIBase):
+                @regular_decorator
+                @regular_decorator
+                @endpoint.get("/v1/something")
+                def do_something(self: Any) -> RestResponse: ...
+
+    @pytest.mark.parametrize("num_decorators", [1, 2], ids=["single", "stacked"])
+    @pytest.mark.parametrize("use_wraps", [True, False], ids=["with_wraps", "without_wraps"])
+    def test_unregistered_decorator_in_middle_of_endpoint_decorators_raises(
+        self, use_wraps: bool, num_decorators: int
+    ) -> None:
+        """Test that regular decorator(s) between @endpoint.* flag decorators and @endpoint.<method>() raises"""
+
+        def regular_decorator(f: Callable[P, R]) -> Callable[P, R]:
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wraps(f)(wrapper) if use_wraps else wrapper
+
+        with pytest.raises(RuntimeError, match=r"@endpoint\.decorator"):
+            decos = regular_decorator if num_decorators == 1 else lambda f: regular_decorator(regular_decorator(f))
+
+            class BadAPI(APIBase):
+                @endpoint.is_public
+                @decos
+                @endpoint.get("/v1/something")
+                def do_something(self: Any) -> RestResponse: ...
+
+    def test_pending_handler_attribute_raises(self) -> None:
+        """Test that an endpoint decorator stack without @endpoint.<method>() still raises at class-definition time"""
+        with pytest.raises(RuntimeError, match=r"@endpoint\.<method>\(\)"):
+
+            class BadAPI(APIBase):
+                @endpoint.is_public
+                def do_something(self: Any) -> RestResponse: ...
+
+    def test_registered_decorator_does_not_raise(self) -> None:
+        """Test that a properly @endpoint.decorator-registered decorator does not raise"""
+
+        @endpoint.decorator
+        def my_decorator(f: Callable[P, R]) -> Callable[P, R]:
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        class GoodAPI(APIBase):
+            @my_decorator
+            @endpoint.get("/v1/something")
+            def do_something(self: Any) -> RestResponse: ...
+
+    def test_regular_decorator_below_method_decorator_does_not_raise(self) -> None:
+        """Test that a regular decorator below @endpoint.<method>() does not raise (it wraps the original func body)"""
+
+        def regular_decorator(f: Callable[P, R]) -> Callable[P, R]:
+            @wraps(f)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                return f(*args, **kwargs)
+
+            return wrapper
+
+        class GoodAPI(APIBase):
+            @endpoint.get("/v1/something")
+            @regular_decorator
+            def do_something(self: Any) -> RestResponse: ...
+
+    def test_flag_decorators_and_bare_endpoint_do_not_raise(self) -> None:
+        """Test that flag decorators and endpoints without custom decorators do not raise"""
+
+        class GoodAPI(APIBase):
+            @endpoint.is_public
+            @endpoint.get("/v1/something")
+            def with_flags(self: Any) -> RestResponse: ...
+
+            @endpoint.get("/v1/something-else")
+            def bare(self: Any) -> RestResponse: ...
