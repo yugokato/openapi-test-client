@@ -6,9 +6,9 @@ from contextlib import asynccontextmanager, contextmanager
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from common_libs.clients.rest_client import RestClient
+from common_libs.clients.rest_client import AsyncRestClient, RestClient
 
-from openapi_test_client.libraries.core.types import APIResponse
+from ..types import APIResponse
 
 if TYPE_CHECKING:
     from .endpoint_func import AsyncEndpointFunc, SyncEndpointFunc
@@ -33,7 +33,7 @@ class Executor(ABC):
     ) -> (
         Callable[..., APIResponse] | Callable[..., Generator[APIResponse]] | Callable[..., AsyncGenerator[APIResponse]]
     ):
-        rest_client: RestClient = endpoint_func.rest_client
+        rest_client: RestClient | AsyncRestClient = endpoint_func.rest_client
         if stream:
             rest_func = partial(getattr(rest_client, "stream"), endpoint_func.endpoint.method.upper())
         else:
@@ -59,13 +59,13 @@ class AsyncExecutor(Executor):
     async def execute(
         self, endpoint_func: AsyncEndpointFunc, completed_path: str, params: dict[str, Any]
     ) -> APIResponse:
-        rest_func = SyncExecutor.get_rest_func(endpoint_func, stream=False)
+        rest_func = Executor.get_rest_func(endpoint_func, stream=False)
         return await rest_func(completed_path, **params)
 
     @asynccontextmanager
     async def execute_stream(
         self, endpoint_func: AsyncEndpointFunc, completed_path: str, params: dict[str, Any]
     ) -> AsyncGenerator[APIResponse]:
-        rest_func = SyncExecutor.get_rest_func(endpoint_func, stream=True)
+        rest_func = Executor.get_rest_func(endpoint_func, stream=True)
         async with rest_func(completed_path, **params) as resp:
             yield resp

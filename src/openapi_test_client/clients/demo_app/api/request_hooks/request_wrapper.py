@@ -4,7 +4,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
-from openapi_test_client.libraries.core.types import APIResponse
+from openapi_test_client.libraries.openapi.types import APIResponse
 
 P = ParamSpec("P")
 R = TypeVar("R", bound=APIResponse)

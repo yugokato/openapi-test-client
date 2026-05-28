@@ -8,6 +8,7 @@ from pytest import Subtests
 
 from openapi_test_client import logger
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
+from openapi_test_client.libraries.openapi.utils.pydantic_model import in_validation_mode
 
 pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]
 
@@ -25,7 +26,8 @@ async def test_async_client(async_api_client: DemoAppAPIClient, subtests: Subtes
         assert r.ok
         assert len(r.response) > 0
 
-        r = await async_api_client.Users.get_users(role="admin", quiet=quiet, validate=True)
+        with in_validation_mode():
+            r = await async_api_client.Users.get_users(role="admin", quiet=quiet)
         assert r.ok
         assert len(r.response) > 0
 
@@ -91,7 +93,8 @@ async def test_async_client_request_failures(
 
     with subtests.test("API func call failure with validation mode"):
         with pytest.raises(ValueError, match="Request parameter validation failed") as e:
-            _ = await async_api_client.Auth.login(validate=True, quiet=quiet)
+            with in_validation_mode():
+                _ = await async_api_client.Auth.login(quiet=quiet)
         logger.info(e.value)
 
     with subtests.test("API func call failure (streaming)"):

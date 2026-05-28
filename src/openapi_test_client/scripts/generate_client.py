@@ -76,7 +76,8 @@ from typing import TYPE_CHECKING, Any
 
 from common_libs.clients.rest_client import RestClient
 from common_libs.logging import get_logger
-from common_libs.utils import clean_obj_name, list_items
+from common_libs.naming import clean_obj_name
+from common_libs.utils import list_items
 
 from openapi_test_client import (
     _PACKAGE_DIR,
@@ -84,15 +85,16 @@ from openapi_test_client import (
     DEFAULT_ENV,
     ENV_VAR_PACKAGE_DIR,
     find_external_package_dir,
+    get_client_dir,
     get_package_dir,
     is_external_project,
 )
-from openapi_test_client.clients.openapi import OpenAPIClient
-from openapi_test_client.libraries.code_gen import client_generator as generator
-from openapi_test_client.libraries.common.misc import get_module_name_by_file_path
+from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.openapi.code_gen import client_generator as generator
+from openapi_test_client.libraries.openapi.utils.modules import get_module_name_by_file_path
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.core.api_classes.base import APIBase
+    from openapi_test_client.libraries.openapi.base.api_class import OpenAPIBase
 
 logger = get_logger(__name__)
 
@@ -290,7 +292,7 @@ def generate_client(args: argparse.Namespace) -> None:
         sys.path.append(str(external_dir.parent))
 
     app_name = clean_obj_name(args.app_name).lower()
-    if (client_dir := generator.get_client_dir(app_name)).exists():
+    if (client_dir := get_client_dir(app_name)).exists():
         raise RuntimeError(f"API Client for '{app_name}' already exists in {client_dir}")
 
     if external_dir:
@@ -344,7 +346,7 @@ def update_client(args: argparse.Namespace) -> None:
 
     api_tags_undefined: list[str] = []
     all_documented_tags = [x["name"] for x in api_spec["tags"] if x["name"] and not x["name"].startswith("_")]
-    all_defined_tags: list[str] = list(chain.from_iterable([x.TAGs for x in api_classes]))  # type: ignore[arg-type]
+    all_defined_tags: list[str] = list(chain.from_iterable([x.TAGs for x in api_classes]))
     update_required = []
     failed_results: list[tuple[str, Exception]] = []
 
@@ -386,10 +388,7 @@ def update_client(args: argparse.Namespace) -> None:
                     failed_results.append(update_result)
 
         if not args.tag:
-            defined_tags = [  # type: ignore[var-annotated]
-                x.strip()
-                for x in chain(*[x.TAGs for x in api_classes if not isinstance(x.TAGs, property)])  # type: ignore[arg-type]
-            ]
+            defined_tags = [x.strip() for x in chain(*[x.TAGs for x in api_classes])]
             undefined_tags = set(all_documented_tags).difference(set(defined_tags))
             if undefined_tags:
                 api_tags_undefined.extend(undefined_tags)
@@ -419,7 +418,7 @@ def update_client(args: argparse.Namespace) -> None:
             _log_errors(args.action, failed_results)
 
 
-def _get_api_classes(app: str) -> list[type[APIBase[Any]]]:
+def _get_api_classes(app: str) -> list[type[OpenAPIBase[Any]]]:
     mod = importlib.import_module(
         f"{get_module_name_by_file_path(API_CLIENTS_DIR)}.{app}.{generator.API_CLASS_DIR_NAME}"
     )

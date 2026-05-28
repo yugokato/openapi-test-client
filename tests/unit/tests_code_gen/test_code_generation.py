@@ -10,26 +10,27 @@ from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
 import pytest
 from pytest_mock import MockerFixture
 
-from openapi_test_client.clients.openapi import OpenAPIClient
-from openapi_test_client.libraries.code_gen import utils
-from openapi_test_client.libraries.code_gen.client_generator import (
+from openapi_test_client.libraries.core.base import APIBase
+from openapi_test_client.libraries.openapi import Endpoint, EndpointFunc
+from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.openapi.code_gen import utils
+from openapi_test_client.libraries.openapi.code_gen.client_generator import (
     generate_api_class,
     generate_api_client,
     generate_base_api_class,
     update_endpoint_functions,
 )
-from openapi_test_client.libraries.common.misc import reload_obj
-from openapi_test_client.libraries.core import Endpoint, EndpointFunc
-from openapi_test_client.libraries.core.api_classes.base import APIBase
-from openapi_test_client.libraries.core.types import (
+from openapi_test_client.libraries.openapi.types import (
     Alias,
     Constraint,
     Format,
     Optional,
     ParamModel,
+    Query,
     UncacheableLiteralArg,
     Unset,
 )
+from openapi_test_client.libraries.openapi.utils.modules import reload_obj
 from tests.unit.tests_code_gen import helper
 
 pytestmark = [pytest.mark.unittest]
@@ -312,6 +313,7 @@ class TestCodeGenUtils:
             (int | None | MyParamModel, f"Optional[int | {MyParamModel.__name__}]"),
             # Annotated
             (Annotated[str, "meta"], "Annotated[str, 'meta']"),
+            (Annotated[str, Query()], "Annotated[str, Query()]"),
             (
                 Annotated[str, "meta1", "meta2", Format(value="uuid"), Alias("foo"), Constraint(min=1)],
                 "Annotated[str, 'meta1', 'meta2', Format('uuid'), Alias('foo'), Constraint(min=1)]",
@@ -343,6 +345,60 @@ class TestCodeGenUtils:
             expected_tp_code = f"Optional[{expected_tp_code}]"
 
         assert utils.generate_type_annotation_code(tp) == expected_tp_code
+
+
+class TestGenerateImportsCode:
+    """Tests for generate_imports_code_from_model() — verifying split-package import paths"""
+
+    def test_unset_import_uses_openapi_types_module(self, temp_api_client: OpenAPIClient) -> None:
+        """Test that a model with Unset defaults emits 'from openapi_test_client.libraries.openapi.types import Unset'
+
+        This asserts the split-package contract: generated code must import Unset from the openapi layer,
+        not from core.types, so that a future removal of the core re-export does not silently break clients.
+        """
+        from dataclasses import make_dataclass
+
+        import openapi_test_client.libraries.openapi.types as openapi_types_module
+
+        # Use make_dataclass to avoid from __future__ import annotations stringifying the field type
+        UnsetModel = make_dataclass("UnsetModel", [("field1", str, Unset)], bases=(ParamModel,))
+
+        NewAPIClass = do_generate_api_class(temp_api_client, "TestSomethingAPI", add_endpoint_functions=True)
+        imports_code = utils.generate_imports_code_from_model(NewAPIClass, UnsetModel)
+
+        expected = f"from {openapi_types_module.__name__} import Unset"
+        assert expected in imports_code, (
+            f"Expected Unset import from openapi types module.\n"
+            f"Expected line: {expected!r}\n"
+            f"Actual imports_code:\n{imports_code}"
+        )
+        assert "from openapi_test_client.libraries.core.types import Unset" not in imports_code
+
+    def test_optional_import_uses_openapi_types_module(self, temp_api_client: OpenAPIClient) -> None:
+        """Test that a model with Optional fields emits
+        'from openapi_test_client.libraries.openapi.types import Optional'.
+
+        Mirrors the Unset contract: Optional is an openapi-layer alias and must be imported from there.
+        """
+        from dataclasses import make_dataclass
+
+        import openapi_test_client.libraries.openapi.types as openapi_types_module
+
+        # Use make_dataclass to avoid from __future__ import annotations stringifying the field type
+        OptionalModel = make_dataclass(
+            "OptionalModel", [("field1", openapi_types_module.Optional[str], Unset)], bases=(ParamModel,)
+        )
+
+        NewAPIClass = do_generate_api_class(temp_api_client, "TestSomethingAPI", add_endpoint_functions=True)
+        imports_code = utils.generate_imports_code_from_model(NewAPIClass, OptionalModel)
+
+        expected = f"from {openapi_types_module.__name__} import Optional"
+        assert expected in imports_code, (
+            f"Expected Optional import from openapi types module.\n"
+            f"Expected line: {expected!r}\n"
+            f"Actual imports_code:\n{imports_code}"
+        )
+        assert "from typing import Optional" not in imports_code
 
 
 def do_generate_api_class(

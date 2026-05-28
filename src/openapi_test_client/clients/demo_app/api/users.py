@@ -1,8 +1,8 @@
 from typing import Annotated, Literal, Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
-from openapi_test_client.libraries.core.endpoints import endpoint
-from openapi_test_client.libraries.core.types import APIResponse, Constraint, File, Format, Kwargs, Optional, Unset
+from openapi_test_client.libraries.openapi import endpoint
+from openapi_test_client.libraries.openapi.types import APIResponse, Constraint, File, Format, Kwargs, Optional, Unset
 
 from ..models.users import Metadata
 

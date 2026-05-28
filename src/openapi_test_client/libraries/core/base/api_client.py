@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Any, Self
+
+from common_libs.clients.rest_client import AsyncRestClient, RestClient
+from common_libs.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class APIClient:
+    """General API test client base class. All clients must inherit from this class"""
+
+    def __init__(
+        self,
+        app_name: str,
+        /,
+        *,
+        env: str | None = None,
+        base_url: str | None = None,
+        rest_client: RestClient | AsyncRestClient | None = None,
+        async_mode: bool = False,
+        **kwargs: Any,
+    ):
+        """Initialize the API client
+
+        :param app_name: App name
+        :param env: Target environment
+        :param base_url: Base URL for the API
+        :param rest_client: Pre-configured REST client (mutually exclusive with base_url)
+        :param async_mode: Enable async mode
+        :param kwargs: Additional keyword arguments passed to the REST client constructor
+        """
+        if not async_mode:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            else:
+                raise RuntimeError(
+                    f"{type(self).__name__} cannot be used in sync mode inside async context. Specify async_mode=True "
+                    f"to enable async mode."
+                )
+
+        self.app_name = app_name
+        self.env = env
+        self.async_mode = async_mode
+
+        if rest_client:
+            if async_mode and isinstance(rest_client, RestClient):
+                raise TypeError(f"rest_client must be of type {AsyncRestClient.__name__} when async_mode is True")
+            if not async_mode and isinstance(rest_client, AsyncRestClient):
+                raise TypeError(f"rest_client must be of type {RestClient.__name__} when async_mode is False")
+            if base_url:
+                raise ValueError("base_url is not supported when rest_client is provided")
+
+            self.rest_client = rest_client
+            self._base_url = rest_client.base_url
+        else:
+            if base_url is None:
+                raise ValueError("base_url is required when rest_client is not provided")
+
+            self._base_url = base_url
+            if self.async_mode:
+                self.rest_client = AsyncRestClient(self.base_url, **kwargs)
+            else:
+                self.rest_client = RestClient(self.base_url, **kwargs)
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.rest_client.close()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        await self.rest_client.close()
+
+    @property
+    def base_url(self) -> str:
+        return self._base_url
+
+    @base_url.setter
+    def base_url(self, url: str) -> None:
+        self._base_url = url
+        self.rest_client.base_url = url

@@ -1,4 +1,4 @@
-from openapi_test_client.libraries.core.endpoints.endpoint import Endpoint
-from openapi_test_client.libraries.core.endpoints.endpoint_factory import endpoint
-from openapi_test_client.libraries.core.endpoints.endpoint_func import AsyncEndpointFunc, EndpointFunc, SyncEndpointFunc
-from openapi_test_client.libraries.core.endpoints.endpoint_handler import EndpointHandler
+from .endpoint import Endpoint
+from .endpoint_factory import endpoint
+from .endpoint_func import AsyncEndpointFunc, EndpointFunc, SyncEndpointFunc
+from .endpoint_handler import EndpointHandler

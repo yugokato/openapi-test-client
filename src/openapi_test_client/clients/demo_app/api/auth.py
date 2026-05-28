@@ -1,8 +1,8 @@
 from typing import Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
-from openapi_test_client.libraries.core.endpoints import endpoint
-from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Unset
+from openapi_test_client.libraries.openapi import endpoint
+from openapi_test_client.libraries.openapi.types import APIResponse, Kwargs, Unset
 
 
 class AuthAPI(DemoAppBaseAPI):

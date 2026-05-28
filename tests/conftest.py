@@ -9,12 +9,13 @@ from typing import Any
 
 import pytest
 from common_libs.ansi_colors import ColorCodes
-from common_libs.utils import clean_obj_name, log_section
+from common_libs.naming import clean_obj_name
+from common_libs.utils import log_section
 from pytest import Config, Item, Session, Subtests, TempPathFactory
 from pytest_mock import MockerFixture
 from xdist import is_xdist_worker
 
-from openapi_test_client.libraries.core.types import File
+from openapi_test_client.libraries.openapi.types import File
 
 
 @pytest.hookimpl(tryfirst=True)

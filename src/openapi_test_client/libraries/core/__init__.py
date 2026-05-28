@@ -1,2 +1,2 @@
-from .api_classes import APIBase
+from .base import APIBase, APIClient
 from .endpoints import Endpoint, EndpointFunc, endpoint

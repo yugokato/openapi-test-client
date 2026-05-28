@@ -6,11 +6,11 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any
 from weakref import WeakKeyDictionary
 
-from openapi_test_client.libraries.core.types import APIResponse
+from ..types import APIResponse
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.core.api_classes import APIBase
-    from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointDecorator, EndpointFunc
+    from ..base import APIBase
+    from .endpoint_func import EndpointDecorator, EndpointFunc
 
 __all__ = ["EndpointHandler"]
 
@@ -68,7 +68,11 @@ class EndpointHandler:
 
     def __get__(self, instance: APIBase[Any] | None, owner: type[APIBase[Any]]) -> EndpointFunc:
         """Return an EndpointFunc object"""
-        from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointFunc
+        from ..base.api_class import APIBase as APIBaseClass
+        from .endpoint_func import EndpointFunc
+
+        if not (isinstance(owner, type) and issubclass(owner, APIBaseClass)):
+            raise NotImplementedError(f"Unsupported API class: {owner}")
 
         is_async = bool(instance and instance.api_client.async_mode)
         cache_key = instance or owner

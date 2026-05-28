@@ -99,5 +99,13 @@ def get_config_dir() -> Path:
         return _CONFIG_DIR
 
 
+def get_client_dir(client_name: str) -> Path:
+    """Return the client directory path for the given client name
+
+    :param client_name: Client name
+    """
+    return get_package_dir() / "clients" / client_name
+
+
 setup_logging(get_config_dir() / "logging.yaml")
 logger = get_logger(__name__)

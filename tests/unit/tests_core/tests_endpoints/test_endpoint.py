@@ -7,8 +7,8 @@ from common_libs.clients.rest_client import RestResponse
 from httpx import AsyncClient, Client
 from pytest_mock import MockerFixture
 
-from openapi_test_client.clients.openapi import OpenAPIClient
-from openapi_test_client.libraries.core import APIBase, Endpoint, endpoint
+from openapi_test_client.libraries.core import Endpoint, endpoint
+from openapi_test_client.libraries.core.base import APIBase, APIClient
 
 pytestmark = [pytest.mark.unittest]
 
@@ -17,13 +17,12 @@ class TestEndpointObject:
     """Tests for the Endpoint object attached to EndpointFunc"""
 
     @pytest.mark.parametrize("with_instance", [True, False])
-    def test_attrs(self, api_client: OpenAPIClient, api_class: type[APIBase], with_instance: bool) -> None:
+    def test_attrs(self, api_client: APIClient, api_class: type[APIBase], with_instance: bool) -> None:
         """Test that Endpoint has correct default field values"""
         if with_instance:
             ep = api_class(api_client).get_something.endpoint
         else:
             ep = api_class.get_something.endpoint
-        assert ep.tags == ("Test",)
         assert ep.api_class is api_class
         assert ep.method == "get"
         assert ep.path == "/v1/something"
@@ -47,7 +46,6 @@ class TestEndpointObject:
         """Test that endpoints with same method+path are equal regardless of other fields"""
         ep = api_class.get_something.endpoint
         other = Endpoint(
-            tags=("Other",),
             api_class=ep.api_class,
             method=ep.method,
             path=ep.path,
@@ -61,7 +59,6 @@ class TestEndpointObject:
         ep = api_class.get_something.endpoint
 
         different_path = Endpoint(
-            tags=ep.tags,
             api_class=ep.api_class,
             method=ep.method,
             path="/v1/other",
@@ -71,7 +68,6 @@ class TestEndpointObject:
         assert ep != different_path
 
         different_method = Endpoint(
-            tags=ep.tags,
             api_class=ep.api_class,
             method="post",
             path=ep.path,
@@ -91,11 +87,10 @@ class TestEndpointObject:
         with pytest.raises(AttributeError, match="cannot assign to field"):
             ep.path = "/new/path"
 
-    def test_endpoint_metadata_propagates(self, api_client: OpenAPIClient) -> None:
+    def test_endpoint_metadata_propagates(self, api_client: APIClient) -> None:
         """Test that endpoint metadata applied on an endpoint function propagates from endpoint handler to Endpoint"""
 
         class TestAPI(APIBase):
-            TAGs = ("Test",)
             app_name = api_client.app_name
 
             @endpoint.undocumented
@@ -113,13 +108,12 @@ class TestEndpointObject:
         assert ep.is_deprecated is True
         assert ep.content_type == "application/xml"
 
-    def test_class_level_endpoint_flag_propagates(self, api_client: OpenAPIClient) -> None:
+    def test_class_level_endpoint_flag_propagates(self, api_client: APIClient) -> None:
         """Test that endpoint metadata applied on API class propagates from endpoint handler to Endpoint"""
 
         @endpoint.undocumented
         @endpoint.is_deprecated
         class TestAPI(APIBase):
-            TAGs = ("Test",)
             app_name = api_client.app_name
 
             @endpoint.get("/v1/something")
@@ -132,7 +126,7 @@ class TestEndpointObject:
         assert ep.is_public is False
         assert ep.is_deprecated is True
 
-    def test_endpoint_call(self, mocker: MockerFixture, api_client: OpenAPIClient, api_class: type[APIBase]) -> None:
+    def test_endpoint_call(self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]) -> None:
         """Test that Endpoint.__call__ makes the correct HTTP call and returns RestResponse in sync mode"""
         mock_httpx_request = mocker.patch.object(Client, "request")
         ep = api_class.get_something.endpoint
@@ -141,7 +135,7 @@ class TestEndpointObject:
         mock_httpx_request.assert_called_once()
 
     async def test_endpoint_call_async(
-        self, mocker: MockerFixture, api_client_async: OpenAPIClient, api_class: type[APIBase]
+        self, mocker: MockerFixture, api_client_async: APIClient, api_class: type[APIBase]
     ) -> None:
         """Test that Endpoint.__call__ makes the correct HTTP call and returns RestResponse in async mode"""
         mock_httpx_request = mocker.patch.object(AsyncClient, "request")

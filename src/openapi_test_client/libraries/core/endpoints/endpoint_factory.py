@@ -3,16 +3,19 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from functools import partial, wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from openapi_test_client.libraries.core.api_classes import APIBase
-from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointDecorator, EndpointFunction
-from openapi_test_client.libraries.core.endpoints.endpoint_handler import (
+from ..types import APIResponse
+from .endpoint_func import EndpointDecorator, EndpointFunction
+from .endpoint_handler import (
     DeferredOperation,
     EndpointHandler,
     PendingHandler,
 )
-from openapi_test_client.libraries.core.types import APIResponse
+
+if TYPE_CHECKING:
+    from ..base import APIBase
+
 
 __all__ = ["endpoint"]
 
@@ -27,28 +30,29 @@ class endpoint:
     Example:
         >>> from typing import Unpack
         >>>
-        >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
-        >>> from openapi_test_client.clients.demo_app.api import DemoAppBaseAPI
-        >>> from openapi_test_client.libraries.core.types import Unset, Kwargs
+        >>> from myproject.clients.my_app.my_app_client import MyAppAPIClient
+        >>> from myproject.clients.my_app.api.base.my_app_api import MyAppBaseAPI
+        >>> from openapi_test_client.libraries.core.endpoints.endpoint_func import EndpointFunc
+        >>> from openapi_test_client.libraries.core.types import Kwargs, Unset
         >>>
-        >>> class AuthAPI(DemoAppBaseAPI):
+        >>> class AuthAPI(MyAppBaseAPI):
         >>>     @endpoint.post("/v1/login")
         >>>     def login(
         >>>         self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]
         >>>     ) -> APIResponse:
         >>>         ...
         >>>
-        >>> client = DemoAppAPIClient()
+        >>> client = MyAppAPIClient()
         >>> type(client.Auth.login)
-        <class 'openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc'>
+        <class 'openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc'>
         >>> type(AuthAPI.login)
-        <class 'openapi_test_client.libraries.api.api_functions.endpoint.AuthAPILoginEndpointFunc'>
+        <class 'openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc'>
         >>> isinstance(client.Auth.login, EndpointFunc) and isinstance(AuthAPI.login, EndpointFunc)
         True
         >>> client.Auth.login.endpoint
-        Endpoint(tags=('Auth',), api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='http://127.0.0.1:5000/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
+        Endpoint(api_class=<class 'myproject.clients.my_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url='https://api.my-app.com/v1/auth/login', content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> AuthAPI.login.endpoint
-        Endpoint(tags=('Auth',), api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
+        Endpoint(api_class=<class 'myproject.clients.my_app.api.auth.AuthAPI'>, method='post', path='/v1/auth/login', func_name='login', model=<class 'types.AuthAPILoginEndpointModel'>, url=None, content_type=None, is_public=False, is_documented=True, is_deprecated=False)
         >>> str(client.Auth.login.endpoint)
         'POST /v1/auth/login'
         >>> str(AuthAPI.login.endpoint)
@@ -56,7 +60,7 @@ class endpoint:
         >>> client.Auth.login.endpoint.path
         '/v1/auth/login'
         >>> client.Auth.login.endpoint.url
-        'http://127.0.0.1:5000/v1/auth/login'
+        'https://api.my-app.com/v1/auth/login'
 
     """  # noqa: E501
 
@@ -176,6 +180,8 @@ class endpoint:
         :param obj: Endpoint handler, API class, or API function
         NOTE: EndpointFunction type was added for mypy only
         """
+        from ..base import APIBase
+
         if inspect.isclass(obj) and issubclass(obj, APIBase):
             obj.is_documented = False
             return obj
@@ -199,6 +205,8 @@ class endpoint:
         :param obj: Endpoint handler, API class, or API function
         NOTE: EndpointFunction type was added for mypy only
         """
+        from ..base import APIBase
+
         if inspect.isclass(obj) and issubclass(obj, APIBase):
             obj.is_deprecated = True
             return obj

@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from openapi_test_client.libraries.core.types import APIResponse, EndpointModel
+from ..types import APIResponse, EndpointModel
 
 if TYPE_CHECKING:
-    from openapi_test_client.clients.openapi import OpenAPIClient
-    from openapi_test_client.libraries.core.api_classes import APIBase
+    from ..base import APIBase
+    from ..base.api_client import APIClient
 
 
 __all__ = ["Endpoint"]
@@ -20,7 +20,6 @@ class Endpoint:
     This is accessible via an EndpointFunc object (see docstrings of the `endpoint` class below).
     """
 
-    tags: tuple[str, ...]
     api_class: type[APIBase[Any]]
     method: str
     path: str
@@ -43,30 +42,32 @@ class Endpoint:
 
     def __call__(
         self,
-        api_client: OpenAPIClient,
-        *path_params: Any,
+        api_client: APIClient,
+        *args: Any,
         quiet: bool = False,
-        validate: bool = False,
         with_hooks: bool = True,
         raw_options: dict[str, Any] | None = None,
-        **body_or_query_params: Any,
+        **kwargs: Any,
     ) -> APIResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
         NOTE: If the provided API client is in async mode, the returned value is a coroutine that needs be awaited by
         the caller
 
-        :param path_params: Path parameters
+        Parameters can be passed either positionally or as keyword arguments — same flexible convention as calling
+        the endpoint function directly (see EndpointFunc.__call__).
+
+        :param api_client: API client to use for the call
+        :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
         :param quiet: A flag to suppress API request/response log
-        :param validate: Validate the request parameter in Pydantic strict mode
         :param with_hooks: Invoke pre/post request hooks
         :param raw_options: Raw request options passed to the underlying HTTP library
-        :param body_or_query_params: Request body or query parameters
+        :param kwargs: Endpoint parameters provided as keword arguments (path and/or body/query parameters)
 
         Example:
-            >>> from openapi_test_client.clients.demo_app import DemoAppAPIClient
+            >>> from myproject.clients.my_app.my_app_client import MyAppAPIClient
             >>>
-            >>> client = DemoAppAPIClient()
+            >>> client = MyAppAPIClient()
             >>> r = client.Auth.login(username="foo", password="bar")
             >>> # Above API call can be also done directly from the endpoint object, if you need to:
             >>> endpoint = client.Auth.login.endpoint
@@ -74,11 +75,4 @@ class Endpoint:
         """
         api_class = self.api_class(api_client)
         endpoint_func = getattr(api_class, self.func_name)
-        return endpoint_func(
-            *path_params,
-            quiet=quiet,
-            with_hooks=with_hooks,
-            validate=validate,
-            raw_options=raw_options,
-            **body_or_query_params,
-        )
+        return endpoint_func(*args, quiet=quiet, with_hooks=with_hooks, raw_options=raw_options, **kwargs)

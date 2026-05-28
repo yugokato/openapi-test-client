@@ -9,9 +9,8 @@ from typing import Any, ParamSpec, TypeVar
 import pytest
 from common_libs.clients.rest_client import RestResponse
 
-from openapi_test_client.clients.openapi import OpenAPIClient
-from openapi_test_client.libraries.common.constants import VALID_METHODS
-from openapi_test_client.libraries.core.api_classes.base import APIBase
+from openapi_test_client.libraries.core.base import APIBase, APIClient
+from openapi_test_client.libraries.core.constants import VALID_METHODS
 from openapi_test_client.libraries.core.endpoints import (
     AsyncEndpointFunc,
     EndpointFunc,
@@ -30,11 +29,10 @@ class TestEndpointHandlerGet:
     """Tests for EndpointHandler.__get__() descriptor protocol"""
 
     @pytest.fixture
-    def api_class(self, api_client: OpenAPIClient) -> type[APIBase]:
+    def api_class(self, api_client: APIClient) -> type[APIBase]:
         """Returns an API class with one fake endpoint function that doesn't have `@endpoint.<method>` decorator"""
 
         class TestAPI(APIBase):
-            TAGs = ("Test",)
             app_name = api_client.app_name
 
             def get_something(self) -> RestResponse: ...
@@ -44,7 +42,7 @@ class TestEndpointHandlerGet:
     @pytest.mark.parametrize("api_client", ["sync", "async"], indirect=True)
     @pytest.mark.parametrize("with_instance", [True, False])
     def test_returns_endpoint_func_instance(
-        self, api_class: type[APIBase], api_client: OpenAPIClient, with_instance: bool
+        self, api_class: type[APIBase], api_client: APIClient, with_instance: bool
     ) -> None:
         """Test that __get__() returns an EndpointFunc instance based on the API client's sync/async mode"""
         endpoint_handler = EndpointHandler(api_class.get_something, "get", "/something")
@@ -66,7 +64,7 @@ class TestEndpointHandlerGet:
 
     @pytest.mark.parametrize("with_instance", [True, False])
     def test_caches_endpoint_func_per_key(
-        self, api_class: type[APIBase], api_client: OpenAPIClient, with_instance: bool
+        self, api_class: type[APIBase], api_client: APIClient, with_instance: bool
     ) -> None:
         """Test that __get__() returns the same cached EndpointFunc on repeated calls with same key"""
         handler = EndpointHandler(api_class.get_something, "get", "/something")
@@ -78,7 +76,7 @@ class TestEndpointHandlerGet:
         assert result1 is result2
 
     @pytest.mark.parametrize("with_instance", [True, False])
-    def test_cache_key(self, api_class: type[APIBase], api_client: OpenAPIClient, with_instance: bool) -> None:
+    def test_cache_key(self, api_class: type[APIBase], api_client: APIClient, with_instance: bool) -> None:
         """Test that __get__() stores results using a cache key"""
         handler = EndpointHandler(api_class.get_something, "get", "/something")
         instance = api_class(api_client) if with_instance else None
@@ -103,7 +101,7 @@ class TestEndpointHandlerGet:
 
     @pytest.mark.parametrize("with_instance", [True, False])
     def test_endpoint_func_class_name_follows_convention(
-        self, api_class: type[APIBase], api_client: OpenAPIClient, with_instance: bool
+        self, api_class: type[APIBase], api_client: APIClient, with_instance: bool
     ) -> None:
         """Test that EndpointFunc class name follows <APIClassName><FuncName>EndpointFunc format"""
         handler = EndpointHandler(api_class.get_something, "get", "/something")

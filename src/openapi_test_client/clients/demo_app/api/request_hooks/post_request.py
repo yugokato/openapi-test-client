@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from openapi_test_client.clients.demo_app import DemoAppAPIClient
-    from openapi_test_client.libraries.core import Endpoint
-    from openapi_test_client.libraries.core.types import APIResponse
+    from openapi_test_client.libraries.openapi import Endpoint
+    from openapi_test_client.libraries.openapi.types import APIResponse
 
 
 def do_something_after_request(
@@ -43,4 +43,4 @@ def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint, r: API
         token = r.response["token"]
         api_client.rest_client.set_bearer_token(token)
     elif endpoint == api_client.Auth.logout.endpoint:
-        api_client.rest_client.unset_bear_token()
+        api_client.rest_client.unset_bearer_token()

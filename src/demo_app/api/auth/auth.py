@@ -21,7 +21,7 @@ async def login(data: LoginData) -> tuple[Response, int]:
     # Just assign a random uuid for this user as there's no actual BE
     user_uuid = str(uuid.uuid4())
     token = auth_manager.dump_token(user_uuid)
-    return jsonify({"token": token}), 201
+    return jsonify({"token": token}), 200
 
 
 @bp_auth.post("/logout")

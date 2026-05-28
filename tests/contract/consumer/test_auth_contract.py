@@ -19,7 +19,7 @@ def test_auth_login_contract(
 ) -> None:
     """Consumer contract test for the POST /v1/auth/login endpoint"""
     endpoint_func = unauthenticated_client.Auth.login
-    expected_status_code = 201
+    expected_status_code = 200
     payload = {"username": "foo", "password": "bar"}
     response = {"token": match.str(fake_token)}
 

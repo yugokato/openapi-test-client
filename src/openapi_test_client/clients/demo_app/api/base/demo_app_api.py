@@ -1,23 +1,23 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from httpx import HTTPError
 
-from openapi_test_client.libraries.core.api_classes.base import APIBase
-from openapi_test_client.libraries.core.types import APIResponse
+from openapi_test_client.libraries.openapi.base.api_class import OpenAPIBase
+from openapi_test_client.libraries.openapi.types import APIResponse
 
 from ..request_hooks.post_request import manage_auth_session
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.core import Endpoint
+    from openapi_test_client.libraries.openapi import Endpoint
 
 
-class DemoAppBaseAPI(APIBase[Any]):
+class DemoAppBaseAPI(OpenAPIBase[Any]):
     """Base class for demo_app API classes"""
 
+    TAGs: ClassVar[tuple[str, ...]] = ()
     app_name = "demo_app"
-    endpoints: list[Endpoint] | None = None
 
     def post_request_hook(
         self,
