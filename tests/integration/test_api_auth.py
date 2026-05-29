@@ -1,9 +1,6 @@
-from contextlib import nullcontext
-
 import pytest
 
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from openapi_test_client.libraries.openapi.utils.pydantic_model import in_validation_mode
 from tests.integration import helper
 
 pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]
@@ -12,8 +9,7 @@ pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_auth_login(unauthenticated_api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of Auth login API"""
-    with in_validation_mode() if validation_mode else nullcontext():
-        r = unauthenticated_api_client.Auth.login(username="foo", password="bar")
+    r = unauthenticated_api_client.Auth.login(username="foo", password="bar", validate=validation_mode)
     assert r.ok
     assert set(r.response.keys()) == {"token"}
 

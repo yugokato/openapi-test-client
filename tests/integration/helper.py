@@ -24,7 +24,6 @@ from pytest import FixtureRequest, TempPathFactory
 from openapi_test_client import logger
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
-from openapi_test_client.libraries.openapi.utils.pydantic_model import in_validation_mode
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.core import EndpointFunc
@@ -268,8 +267,7 @@ def do_test_invalid_params(
     (unless should_server_side_is_accepted=True is given).
     """
     with pytest.raises(ValueError) if validation_mode else nullcontext() as e:
-        with in_validation_mode() if validation_mode else nullcontext():
-            r = endpoint_func(**invalid_params)
+        r = endpoint_func(validate=validation_mode, **invalid_params)
 
     if validation_mode:
         print(e.value)  # noqa: T201

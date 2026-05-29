@@ -1,12 +1,9 @@
-from contextlib import nullcontext
-
 import pytest
 
 from demo_app.api.user.user import USERS
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.models.users import Metadata, Preferences, SocialLinks
 from openapi_test_client.libraries.openapi.types import File
-from openapi_test_client.libraries.openapi.utils.pydantic_model import in_validation_mode
 from tests.integration import helper
 
 pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]
@@ -15,17 +12,17 @@ pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of create user API"""
-    with in_validation_mode() if validation_mode else nullcontext():
-        r = api_client.Users.create_user(
-            first_name="test",
-            last_name="test",
-            email="test@demo.app.net",
-            role="admin",
-            metadata=Metadata(
-                preferences=Preferences(theme="dark", font_size=10),
-                social_links=SocialLinks(github="https://github.com/foo/bar"),
-            ),
-        )
+    r = api_client.Users.create_user(
+        first_name="test",
+        last_name="test",
+        email="test@demo.app.net",
+        role="admin",
+        metadata=Metadata(
+            preferences=Preferences(theme="dark", font_size=10),
+            social_links=SocialLinks(github="https://github.com/foo/bar"),
+        ),
+        validate=validation_mode,
+    )
     assert r.status_code == 201
     assert r.response["id"] > len(USERS)
 
@@ -34,8 +31,7 @@ def test_create_user(api_client: DemoAppAPIClient, validation_mode: bool) -> Non
 def test_get_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of get user API"""
     user_id = 5
-    with in_validation_mode() if validation_mode else nullcontext():
-        r = api_client.Users.get_user(user_id)
+    r = api_client.Users.get_user(user_id, validate=validation_mode)
     assert r.status_code == 200
     assert r.response["id"] == user_id
 
@@ -44,27 +40,24 @@ def test_get_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
 def test_get_users(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of get users API"""
     role = "support"
-    with in_validation_mode() if validation_mode else nullcontext():
-        r = api_client.Users.get_users(role=role)
+    r = api_client.Users.get_users(role=role, validate=validation_mode)
     assert r.status_code == 200
     assert len(r.response) == len([x for x in USERS if x.role.value == role])
 
     # stream
-    with in_validation_mode() if validation_mode else nullcontext():
-        with api_client.Users.get_users.stream(role="admin") as r:
-            assert r.status_code == 200
-            assert not r._response.is_closed
-            for chunk in r.stream():
-                assert isinstance(chunk, str)
-            assert r._response.is_closed
+    with api_client.Users.get_users.stream(role="admin", validate=validation_mode) as r:
+        assert r.status_code == 200
+        assert not r._response.is_closed
+        for chunk in r.stream():
+            assert isinstance(chunk, str)
+        assert r._response.is_closed
 
 
 @pytest.mark.parametrize("validation_mode", [False, True])
 def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool, image_data: bytes) -> None:
     """Check basic client/server functionality of upload user image API"""
     file = File(filename="test_image.png", content=image_data, content_type="image/png")
-    with in_validation_mode() if validation_mode else nullcontext():
-        r = api_client.Users.upload_image(file=file, description="test image")
+    r = api_client.Users.upload_image(file=file, description="test image", validate=validation_mode)
     assert r.status_code == 201
     assert r.response["message"] == f"Image '{file.filename}' uploaded"
 
@@ -73,8 +66,7 @@ def test_upload_image(api_client: DemoAppAPIClient, validation_mode: bool, image
 def test_delete_user(api_client: DemoAppAPIClient, validation_mode: bool) -> None:
     """Check basic client/server functionality of delete user API"""
     user_id = 1 + bool(validation_mode)
-    with in_validation_mode() if validation_mode else nullcontext():
-        r = api_client.Users.delete_user(user_id)
+    r = api_client.Users.delete_user(user_id, validate=validation_mode)
     assert r.status_code == 200
     assert r.response["message"] == f"Deleted user {user_id}"
 
