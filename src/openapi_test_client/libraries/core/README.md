@@ -2,9 +2,7 @@ API Client Core — General-Purpose API Client Framework
 =================================================
 
 This directory contains the core framework for building Python API clients. It provides decorator-driven endpoint 
-declaration, request lifecycle hooks, sync/async dual-mode support, and runtime capabilities such as automatic retry, 
-concurrency, streaming, and 
-locking.
+declaration, request lifecycle hooks, sync/async dual-mode support, and runtime capabilities such as automatic retry, concurrency, streaming, and locking.
 
 The framework uses the `httpx`-based REST API client from [common-libs](https://github.com/yugokato/common-libs/tree/main/src/common_libs/clients/rest_client) for underlying HTTP request handling.
 
@@ -69,6 +67,9 @@ Define each concrete API class inheriting from that base, and add endpoint funct
 `@endpoint.<method>("/path")` endpoint factory decorator. Function parameters are automatically mapped to path, query, 
 or request body fields.
 
+<details open>
+<summary><code>auth.py</code></summary>
+
 ```python
 # myproject/clients/my_app/api/auth.py
 
@@ -102,6 +103,43 @@ class AuthAPI(MyAppBaseAPI):
         """Refresh an existing session"""
         ...
 ```
+
+</details>
+
+<details>
+<summary><code>users.py</code></summary>
+
+```python
+# myproject/clients/my_app/api/users.py
+
+from typing import Unpack
+
+from openapi_test_client.libraries.core import endpoint
+from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Unset
+
+from .base.my_app_api import MyAppBaseAPI
+
+
+class UsersAPI(MyAppBaseAPI):
+    """User APIs"""
+
+    @endpoint.post("/users")
+    def create_user(self, username: str, email: str, role: str = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+        """Create a user"""
+        ...
+
+    @endpoint.get("/users/{user_id}")
+    def get_user(self, user_id: int, include_posts: bool = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+        """Get a user by ID"""
+        ...
+
+    @endpoint.get("/users")
+    def list_users(self, page: int = Unset, page_size: int = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+        """List users"""
+        ...
+```
+
+</details>
 
 > [!NOTE]
 >- For most cases, the function body should be empty (`...`, `pass`, etc.). The framework automatically
@@ -247,13 +285,27 @@ payload generation and the HTTP call for you, then returns the response as a [`R
 r = client.Auth.login(username="foo", password="bar")
 ```
 
-Beyond the endpoint's own parameters, the function also accepts framework-level control options and `httpx` row options as `kwargs`.
-See [`Kwargs`](#kwargs-and-unpack).
+Beyond the endpoint's own parameters, the function also accepts framework-level control options and `httpx` raw 
+options as `kwargs`. See [`Kwargs`](#kwargs-and-unpack).
+
+**Streaming**
+
+Use `stream()` instead of a direct call to open a streaming response. It supports the same pre/post hooks and wrappers as a regular call:
+
+```python
+# sync
+with client.Events.subscribe.stream(topic="updates") as r:
+    for chunk in r.stream():
+        print(chunk)
+
+# async
+async with client.Events.subscribe.stream(topic="updates") as r:
+    async for chunk in r.astream():
+        print(chunk)
+```
 
 
-### Endpoint Function Parameter Signatures
-
-#### Defining parameters
+### Function parameter signatures
 
 The framework classifies each parameter by name, not by position in the signature:
 
@@ -280,7 +332,7 @@ def get_order(self, user_id: int, order_id: int, **kwargs: Unpack[Kwargs]) -> AP
     ...
 ```
 
-### `Unset` and Default Values
+### `Unset` and default values
 
 `Unset` is a sentinel default value for optional parameters. A parameter whose value is `Unset` is
 **excluded from the request entirely**, unlike `None`, which is still sent to the server — as `null`
@@ -305,45 +357,54 @@ r = client.Items.list_items(per_page=50)          # payload: {"page": 1, "per_pa
 r = client.Items.list_items(page=2, per_page=50)  # payload: {"page": 2, "per_page": 50}
 ```
 
-### `EndpointFunc` Capabilities
+### Configurable execution wrappers
 
-In addition to `__call__`, every endpoint function provides:
+In addition to `__call__`, every endpoint function provides the following configurable execution wrappers:
 
-| Method                                                                   | Description                                                                                                                               |
-|--------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `with_retry(*args, condition=..., num_retry=1, retry_after=5, **kwargs)` | Call the endpoint with automatic retry. `condition` can be a status code, a list of status codes, or a callable `(RestResponse) -> bool`. |
-| `with_lock(*args, lock_name=None, **kwargs)`                             | Call the endpoint while holding a distributed lock. Default lock name is `<app_name>-<APIClass>.<func_name>`.                             |
-| `with_concurrency(*args, num=2, **kwargs)`                               | Fire `num` concurrent calls. Returns `list[RestResponse]`.                                                                                |
-| `stream(*args, **kwargs)`                                                | Open a streaming response. Use as a context manager (sync) or async context manager.                                                      |
-| `help()`                                                                 | Print the function signature and docstring.                                                                                               |
+| Method                                                                                                     | Description                                                                                                                                                                                                                                                                |
+|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `with_retry(condition=lambda r: not r.ok, num_retries=1, retry_after=5, safe_methods_only=False)` → `Self` | Configure retry and return a chainable endpoint func. `condition` can be a status code or exception class, a list of status codes or exception classes, a callable `(RestResponse \| Exception) -> bool`). Defaults to retrying on any non-2xx response.                   |
+| `with_lock(lock_name=None)` → `Self`                                                                       | Configure a distributed lock and return a chainable endpoint func. Default lock name is `<app_name>-<APIClass>.<func_name>`.                                                                                                                                               |
+| `with_expected_status(*status_codes)` → `Self`                                                             | Assert the response status code is one of the expected values. Raises `AssertionError` otherwise.                                                                                                                                                                          |
+| `with_max_response_time(threshold_msecs)` → `Self`                                                         | Assert the server response time does not exceed `threshold_msecs`. Raises `AssertionError` otherwise.                                                                                                                                                                      |
+| `with_polling(until, interval=5, timeout=60)` → `Self`                                                     | Poll the endpoint until `until(response)` returns `True`, waiting `interval` seconds between calls. Raises `TimeoutError` if not satisfied within `timeout` seconds.                                                                                                       |
+| `with_concurrency(num=2, *, return_exceptions=False)` → `Callable[..., list[APIResponse]]`                 | Configure concurrency and return a callable. Pass the endpoint's own parameters to that callable — it fires `num` concurrent calls and returns `list[APIResponse]`. Set `return_exceptions=True` to collect exceptions in the list instead of propagating.                 |
+| `with_repeat(num=2, *, return_exceptions=False)` → `Callable[..., list[APIResponse]]`                      | Configure sequential repetition and return a callable. Pass the endpoint's own parameters — it fires `num` sequential calls and returns `list[APIResponse]`. Set `return_exceptions=True` to collect exceptions (`list[APIResponse \| Exception]`) instead of propagating. |
 
-**`with_retry` example:**
+> [!IMPORTANT]
+> - All `with_xxx()` wrappers use a **curried** call style: each wrapper accepts only its own configuration options
+> and returns a configured callable. Pass the endpoint's own parameters to that returned callable.
+> - `with_retry`, `with_lock`, `with_expected_status`, `with_max_response_time`, and `with_polling` return the
+> concrete endpoint func (`Self`), so they can be **chained** before the final call. `with_concurrency` and
+> `with_repeat` are terminal and must always be last.
+
+**Examples:**
+
+With retries:
 
 ```python
-r = client.Auth.login.with_retry(
-    username="foo",
-    password="bar",
-    condition=lambda r: r.status_code == 503,
-    num_retry=3,
-    retry_after=2,
-)
+r = client.Auth.login.with_retry(condition=429, num_retries=3, retry_after=2)(username="foo", password="bar")
 ```
 
-**Streaming:**
+
+Chaining wrappers:
 
 ```python
-# sync
-with client.Events.subscribe.stream(topic="updates") as r:
-    for chunk in r.stream():
-        print(chunk)
-
-# async
-async with client.Events.subscribe.stream(topic="updates") as r:
-    async for chunk in r.astream():
-        print(chunk)
+# Apply a lock, retry on transient failures, and validate the status code
+r = client.Auth.login.with_lock().with_retry(condition=429).with_expected_status(200)(username="foo", password="bar")
 ```
 
-The `stream()` context manager runs the same pre/post hooks and wrappers as a regular call.
+
+> [!TIP]
+> Wrappers compose left-to-right — The first wrapper applied becomes the outermost layer, so the example above is 
+> conceptually equivalent to:
+> 
+> ```python
+> with lock():
+>     with retry(condition=429):
+>         r = client.Auth.login(username="foo", password="bar")
+>         assert r.status_code == 200
+> ```
 
 
 ## API Client (`APIClient`)
@@ -400,14 +461,14 @@ It is generic over the client type — `APIBase[T]` — so subclasses get a type
 
 ### Class attributes
 
-| Attribute | Type | Description |
-|-----------|------|-------------|
-| `app_name` | `str \| None` | Must match `api_client.app_name`. Validated at instantiation. Set on the app-level base class. |
-| `is_documented` | `bool` | Marks every endpoint in the class as documented (default `True`). |
-| `is_deprecated` | `bool` | Marks every endpoint in the class as deprecated (default `False`). |
-| `endpoints` | `list[Endpoint] \| None` | Populated by `APIBase.init()`. Lists all `Endpoint` objects for this class. |
+| Attribute       | Type                     | Description                                                                                    |
+|-----------------|--------------------------|------------------------------------------------------------------------------------------------|
+| `app_name`      | `str \| None`            | Must match `api_client.app_name`. Validated at instantiation. Set on the app-level base class. |
+| `is_documented` | `bool`                   | Marks every endpoint in the class as documented (default `True`).                              |
+| `is_deprecated` | `bool`                   | Marks every endpoint in the class as deprecated (default `False`).                             |
+| `endpoints`     | `list[Endpoint] \| None` | Populated by `APIBase.init()`. Lists all `Endpoint` objects for this class.                    |
 
-The class-level `is_documented`/`is_deprecated` flags can also be controlled per-endpoint via the `endpoint` factory decorators (see [Endpoint Factory](#endpoint-factory-endpoint) below).
+The class-level `is_documented`/`is_deprecated` flags can also be controlled per-endpoint via the `endpoint` factory decorators (see [Endpoint Factory](#endpoint-factory-endpoint) above).
 
 ### Request hooks
 
@@ -500,18 +561,18 @@ class MyAppBaseAPI(APIBase):
 
 `Endpoint` is a frozen dataclass holding all metadata for a single endpoint. It is attached to every endpoint function as `.endpoint` and to each API class via its `.endpoints` list.
 
-| Field           | Type                  | Description                                                                 |
-|-----------------|-----------------------|-----------------------------------------------------------------------------|
-| `api_class`     | `type[APIBase]`       | The API class that owns this endpoint.                                      |
-| `method`        | `str`                 | HTTP method in lowercase (e.g., `"get"`, `"post"`).                         |
-| `path`          | `str`                 | Endpoint path (e.g., `"/v1/auth/login"`).                                   |
-| `func_name`     | `str`                 | Name of the original API class function.                                    |
-| `model`         | `type[EndpointModel]` | Dynamically generated model describing this endpoint's parameters.          |
-| `url`           | `str \| None`         | Full URL; only set when accessed via a client instance (not via the class). |
-| `content_type`  | `str \| None`         | Explicitly set Content-Type, or `None` to auto-detect.                      |
-| `is_public`     | `bool`                | `True` if the endpoint does not require authentication.                     |
-| `is_documented` | `bool`                | `False` if the endpoint was marked `@endpoint.undocumented`.                |
-| `is_deprecated` | `bool`                | `True` if the endpoint was marked `@endpoint.is_deprecated`.                |
+| Field           | Type                  | Description                                                                    |
+|-----------------|-----------------------|--------------------------------------------------------------------------------|
+| `api_class`     | `type[APIBase]`       | The API class that owns this endpoint.                                         |
+| `method`        | `str`                 | HTTP method in lowercase (e.g., `"get"`, `"post"`).                            |
+| `path`          | `str`                 | Endpoint path (e.g., `"auth/login"`).                                          |
+| `func_name`     | `str`                 | Name of the original API class function.                                       |
+| `model`         | `type[EndpointModel]` | Dynamically generated model describing this endpoint's parameters.             |
+| `url`           | `str \| None`         | Full URL; only set when accessed via a client instance (not via the class).    |
+| `content_type`  | `str \| None`         | Explicitly set Content-Type, or `None` to auto-detect.                         |
+| `is_public`     | `bool`                | `True` if the endpoint does not require authentication.                        |
+| `is_documented` | `bool`                | `True` by default; `False` if the endpoint is marked `@endpoint.undocumented`. |
+| `is_deprecated` | `bool`                | `True` if the endpoint was marked `@endpoint.is_deprecated`.                   |
 
 `str(endpoint)` returns `"METHOD /path"` (e.g., `"POST /auth/login"`).
 
@@ -564,7 +625,7 @@ from .base import MyAppBaseAPI  # your concrete APIBase subclass
 API_CLASSES = MyAppBaseAPI.init()
 ```
 
-After this runs:
+After this runs, `API_CLASSES` is a `list[type[APIBase]]` — one entry per discovered API class:
 
 ```pycon
 >>> from myproject.clients.my_app.api import API_CLASSES
@@ -575,6 +636,10 @@ After this runs:
 ...
 POST /auth/login
 POST /auth/logout
+POST /auth/sessions/{session_id}/refresh
+GET /users
+GET /users/{user_id}
+POST /users
 ```
 
 > [!NOTE]
@@ -793,7 +858,10 @@ def warn_if_slow(threshold_ms: float) -> Callable[[Callable[P, R]], Callable[P, 
 
 ## Override `request_wrapper` for class-level cross-cutting behavior
 
-`request_wrapper` is the right place for behavior that must wrap the entire call — including any endpoint decorators that are already applied. Return a list of plain callables; each receives the `EndpointFunc` instance as its first argument:
+`request_wrapper` is the right place for class-level behavior that must wrap the core request 
+lifecycle (pre/post hooks and the HTTP call). Note that endpoint decorators applied with `@endpoint.decorator` run 
+*outside* the request wrapper — decorators are the outermost layer. Return a list of plain callables; each receives 
+the `EndpointFunc` instance as its first argument:
 
 ```python
 class MyAppBaseAPI(APIBase):

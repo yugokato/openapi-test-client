@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Callable, Generator, Sequence
+import time
+from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager
+from copy import copy
 from functools import cache, partial, wraps
-from typing import TYPE_CHECKING, Any, ParamSpec, TypeAlias, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, Self, TypeAlias, TypeVar, Union, cast, overload
 
 from common_libs.clients.rest_client import RestClient, RestResponse
 from common_libs.clients.rest_client.utils import retry_on
@@ -37,6 +39,8 @@ _EndpointFunc = TypeVar(
 )
 EndpointFunction: TypeAlias = Union[_EndpointFunc, "EndpointFunc", "SyncEndpointFunc", "AsyncEndpointFunc"]
 EndpointDecorator: TypeAlias = Callable[[EndpointFunction[Any]], EndpointFunction[Any]]
+
+_SAFE_HTTP_METHODS: frozenset[str] = frozenset({"GET", "HEAD", "OPTIONS"})
 
 __all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
 
@@ -77,6 +81,10 @@ class EndpointFunc:
         # Control a retry in a request wrapper to prevent a loop
         self.retried = False
 
+        # State used by _with_call_wrapper to compose with_xxx() wrappers in left-to-right (first=outermost) order
+        self._call_wrappers: tuple[Callable[[Callable[..., Any]], Callable[..., Any]], ...] = ()
+        self._base_call: Callable[..., Any] | None = None
+
         self._instance: APIBase[Any] | None = instance
         self._owner: type[APIBase[Any]] = owner
         self._original_func: Callable[..., APIResponse] = endpoint_handler.original_func
@@ -116,6 +124,8 @@ class EndpointFunc:
                     my_class.__call__ = decorator()(my_class.__call__)  # type: ignore[method-assign]
                 else:
                     my_class.__call__ = decorator(my_class.__call__)  # type: ignore[method-assign]
+            # Snapshot the fully-decorated __call__ as the base that with_xxx() wrappers compose around
+            self._base_call = my_class.__call__
 
     def __repr__(self) -> str:
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
@@ -131,9 +141,9 @@ class EndpointFunc:
     ) -> APIResponse:
         """Make an API call to the endpoint. This logic is commonly used for sync/async API calls
 
-        Parameters can be passed either positionally or as keyword arguments. Path parameters are
-        identified by matching their names against the `{placeholder}` tokens in the endpoint path;
-        all remaining parameters are treated as body or query parameters.
+        Parameters can be passed either positionally or as keyword arguments. Path parameters are identified by
+        matching their names against the `{placeholder}` tokens in the endpoint path. All remaining parameters are
+        treated as body or query parameters.
 
         :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
         :param quiet: A flag to suppress API request/response log
@@ -208,47 +218,204 @@ class EndpointFunc:
     @requires_instance
     def with_retry(
         self,
-        *args: Any,
-        condition: int | Sequence[int] | Callable[[RestResponse], bool] = lambda r: not r.ok,
-        num_retry: int = 1,
-        retry_after: float | int | Callable[[RestResponse], float | int] = 5,
-        **kwargs: Any,
-    ) -> APIResponse:
-        """Make an API call with retry conditions
+        condition: int
+        | type[Exception]
+        | Sequence[int]
+        | Sequence[type[Exception]]
+        | Callable[[RestResponse | Exception], bool] = lambda r: not r.ok,
+        num_retries: int = 1,
+        retry_after: float | int | Callable[[RestResponse | Exception], float | int] = 5,
+        safe_methods_only: bool = False,
+    ) -> Self:
+        """Return a configured, chainable endpoint func that retries on the given condition.
 
-        :param args: Positional arguments passed to __call__()
-        :param condition: Either status code(s) or a function that takes response object as the argument
-        :param num_retry: The max number of retries
+        Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
+        the final call.
+
+        :param condition: Either status code(s), a callable that takes the response object, or an exception class
+                          (or tuple of exception classes) to retry on when raised
+        :param num_retries: The max number of retries
         :param retry_after: A short wait time in seconds before a retry
-        :param kwargs: Keyword arguments passed to __call__()
+        :param safe_methods_only: Only retry for safe HTTP methods (GET, HEAD, OPTIONS)
         """
-        f = retry_on(
-            condition,
-            num_retry=num_retry,
-            retry_after=retry_after,
-            safe_methods_only=False,
-            _async_mode=self.api_client.async_mode,
-        )(self.__call__)
-        return f(*args, **kwargs)
+
+        def call_with_retry(f: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(f)
+            def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                return retry_on(
+                    condition,
+                    num_retries=num_retries,
+                    retry_after=retry_after,
+                    safe_methods_only=safe_methods_only,
+                    _async_mode=self.api_client.async_mode,
+                )(f)(*args, **kwargs)
+
+            return wrapper
+
+        return self._with_call_wrapper(call_with_retry)
 
     @requires_instance
-    def with_lock(self, *args: Any, lock_name: str | None = None, **kwargs: Any) -> APIResponse:
-        """Make an API call with lock
+    def with_lock(self, lock_name: str | None = None) -> Self:
+        """Return a configured, chainable endpoint func that holds a distributed lock during the call.
 
-        The lock will be applied on the API endpoint function level, which means any other API calls in the same/other
-        processes using the same API function will wait until after lock is acquired
+        The lock is applied at the API endpoint function level, which means any other API calls in the same/other
+        processes using the same API function will wait until the lock is acquired.
 
-        See __call__() for supported function arguments
+        Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
+        the final call.
 
-        :param args: Positional arguments passed to __call__()
-        :param lock_name: Explicitly specify the lock name. Use this when the same lock needs to be shared among
-                          multiple endpoints
-        :param kwargs: Keyword arguments passed to __call__()
+        :param lock_name: Explicitly specify the lock name. Use this when the same lock needs to be
+                          shared among multiple endpoints. Defaults to
+                          '{app_name}-{APIClass}.{func_name}'.
         """
         if not lock_name:
             lock_name = f"{self._instance.app_name}-{type(self._instance).__name__}.{self._original_func.__name__}"
-        with Lock(lock_name):
-            return self(*args, **kwargs)
+
+        def call_with_lock(f: Callable[..., Any]) -> Callable[..., Any]:
+            if self.api_client.async_mode:
+
+                @wraps(f)
+                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    with Lock(lock_name):
+                        return await f(*args, **kwargs)
+            else:
+
+                @wraps(f)
+                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    with Lock(lock_name):
+                        return f(*args, **kwargs)
+
+            return wrapper
+
+        return self._with_call_wrapper(call_with_lock)
+
+    @requires_instance
+    def with_expected_status(self, *status_codes: int) -> Self:
+        """Return a configured, chainable endpoint func that asserts the response status code.
+
+        Raises AssertionError if the response status code is not one of the expected codes.
+
+        Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
+        the final call.
+
+        :param status_codes: One or more acceptable HTTP status codes
+        """
+        if not status_codes:
+            raise ValueError("At least one expected status code must be given")
+
+        def call_with_expected_status(f: Callable[..., Any]) -> Callable[..., Any]:
+            def check(r: RestResponse) -> RestResponse:
+                if r.status_code not in status_codes:
+                    expected = "/".join(str(s) for s in status_codes)
+                    raise AssertionError(f"Expected status code {expected}, but got {r.status_code}")
+                return r
+
+            if self.api_client.async_mode:
+
+                @wraps(f)
+                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    return check(await f(*args, **kwargs))
+
+            else:
+
+                @wraps(f)
+                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    return check(f(*args, **kwargs))
+
+            return wrapper
+
+        return self._with_call_wrapper(call_with_expected_status)
+
+    @requires_instance
+    def with_max_response_time(self, threshold_msecs: float | int) -> Self:
+        """Return a configured, chainable endpoint func that asserts the response time.
+
+        Raises AssertionError if the server response time exceeds threshold_msecs.
+
+        Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
+        the final call.
+
+        :param threshold_msecs: The maximum acceptable response time in milliseconds
+        """
+
+        def call_with_max_response_time(f: Callable[..., Any]) -> Callable[..., Any]:
+            def check(r: RestResponse) -> RestResponse:
+                if r.response_time * 1000 > threshold_msecs:
+                    raise AssertionError(
+                        f"Response time {int(r.response_time * 1000)} msecs exceeded the threshold of "
+                        f"{threshold_msecs} msecs"
+                    )
+                return r
+
+            if self.api_client.async_mode:
+
+                @wraps(f)
+                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    return check(await f(*args, **kwargs))
+
+            else:
+
+                @wraps(f)
+                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    return check(f(*args, **kwargs))
+
+            return wrapper
+
+        return self._with_call_wrapper(call_with_max_response_time)
+
+    @requires_instance
+    def with_polling(
+        self,
+        until: Callable[[RestResponse], bool],
+        interval: float | int = 5,
+        timeout: float | int = 60,
+    ) -> Self:
+        """Return a configured, chainable endpoint func that polls until a condition is met.
+
+        Repeatedly calls the endpoint until until(response) returns True, waiting interval seconds between calls.
+        Raises TimeoutError if the condition is not met within timeout seconds. Unlike with_retry
+        (which retries on failure), this polls successful responses — e.g. for eventual consistency or async job
+        completion. The endpoint is always called at least once.
+
+        Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
+        the final call.
+
+        :param until: A callable taking the response object that returns True when polling should stop
+        :param interval: Wait time in seconds between polls
+        :param timeout: Maximum total time in seconds to keep polling before raising TimeoutError
+        """
+
+        def call_with_polling(f: Callable[..., Any]) -> Callable[..., Any]:
+            msg = f"Polling condition was not met within {timeout} seconds"
+            if self.api_client.async_mode:
+
+                @wraps(f)
+                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    deadline = time.monotonic() + timeout
+                    while True:
+                        r = await f(*args, **kwargs)
+                        if until(r):
+                            return r
+                        if time.monotonic() + interval >= deadline:
+                            raise TimeoutError(msg)
+                        await asyncio.sleep(interval)
+
+            else:
+
+                @wraps(f)
+                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                    deadline = time.monotonic() + timeout
+                    while True:
+                        r = f(*args, **kwargs)
+                        if until(r):
+                            return r
+                        if time.monotonic() + interval >= deadline:
+                            raise TimeoutError(msg)
+                        time.sleep(interval)
+
+            return wrapper
+
+        return self._with_call_wrapper(call_with_polling)
 
     @staticmethod
     @cache
@@ -330,6 +497,20 @@ class EndpointFunc:
             assert isinstance(self.executor, SyncExecutor)
             return self.executor.execute(self, path, params)
 
+    def _with_call_wrapper(self, wrapper: Callable[[Callable[..., Any]], Callable[..., Any]]) -> Self:
+        _self = copy(self)
+        _self._call_wrappers = (*_self._call_wrappers, wrapper)
+        _cls = type(type(_self).__name__, (type(_self),), {})
+        # Rebuild the composition from the base each time so the first with_xxx() in the chain
+        # becomes the outermost layer (intuitive left-to-right reading).
+        assert _self._base_call is not None  # always set for instance-bound funcs; with_xxx() requires an instance
+        call = _self._base_call
+        for wrapper in reversed(_self._call_wrappers):
+            call = wrapper(call)
+        _cls.__call__ = call  # type: ignore[method-assign]
+        _self.__class__ = _cls
+        return _self
+
 
 class SyncEndpointFunc(EndpointFunc):
     """Endpoint function class (Sync)
@@ -344,16 +525,6 @@ class SyncEndpointFunc(EndpointFunc):
     def __call__(self, *args: Any, **kwargs: Any) -> APIResponse:
         """Make a sync API call to the endpoint"""
         return asyncio.run(super().__call__(*args, **kwargs))
-
-    @requires_instance
-    def with_concurrency(self, *args: Any, num: int = 2, **kwargs: Any) -> list[APIResponse]:
-        """Concurrently make duplicated API calls to the endpoint
-
-        :param args: Positional arguments passed to __call__()
-        :param num: Number of concurrent API calls
-        :param kwargs: Keyword arguments passed to __call__()
-        """
-        return run_concurrent([Job(self.__call__, args, kwargs) for _ in range(num)])
 
     @contextmanager
     @requires_instance
@@ -394,6 +565,83 @@ class SyncEndpointFunc(EndpointFunc):
         finally:
             self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
 
+    @overload
+    def with_concurrency(
+        self, num: int = 2, *, return_exceptions: Literal[False] = ...
+    ) -> Callable[..., list[APIResponse]]: ...
+    @overload
+    def with_concurrency(
+        self, num: int = 2, *, return_exceptions: Literal[True]
+    ) -> Callable[..., list[APIResponse | Exception]]: ...
+    @requires_instance
+    def with_concurrency(
+        self, num: int = 2, *, return_exceptions: bool = False
+    ) -> Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]]:
+        """Return a callable that concurrently makes duplicated API calls to the endpoint.
+
+        Call the returned callable with the endpoint's own parameters.
+
+        :param num: Number of concurrent API calls
+        :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
+                                  list instead of being propagated
+        """
+
+        def call_with_concurrency(f: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(f)
+            def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse]:
+                return run_concurrent([Job(f, args, kwargs) for _ in range(num)], return_exceptions=return_exceptions)
+
+            return wrapper
+
+        return cast(
+            Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]],
+            self._with_call_wrapper(call_with_concurrency),
+        )
+
+    @overload
+    def with_repeat(
+        self, num: int = 2, *, return_exceptions: Literal[False] = ...
+    ) -> Callable[..., list[APIResponse]]: ...
+    @overload
+    def with_repeat(
+        self, num: int = 2, *, return_exceptions: Literal[True]
+    ) -> Callable[..., list[APIResponse | Exception]]: ...
+    @requires_instance
+    def with_repeat(
+        self, num: int = 2, *, return_exceptions: bool = False
+    ) -> Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]]:
+        """Return a callable that sequentially makes duplicated API calls to the endpoint.
+
+        Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
+        When return_exceptions=True, exceptions are collected in the returned list instead of being propagated —
+        so all num calls run even when some fail (KeyboardInterrupt/SystemExit still propagate).
+        Returns the results in call order. This is terminal and must always be the last wrapper in a chain.
+
+        :param num: Number of sequential API calls
+        :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
+                                  list instead of being propagated.
+        """
+
+        def call_with_repeat(f: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(f)
+            def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse] | list[APIResponse | Exception]:
+                if return_exceptions:
+                    results: list[APIResponse | Exception] = []
+                    for _ in range(num):
+                        try:
+                            results.append(f(*args, **kwargs))
+                        except Exception as e:
+                            results.append(e)
+                    return results
+                return [f(*args, **kwargs) for _ in range(num)]
+
+            return wrapper
+
+        return cast(
+            Callable[..., list[APIResponse]] | Callable[..., list[APIResponse | Exception]],
+            self._with_call_wrapper(call_with_repeat),
+        )
+
 
 class AsyncEndpointFunc(EndpointFunc):
     """Endpoint function class (Async)
@@ -408,18 +656,6 @@ class AsyncEndpointFunc(EndpointFunc):
     async def __call__(self, *args: Any, **kwargs: Any) -> APIResponse:
         """Make an async API call to the endpoint"""
         return await super().__call__(*args, **kwargs)
-
-    @requires_instance
-    async def with_concurrency(self, *args: Any, num: int = 2, **kwargs: Any) -> list[APIResponse]:
-        """Concurrently make duplicated API calls to the endpoint
-
-        :param args: Positional arguments passed to __call__()
-        :param num: Number of concurrent API calls
-        :param kwargs: Keyword arguments passed to __call__()
-        """
-        async with asyncio.TaskGroup() as tg:
-            tasks = [tg.create_task(self(*args, **kwargs)) for _ in range(num)]
-        return [t.result() for t in tasks]
 
     @asynccontextmanager
     @requires_instance
@@ -459,3 +695,101 @@ class AsyncEndpointFunc(EndpointFunc):
             raise
         finally:
             self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
+
+    @overload
+    def with_concurrency(
+        self, num: int = 2, *, return_exceptions: Literal[False] = ...
+    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse]]]: ...
+    @overload
+    def with_concurrency(
+        self, num: int = 2, *, return_exceptions: Literal[True]
+    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
+    @requires_instance
+    def with_concurrency(
+        self, num: int = 2, *, return_exceptions: bool = False
+    ) -> (
+        Callable[..., Coroutine[Any, Any, list[APIResponse]]]
+        | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]
+    ):
+        """Return a coroutine callable that concurrently makes duplicated API calls to the endpoint.
+
+        Call the returned callable with the endpoint's own parameters.
+
+        :param num: Number of concurrent API calls
+        :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
+                                  list instead of being propagated.
+        """
+
+        def call_with_concurrency(f: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(f)
+            async def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse] | list[APIResponse | Exception]:
+                if return_exceptions:
+
+                    async def safe_f(*a: Any, **kw: Any) -> APIResponse | Exception:
+                        try:
+                            return await f(*a, **kw)
+                        except Exception as e:
+                            return e
+
+                    target: Callable[..., Any] = safe_f
+                else:
+                    target = f
+                async with asyncio.TaskGroup() as tg:
+                    tasks = [tg.create_task(target(*args, **kwargs)) for _ in range(num)]
+                return [t.result() for t in tasks]
+
+            return wrapper
+
+        return cast(
+            Callable[..., Coroutine[Any, Any, list[APIResponse]]]
+            | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]],
+            self._with_call_wrapper(call_with_concurrency),
+        )
+
+    @overload
+    def with_repeat(
+        self, num: int = 2, *, return_exceptions: Literal[False] = ...
+    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse]]]: ...
+    @overload
+    def with_repeat(
+        self, num: int = 2, *, return_exceptions: Literal[True]
+    ) -> Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
+    @requires_instance
+    def with_repeat(
+        self, num: int = 2, *, return_exceptions: bool = False
+    ) -> (
+        Callable[..., Coroutine[Any, Any, list[APIResponse]]]
+        | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]]
+    ):
+        """Return a coroutine callable that sequentially makes duplicated API calls to the endpoint.
+
+        Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
+        When return_exceptions=True, exceptions are collected in the returned list instead of being propagated —
+        so all num calls run even when some fail (KeyboardInterrupt/SystemExit/CancelledError still propagate).
+        Returns the results in call order. This is terminal and must always be the last wrapper in a chain.
+
+        :param num: Number of sequential API calls
+        :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
+                                  list instead of being propagated.
+        """
+
+        def call_with_repeat(f: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(f)
+            async def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse] | list[APIResponse | Exception]:
+                if return_exceptions:
+                    results: list[APIResponse | Exception] = []
+                    for _ in range(num):
+                        try:
+                            results.append(await f(*args, **kwargs))
+                        except Exception as e:
+                            results.append(e)
+                    return results
+                return [await f(*args, **kwargs) for _ in range(num)]
+
+            return wrapper
+
+        return cast(
+            Callable[..., Coroutine[Any, Any, list[APIResponse]]]
+            | Callable[..., Coroutine[Any, Any, list[APIResponse | Exception]]],
+            self._with_call_wrapper(call_with_repeat),
+        )

@@ -53,7 +53,7 @@ async def test_async_client(async_api_client: DemoAppAPIClient, subtests: Subtes
                 tasks = [async_api_client._Test.wait(delay, quiet=quiet) for _ in range(num_calls)]
                 results = await asyncio.gather(*tasks)
             else:
-                results = await async_api_client._Test.wait.with_concurrency(delay, num=num_calls, quiet=quiet)
+                results = await async_api_client._Test.wait.with_concurrency(num_calls)(delay, quiet=quiet)
             time_elapsed = time.perf_counter() - start
             assert delay < time_elapsed < delay * (num_calls / 2)
             assert all(x.ok for x in results)
@@ -73,12 +73,12 @@ async def test_async_client(async_api_client: DemoAppAPIClient, subtests: Subtes
                 assert r.response == some_id * 2
 
     with subtests.test("With retry"):
-        r = await async_api_client._Test.echo.with_retry(0, condition=lambda r: r.ok, retry_after=0.5, quiet=quiet)
+        r = await async_api_client._Test.echo.with_retry(lambda r: r.ok, num_retries=1, retry_after=0.5)(0, quiet=quiet)
         assert r.ok
         assert r.request.retried is not None
 
     with subtests.test("With lock"):
-        r = await async_api_client._Test.echo.with_lock(0, quiet=quiet)
+        r = await async_api_client._Test.echo.with_lock()(0, quiet=quiet)
         assert r.ok
 
 
@@ -112,14 +112,16 @@ async def test_async_client_request_failures(
                 tasks = [async_api_client._Test.wait(invalid_delay, quiet=quiet) for _ in range(num_calls)]
                 results = await asyncio.gather(*tasks)
             else:
-                results = await async_api_client._Test.wait.with_concurrency(invalid_delay, num=num_calls, quiet=quiet)
+                results = await async_api_client._Test.wait.with_concurrency(num_calls)(invalid_delay, quiet=quiet)
             assert all(not r.ok for r in results)
 
     with subtests.test("API func call failure with retry"):
-        r = await async_api_client._Test.wait.with_retry("foo", condition=lambda r: True, retry_after=0.5, quiet=quiet)
+        r = await async_api_client._Test.wait.with_retry(lambda r: True, num_retries=1, retry_after=0.5)(
+            "foo", quiet=quiet
+        )
         assert not r.ok
         assert r.request.retried is not None
 
     with subtests.test("API func call failure with lock"):
-        r = await async_api_client._Test.wait.with_lock("foo", quiet=quiet)
+        r = await async_api_client._Test.wait.with_lock()("foo", quiet=quiet)
         assert not r.ok
