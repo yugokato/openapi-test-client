@@ -40,7 +40,7 @@ def create_endpoint_model(
     All remaining parameters are treated as body or query parameters.
 
     :param endpoint_func: Endpoint function for the endpoint
-    :param field_name_sanitizer: A callable with the signature ``(location, list of DataclassModelField)`` that
+    :param field_name_sanitizer: A callable with the signature `(location, list of DataclassModelField)` that
                                  aliases illegal or reserved field names in-place. Defaults to the core implementation.
                                  Higher layers can inject a richer sanitizer that covers additional reserved names.
     """
@@ -50,7 +50,9 @@ def create_endpoint_model(
     body_or_query_param_fields: list[DataclassModelField] = []
     try:
         resolved_hints = typing.get_type_hints(endpoint_func._original_func, include_extras=True)
-    except Exception:
+    except Exception as e:
+        func_name = f"{endpoint_func._owner.__name__}.{endpoint_func._original_func.__name__}"
+        logger.warning(f"[{func_name}]: Failed to resolve type hints: {e}. Falling back to unresolved annotations.")
         resolved_hints = {}
     sig = inspect.signature(endpoint_func._original_func)
     for name, param_obj in sig.parameters.items():
@@ -89,7 +91,7 @@ def build_endpoint_model(
     :param path_param_fields: Path parameter fields
     :param body_or_query_param_fields: Body or query parameter fields
     :param content_type: Request content type, if known by the caller
-    :param field_name_sanitizer: A callable with the signature ``(location, list of DataclassModelField)`` that
+    :param field_name_sanitizer: A callable with the signature `(location, list of DataclassModelField)` that
                                  aliases illegal or reserved field names in-place. Defaults to the core implementation.
     """
     _alias_field_names = field_name_sanitizer if field_name_sanitizer is not None else alias_illegal_model_field_names
@@ -154,7 +156,7 @@ def get_reserved_param_names() -> list[str]:
 def is_httpx_passthrough_field(name: str, param_type: Any) -> bool:
     """Check if a parameter field should be passed through to httpx unchanged (no aliasing).
 
-    ``json``, ``data``, and ``files`` map directly to httpx request kwargs; they must not be
+    `json`, `data`, and `files` map directly to httpx request kwargs; they must not be
     renamed so the HTTP layer can route them to the correct request slot.
 
     :param name: Parameter name

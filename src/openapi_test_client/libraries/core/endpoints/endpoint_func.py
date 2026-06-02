@@ -56,7 +56,7 @@ def _as_response_stream(f: Callable[_P, object]) -> Callable[_P, _ResponseStream
     """Retype a context-manager callable as returning the dual _ResponseStream.
 
     Applied to both SyncEndpointFunc.stream() and AsyncEndpointFunc.stream() so the
-    SyncEndpointFunc | AsyncEndpointFunc union presents a single type that supports both ``with`` and ``async with``.
+    SyncEndpointFunc | AsyncEndpointFunc union presents a single type that supports both `with` and `async with`.
     At runtime this is a no-op.
     """
     return cast(Callable[_P, "_ResponseStream"], f)
@@ -90,9 +90,6 @@ class EndpointFunc(Generic[P]):
         else:
             self.api_client = None
             self.rest_client = None
-
-        # Control a retry in a request wrapper to prevent a loop
-        self.retried = False
 
         # State used by _with_call_wrapper to compose with_xxx() wrappers in left-to-right (first=outermost) order
         self._call_wrappers: tuple[Callable[[Callable[..., Any]], Callable[..., Any]], ...] = ()

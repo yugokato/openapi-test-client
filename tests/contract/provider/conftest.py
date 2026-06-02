@@ -44,7 +44,7 @@ def auth_provider_token(port: int) -> str:
     """Fresh auth token for auth provider verification.
 
     Function-scoped so the pact verifier's logout interaction (which revokes this token)
-    does not interfere with the module-scoped ``token`` used by other tests.
+    does not interfere with the module-scoped `token` used by other tests.
     No teardown logout is needed because the verifier replays the logout interaction itself.
     """
     client = DemoAppAPIClient()

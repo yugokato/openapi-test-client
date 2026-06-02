@@ -132,10 +132,10 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
     def init(cls: type[APIClassT]) -> list[type[APIClassT]]:
         """Initialize API classes and return a list of API classes.
 
-        A list of Endpoint objects for an API class is available via its ``endpoints`` attribute.
-        A list of Endpoint objects for all API classes is available via the base API class's ``endpoints`` attribute.
+        A list of Endpoint objects for an API class is available via its `endpoints` attribute.
+        A list of Endpoint objects for all API classes is available via the base API class's `endpoints` attribute.
 
-        Note: This classmethod must be called from the ``__init__.py`` of a directory that contains API class files.
+        Note: This classmethod must be called from the `__init__.py` of a directory that contains API class files.
         """
         if cls is APIBase:
             raise TypeError(f"init() cannot be called directly from {APIBase.__name__}")

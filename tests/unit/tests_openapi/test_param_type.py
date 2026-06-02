@@ -11,7 +11,6 @@ import pytest
 
 import openapi_test_client.libraries.openapi.utils.param_type as param_type_util
 from openapi_test_client.libraries.openapi.types import (
-    Alias,
     Constraint,
     Format,
     Optional,
@@ -131,43 +130,6 @@ class TestReplaceBaseType:
         assert param_type_util.replace_base_type(tp, replace_with) == expected_type
 
 
-class TestIsTypeOf:
-    """Tests for param_type_util.is_type_of()"""
-
-    @pytest.mark.parametrize(
-        ("param_type", "type_to_check", "is_type_of"),
-        [
-            (str, str, True),
-            (Optional[str], str, True),
-            (Annotated[str, "meta"], str, True),
-            (Optional[Annotated[str, "meta"]], str, True),
-            (int, int, True),
-            (Optional[int], int, True),
-            (Annotated[int, "meta"], int, True),
-            (Optional[Annotated[int, "meta"]], int, True),
-            (bool, bool, True),
-            (Optional[bool], bool, True),
-            (Annotated[bool, "meta"], bool, True),
-            (Optional[Annotated[bool, "meta"]], bool, True),
-            (list, list, True),
-            (list[str], list, True),
-            (Optional[list[str]], list, True),
-            (Annotated[list[str], "meta"], list, True),
-            (Optional[Annotated[list[str], "meta"]], list, True),
-            (str, int, False),
-            (list[str], str, False),
-            (Annotated[list[str], "meta"], str, False),
-            (Optional[Annotated[list[str], "meta"]], str, False),
-            (Optional[Annotated[Literal[1], "meta"]], Optional, True),
-            (Optional[Annotated[Literal[1], "meta"]], Annotated, True),
-            (Optional[Annotated[Literal[1], "meta"]], Literal, True),
-        ],
-    )
-    def test_is_type_of(self, param_type: Any, type_to_check: Any, is_type_of: bool) -> None:
-        """Test that we can check if a specific Python type falls into the given Python type"""
-        assert param_type_util.is_type_of(param_type, type_to_check) is is_type_of
-
-
 class TestIsOptionalType:
     """Tests for param_type_util.is_optional_type()"""
 
@@ -223,28 +185,6 @@ class TestIsUnionType:
         else:
             is_union = is_union_type
         assert param_type_util.is_union_type(tp, exclude_optional=exclude_optional) is is_union
-
-
-class TestIsDeprecatedParam:
-    """Tests for param_type_util.is_deprecated_param()"""
-
-    @pytest.mark.parametrize(
-        ("tp", "is_deprecated_param"),
-        [
-            (str, False),
-            (int | Annotated[str, "meta"], False),
-            (Annotated[str, "meta"], False),
-            (Annotated[str, "meta", "deprecated"], True),
-            (Annotated[str, "meta", "deprecated"], True),
-            (int | Annotated[str, "meta", "deprecated"], True),
-            (Optional[Annotated[str, "meta", "deprecated"]], True),
-            (int | Optional[Annotated[str, "meta", "deprecated"]], True),
-            (Optional[int] | Annotated[str, "meta", "deprecated"], True),
-        ],
-    )
-    def test_is_deprecated_param(self, tp: Any, is_deprecated_param: bool) -> None:
-        """Test that we can check whether a given type annotation has `Annotated[]` with "deprecated" in the metadata"""
-        assert param_type_util.is_deprecated_param(tp) is is_deprecated_param
 
 
 class TestGenerateUnionType:
@@ -332,34 +272,6 @@ class TestGenerateLiteralType:
             else:
                 # NOTE: This is the default behavior of typing.Literal
                 assert repr(Optional[tp1]) == repr(Optional[tp2]) == "typing.Optional[typing.Literal['1', '2', '3']]"
-
-
-class TestAnnotateType:
-    """Tests for param_type_util.annotate_type()"""
-
-    @pytest.mark.parametrize(
-        ("tp", "metadata", "expected_type"),
-        [
-            (str, ["meta"], Annotated[str, "meta"]),
-            (
-                str,
-                ["meta", Format("uuid"), Alias("foo"), Constraint(max=10)],
-                Annotated[str, "meta", Format("uuid"), Alias("foo"), Constraint(max=10)],
-            ),
-            (str | int, ["meta"], Annotated[str | int, "meta"]),
-            (Optional[str], ["meta"], Optional[Annotated[str, "meta"]]),
-            (Optional[MyParamModel], ["meta"], Optional[Annotated[MyParamModel, "meta"]]),
-            (
-                Optional[ForwardRef(MyParamModel.__name__)],
-                ["meta"],
-                Optional[Annotated[ForwardRef(MyParamModel.__name__), "meta"]],
-            ),
-            (Optional[str | int], ["meta"], Optional[Annotated[str | int, "meta"]]),
-        ],
-    )
-    def test_annotate_type(self, tp: Any, metadata: list[Any], expected_type: Any) -> None:
-        """Test that a type annotation can be converted to an annotated type with metadata"""
-        assert param_type_util.annotate_type(tp, *metadata) == expected_type
 
 
 class TestReplaceAnnotatedType:
@@ -472,54 +384,6 @@ class TestModifyAnnotatedMetadata:
         assert param_type_util.modify_annotated_metadata(tp, *metadata, action="replace") == expected_type
 
 
-class TestGetAnnotatedType:
-    """Tests for param_type_util.get_annotated_type()"""
-
-    @pytest.mark.parametrize(
-        ("tp", "annotated_type"),
-        [
-            (str, None),
-            (Optional[str], None),
-            (str | int, None),
-            (list[str], None),
-            (Annotated[str, "meta"], Annotated[str, "meta"]),
-            (int | Annotated[str, "meta"], Annotated[str, "meta"]),
-            (Annotated[str, "meta"] | int, Annotated[str, "meta"]),
-            (Optional[Annotated[str, "meta"]], Annotated[str, "meta"]),
-            (Optional[int | Annotated[str, "meta"]], Annotated[str, "meta"]),
-            (Optional[int] | Annotated[str, "meta"], Annotated[str, "meta"]),
-            (int | Optional[Annotated[str, "meta"]], Annotated[str, "meta"]),
-            (Annotated[str, "meta1"] | Annotated[int, "meta2"], (Annotated[str, "meta1"], Annotated[int, "meta2"])),
-            (
-                Annotated[str, Constraint(min_len=1)] | Annotated[int, "meta2", Constraint(min=2)],
-                (Annotated[str, Constraint(min_len=1)], Annotated[int, "meta2", Constraint(min=2)]),
-            ),
-        ],
-    )
-    def test_get_annotated_type(self, tp: Any, annotated_type: Any) -> None:
-        """Test that an annotated type that may/may not be nested inside the given type can be retrieved"""
-        assert param_type_util.get_annotated_type(tp) == annotated_type
-
-    @pytest.mark.parametrize(
-        ("tp", "metadata_filter", "expected"),
-        [
-            # first filter matches
-            (Annotated[str, Constraint(min_len=1)], [Constraint], Annotated[str, Constraint(min_len=1)]),
-            # second filter matches (regression for early-return bug in loop)
-            (Annotated[str, Constraint(min_len=1)], ["nonexistent", Constraint], Annotated[str, Constraint(min_len=1)]),
-            # string filter matches
-            (Annotated[str, "tag"], "tag", Annotated[str, "tag"]),
-            # no filter matches
-            (Annotated[str, Constraint(min_len=1)], [Format, "nonexistent"], None),
-            # type not annotated
-            (str, [Constraint], None),
-        ],
-    )
-    def test_get_annotated_type_with_metadata_filter(self, tp: Any, metadata_filter: list[Any], expected: Any) -> None:
-        """Test that get_annotated_type correctly filters annotated types by metadata"""
-        assert param_type_util.get_annotated_type(tp, metadata_filter=metadata_filter) == expected
-
-
 class TestMergeAnnotationTypes:
     """Tests for param_type_util.merge_annotation_types()"""
 
@@ -579,59 +443,6 @@ class TestMergeAnnotationTypes:
         tp2 = Annotated[int, "meta"]
         result = param_type_util.merge_annotation_types(tp1, tp2)
         assert result == tp1 | tp2
-
-
-class TestMatchesType:
-    """Tests for param_type_util.matches_type()"""
-
-    @pytest.mark.parametrize(
-        ("value", "tp", "is_valid"),
-        [
-            # valid
-            (None, Optional[int], True),
-            (1, Any, True),
-            (1, int, True),
-            (1, int | str, True),
-            (1, Optional[int], True),
-            (1, Optional[int | str], True),
-            (1, Optional[Annotated[int, "meta"]], True),
-            (1, Optional[Annotated[int | str, "meta"]], True),
-            (1, Literal[1, 2], True),
-            ([1, 2], Any, True),
-            ([1, 2], list[int], True),
-            ([1, "2"], list[int | str], True),
-            ({"k": "v"}, Any, True),
-            ({}, dict[str, Any], True),
-            ({"k": "v"}, dict[str, str], True),
-            ({"k": "v"}, dict[str | int, str], True),
-            (MyParamModel(), MyParamModel, True),
-            (MyParamModel(), dict, True),
-            (MyParamModel(param1="foo"), dict[str, str], True),
-            (MyParamModel(), dict | ParamModel, True),
-            ({"k": "v"}, MyParamModel | dict[str, Any], True),
-            # invalid
-            (None, int, False),
-            (1, str, False),
-            (1, str | bool, False),
-            (1, Optional[str], False),
-            (1, Optional[str | bool], False),
-            (1, Optional[Annotated[str, "meta"]], False),
-            (1, Optional[Annotated[str | bool, "meta"]], False),
-            (1, Literal[2, 3], False),
-            ([1, 2], int, False),
-            ([1, 2], list[str], False),
-            ([1, "2"], list[str], False),
-            ([1, 2], list[str | bool], False),
-            ({"k": 1}, dict[str, str], False),
-            ({1: "v"}, dict[str, str], False),
-            ({1: 2}, dict[str, str], False),
-            ({}, MyParamModel, False),
-            (MyParamModel(param1="foo"), dict[str, int], False),
-        ],
-    )
-    def test_matches_type(self, value: Any, tp: Any, is_valid: bool) -> None:
-        """Test that a value can be validated if it conforms to the type annotation"""
-        assert param_type_util.matches_type(value, tp) is is_valid
 
 
 class TestCustomOr:

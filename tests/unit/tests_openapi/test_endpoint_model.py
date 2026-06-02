@@ -256,12 +256,12 @@ class TestCreateEndpointModelFromSpec:
     def test_field_named_after_control_kwarg_is_aliased(self, api_client: OpenAPIClient, reserved_name: str) -> None:
         """Test that a spec param whose name matches an endpoint-function control kwarg is aliased.
 
-        This is a regression test for the split-core refactor. Before the fix, ``validate`` was a
+        This is a regression test for the split-core refactor. Before the fix, `validate` was a
         keyword-only parameter of EndpointFunc.__call__ and was therefore part of the reserved set
-        returned by get_reserved_param_names(). After the split, ``validate`` was moved into the
+        returned by get_reserved_param_names(). After the split, `validate` was moved into the
         OpenAPI request_wrapper and was no longer in the core reserved set — so a spec param named
-        ``validate`` would no longer be aliased. At runtime, the request_wrapper would silently pop
-        it as a control kwarg, making it impossible to ever send a real ``validate`` API parameter.
+        `validate` would no longer be aliased. At runtime, the request_wrapper would silently pop
+        it as a control kwarg, making it impossible to ever send a real `validate` API parameter.
         """
         api_spec = {
             "paths": {

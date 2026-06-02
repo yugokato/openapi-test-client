@@ -99,9 +99,9 @@ def is_query_param(tp: Any) -> bool:
     """Check if the parameter type is annotated to be sent as a URL query string.
 
     Recognizes three equivalent forms:
-    - ``Annotated[T, Query()]``  — canonical instance
-    - ``Annotated[T, Query]``    — bare class (ergonomic shortcut)
-    - ``Annotated[T, "query"]``  — legacy string (kept for back-compat)
+    - `Annotated[T, Query()]`  — canonical instance
+    - `Annotated[T, Query]`    — bare class (ergonomic shortcut)
+    - `Annotated[T, "query"]`  — legacy string (kept for back-compat)
 
     :param tp: Type annotation
     """

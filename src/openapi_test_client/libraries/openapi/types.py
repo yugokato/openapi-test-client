@@ -65,7 +65,7 @@ Optional: TypeAlias = _T | None
 
 
 class Kwargs(_Kwargs, total=False):
-    """For annotating the ``kwargs`` param in OpenAPI-based endpoint functions (PEP 692).
+    """For annotating the `kwargs` param in OpenAPI-based endpoint functions (PEP 692).
 
     Extends the core.types.Kwargs with OpenAPI-specific control kwargs.
     """

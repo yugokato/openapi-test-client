@@ -5,11 +5,14 @@ from contextlib import asynccontextmanager, contextmanager
 from functools import wraps
 from typing import Any, NoReturn
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from common_libs.clients.rest_client import RestResponse
 from common_libs.clients.rest_client.ext import RequestExt, ResponseExt
 from common_libs.clients.rest_client.utils import set_request_to_exception
+from common_libs.lock import Lock
+from filelock import Timeout as FileLockTimeout
 from httpx import AsyncClient, Client, ConnectError, HTTPError, Request
 from pytest_mock import MockerFixture
 
@@ -948,6 +951,38 @@ class TestEndpointFuncCallWithLock:
         instance = api_class(api_client)
         r = instance.get_something.with_lock()()
         assert isinstance(r, RestResponse)
+
+    async def test_lock_is_released_after_async_call(
+        self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
+    ) -> None:
+        """Test that the distributed lock is fully released after an awaited with_lock() call.
+
+        Uses a real (un-mocked) Lock to catch thread-affinity bugs where acquire and release run
+        on different threads, causing the OS-level file lock to silently leak.
+        """
+        mock_request = mocker.patch.object(AsyncClient, "request")
+        mock_request.return_value = mocker.MagicMock(
+            status_code=200,
+            headers={},
+            content=b"",
+            is_stream=False,
+            elapsed=mocker.MagicMock(total_seconds=lambda: 0.0),
+        )
+        lock_name = f"test-with-lock-{uuid4()}"
+
+        instance = api_class_async(api_client_async)
+        await instance.get_something.with_lock(lock_name=lock_name)()
+
+        # An independent acquire of the same lock must succeed immediately after the call.
+        # If the lock leaked (e.g. released on a different thread than it was acquired on),
+        # this will block until the timeout and raise FileLockTimeout.
+        # is_singleton=False ensures this is an independent FileLock instance that contends
+        # on the OS-level flock rather than sharing the wrapper's singleton lock counter.
+        try:
+            with Lock(lock_name, is_singleton=False, timeout=2):
+                pass
+        except FileLockTimeout:
+            pytest.fail("Lock was not released after the awaited with_lock() call completed")
 
 
 class TestEndpointFuncCallWithRetrySync:

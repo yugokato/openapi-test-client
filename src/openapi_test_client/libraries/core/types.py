@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator, Mapping, MutableMapping
 from dataclasses import MISSING, Field, asdict, astuple, dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypedDict
 
-from common_libs.clients.rest_client import JSONType, RestResponse
+from common_libs.clients.rest_client import RestResponse
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from .endpoints import EndpointFunc
 
-    class RestResponse(_RestResponse[JSONType]):  # type: ignore[no-redef]
+    class RestResponse(_RestResponse):  # type: ignore[no-redef]
         """TYPE_CHECKING-only type that is both RestResponse and awaitable.
 
         Enables IDE support for both sync and async (await) usage patterns.
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         def __await__(self) -> Generator[Any, None, RestResponse]: ...
 
     class _ResponseStream:
-        """TYPE_CHECKING-only context manager supporting both sync ``with`` and async ``async with``.
+        """TYPE_CHECKING-only context manager supporting both sync `with` and async `async with`.
 
         Enables IDE support for both sync and async (await) usage patterns.
         """
@@ -142,11 +142,11 @@ class MultipartFormData(MutableMapping[str, Any]):
         )
 
     def __getattr__(self, name: str) -> tuple[str, str | bytes, str]:
-        """Allow attribute-style read access to stored files (e.g. ``files.logo``).
+        """Allow attribute-style read access to stored files (e.g. `files.logo`).
 
         Only invoked when normal attribute lookup fails (i.e. for file keys, not for
-        ``_files`` or methods).  Raises ``AttributeError`` for unknown names so that
-        ``hasattr`` and ``getattr(..., default)`` behave correctly.
+        `_files` or methods).  Raises `AttributeError` for unknown names so that
+        `hasattr` and `getattr(..., default)` behave correctly.
 
         :param name: File key to look up
         """

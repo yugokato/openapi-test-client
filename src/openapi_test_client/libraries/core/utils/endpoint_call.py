@@ -16,8 +16,6 @@ from . import param_type as param_type_util
 from .endpoint_model import clean_model_field_name
 
 if TYPE_CHECKING:
-    from common_libs.clients.rest_client.ext import JSONType
-
     from .. import Endpoint, EndpointFunc
 
 logger = get_logger(__name__)
@@ -148,10 +146,7 @@ def get_signature_defaults(func: Callable[..., Any], path: str) -> dict[str, Any
 
 
 def validate_path_and_params(
-    endpoint_func: EndpointFunc[Any],
-    *path_params: Any,
-    raw_options: dict[str, Any] | None,
-    **body_or_query_params: dict[str, Any],
+    endpoint_func: EndpointFunc[Any], *path_params: Any, raw_options: dict[str, Any] | None, **body_or_query_params: Any
 ) -> str:
     """Validate path parameters and body/query parameters for an endpoint function call, and returns completed
     endpoint path
@@ -207,12 +202,12 @@ def is_json_request(
 
 def generate_rest_func_params(
     endpoint: Endpoint,
-    endpoint_params: dict[str, JSONType],
+    endpoint_params: dict[str, Any],
     session_headers: dict[str, str],
     quiet: bool = False,
     use_query_string: bool = False,
     **raw_options: Any,
-) -> dict[str, JSONType]:
+) -> dict[str, Any]:
     """Convert params passed to an endpoint function to ones for a low-level rest call function.
     Also set Content-Type header if needed
 
@@ -282,7 +277,8 @@ def generate_rest_func_params(
                     if isinstance(param_value, File):
                         files[param_name] = param_value
                     elif (
-                        param_type_util.is_type_of(dataclass_fields.get(param_name).type, File)
+                        field_obj is not None
+                        and param_type_util.is_type_of(field_obj.type, File)
                         and not specified_content_type_header
                     ):
                         # The parameter is annotated as File type, but the user gave something else. As long as
