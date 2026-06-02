@@ -306,7 +306,7 @@ By default, each auto-generated API function will look like a stub function with
 ```python
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     """Login"""
     ...
 ```
@@ -352,7 +352,7 @@ def my_decorator(f):
 @my_decorator
 @endpoint.is_public
 @endpoint.post("/v1/auth/login")
-def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     """Login"""
     ...
 ```
@@ -495,7 +495,7 @@ from typing import Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import APIResponse, Kwargs, Unset
+from openapi_test_client.libraries.openapi.types import RestResponse, Kwargs, Unset
 
 
 class AuthAPI(DemoAppBaseAPI):
@@ -503,12 +503,12 @@ class AuthAPI(DemoAppBaseAPI):
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")
-    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Login"""
         ...
 
     @endpoint.post("/v1/auth/logout")
-    def logout(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def logout(self, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Logout"""
         ...
 
@@ -707,7 +707,7 @@ from typing import Annotated, Literal, Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import APIResponse, Constraint, Format, Kwargs, Optional, Unset
+from openapi_test_client.libraries.openapi.types import Constraint, Format, Kwargs, Optional, RestResponse, Unset
 
 from ..models.users import Metadata
 
@@ -725,7 +725,7 @@ class UsersAPI(DemoAppBaseAPI):
             role: Literal["admin", "viewer", "support"] = Unset,
             metadata: Optional[Metadata] = Unset,
             **kwargs: Unpack[Kwargs],
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Create a new user"""
         ...
 ```

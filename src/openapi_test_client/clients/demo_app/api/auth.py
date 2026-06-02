@@ -2,7 +2,7 @@ from typing import Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import APIResponse, Kwargs, Unset
+from openapi_test_client.libraries.openapi.types import Kwargs, RestResponse, Unset
 
 
 class AuthAPI(DemoAppBaseAPI):
@@ -10,11 +10,11 @@ class AuthAPI(DemoAppBaseAPI):
 
     @endpoint.is_public
     @endpoint.post("/v1/auth/login")
-    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def login(self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Login"""
         ...
 
     @endpoint.post("/v1/auth/logout")
-    def logout(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def logout(self, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Logout"""
         ...

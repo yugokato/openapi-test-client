@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from openapi_test_client.clients.demo_app import DemoAppAPIClient
     from openapi_test_client.libraries.openapi import Endpoint
-    from openapi_test_client.libraries.openapi.types import APIResponse
+    from openapi_test_client.libraries.openapi.types import RestResponse
 
 
 def do_something_after_request(
-    api_client: DemoAppAPIClient, endpoint: Endpoint, r: APIResponse, *path_params: Any, **params: Any
+    api_client: DemoAppAPIClient, endpoint: Endpoint, r: RestResponse, *path_params: Any, **params: Any
 ) -> None:
     """This is a template of the post-request hook that will be called right after making a request
 
@@ -20,7 +20,7 @@ def do_something_after_request(
     >>> def post_request_hook(
     >>>     self,
     >>>     endpoint: Endpoint,
-    >>>     response: APIResponse | None,
+    >>>     response: RestResponse | None,
     >>>     exception: HTTPError | None,
     >>>     *path_params,
     >>>     **params,
@@ -32,7 +32,7 @@ def do_something_after_request(
     ...
 
 
-def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint, r: APIResponse) -> None:
+def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint, r: RestResponse) -> None:
     """Manage auth after successful login/logout
 
     :param api_client: API client

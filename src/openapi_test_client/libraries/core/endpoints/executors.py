@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, ParamSpec
 
 from common_libs.clients.rest_client import AsyncRestClient, RestClient
 
-from ..types import APIResponse
+from ..types import RestResponse
 
 if TYPE_CHECKING:
     from .endpoint_func import AsyncEndpointFunc, SyncEndpointFunc
@@ -20,20 +20,22 @@ class Executor(Generic[P], ABC):
     @abstractmethod
     def execute(
         self, endpoint_func: SyncEndpointFunc[P] | AsyncEndpointFunc[P], completed_path: str, params: dict[str, Any]
-    ) -> APIResponse:
+    ) -> RestResponse:
         raise NotImplementedError
 
     @abstractmethod
     def execute_stream(
         self, endpoint_func: SyncEndpointFunc[P] | AsyncEndpointFunc[P], completed_path: str, params: dict[str, Any]
-    ) -> Generator[APIResponse] | AsyncGenerator[APIResponse]:
+    ) -> Generator[RestResponse] | AsyncGenerator[RestResponse]:
         raise NotImplementedError
 
     @staticmethod
     def get_rest_func(
         endpoint_func: SyncEndpointFunc[P] | AsyncEndpointFunc[P], /, *, stream: bool = False
     ) -> (
-        Callable[..., APIResponse] | Callable[..., Generator[APIResponse]] | Callable[..., AsyncGenerator[APIResponse]]
+        Callable[..., RestResponse]
+        | Callable[..., Generator[RestResponse]]
+        | Callable[..., AsyncGenerator[RestResponse]]
     ):
         rest_client: RestClient | AsyncRestClient = endpoint_func.rest_client
         if stream:
@@ -44,14 +46,14 @@ class Executor(Generic[P], ABC):
 
 
 class SyncExecutor(Executor[P]):
-    def execute(self, endpoint_func: SyncEndpointFunc[P], completed_path: str, params: dict[str, Any]) -> APIResponse:
+    def execute(self, endpoint_func: SyncEndpointFunc[P], completed_path: str, params: dict[str, Any]) -> RestResponse:
         rest_func = SyncExecutor.get_rest_func(endpoint_func, stream=False)
         return rest_func(completed_path, **params)
 
     @contextmanager
     def execute_stream(
         self, endpoint_func: SyncEndpointFunc[P], completed_path: str, params: dict[str, Any]
-    ) -> Generator[APIResponse]:
+    ) -> Generator[RestResponse]:
         rest_func = SyncExecutor.get_rest_func(endpoint_func, stream=True)
         with rest_func(completed_path, **params) as resp:
             yield resp
@@ -60,14 +62,14 @@ class SyncExecutor(Executor[P]):
 class AsyncExecutor(Executor[P]):
     async def execute(
         self, endpoint_func: AsyncEndpointFunc[P], completed_path: str, params: dict[str, Any]
-    ) -> APIResponse:
+    ) -> RestResponse:
         rest_func = Executor.get_rest_func(endpoint_func, stream=False)
         return await rest_func(completed_path, **params)
 
     @asynccontextmanager
     async def execute_stream(
         self, endpoint_func: AsyncEndpointFunc[P], completed_path: str, params: dict[str, Any]
-    ) -> AsyncGenerator[APIResponse]:
+    ) -> AsyncGenerator[RestResponse]:
         rest_func = Executor.get_rest_func(endpoint_func, stream=True)
         async with rest_func(completed_path, **params) as resp:
             yield resp

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterator, Mapping, MutableMapping
+from collections.abc import Callable, Iterator, Mapping, MutableMapping
 from dataclasses import MISSING, Field, asdict, astuple, dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypedDict
 
 from common_libs.clients.rest_client import JSONType, RestResponse
 
@@ -18,18 +18,43 @@ if TYPE_CHECKING:
     class RestResponse(_RestResponse[JSONType]):  # type: ignore[no-redef]
         """TYPE_CHECKING-only type that is both RestResponse and awaitable.
 
-        Enables IDE support for both sync and async (await) usage patterns:
+        Enables IDE support for both sync and async (await) usage patterns.
         """
 
-        def __await__(self) -> Generator[Any, None, _RestResponse]: ...
+        def __await__(self) -> Generator[Any, None, RestResponse]: ...
+
+    class _ResponseStream:
+        """TYPE_CHECKING-only context manager supporting both sync ``with`` and async ``async with``.
+
+        Enables IDE support for both sync and async (await) usage patterns.
+        """
+
+        def __enter__(self) -> RestResponse: ...
+        def __exit__(self, *exc: object) -> bool | None: ...
+        async def __aenter__(self) -> RestResponse: ...
+        async def __aexit__(self, *exc: object) -> bool | None: ...
+
+    class _ResponseList(list[RestResponse]):
+        """TYPE_CHECKING-only list type usable both as a list (sync) and awaitable (async).
+
+        Enables IDE support for both sync and async (await) usage patterns.
+        """
+
+        def __await__(self) -> Generator[Any, None, list[RestResponse]]: ...
+
+    class _ResponseOrExceptionList(list[RestResponse | Exception]):
+        """TYPE_CHECKING-only list type usable both as a list (sync) and awaitable (async).
+
+        Enables IDE support for both sync and async (await) usage patterns.
+        """
+
+        def __await__(self) -> Generator[Any, None, list[RestResponse | Exception]]: ...
+
 else:
     Protocol = object
 
 
-__all__ = ["APIResponse", "Alias", "File", "Kwargs", "Query", "Unset"]
-
-
-APIResponse: TypeAlias = RestResponse | Awaitable[RestResponse]
+__all__ = ["Alias", "File", "Kwargs", "Query", "RestResponse", "Unset"]
 
 
 class _UnsetType:

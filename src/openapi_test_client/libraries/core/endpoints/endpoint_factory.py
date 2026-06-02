@@ -5,7 +5,7 @@ from collections.abc import Callable
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeVar
 
-from ..types import APIResponse
+from ..types import RestResponse
 from .endpoint_handler import (
     DeferredOperation,
     EndpointHandler,
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", bound="APIBase[Any]")
 P = ParamSpec("P")
-R = TypeVar("R", bound=APIResponse)
+R = TypeVar("R", bound=RestResponse)
 
 __all__ = ["endpoint"]
 
@@ -43,7 +43,7 @@ class endpoint:
         >>>     @endpoint.post("/v1/login")
         >>>     def login(
         >>>         self, *, username: str = Unset, password: str = Unset, **kwargs: Unpack[Kwargs]
-        >>>     ) -> APIResponse:
+        >>>     ) -> RestResponse:
         >>>         ...
         >>>
         >>> client = MyAppAPIClient()
@@ -293,7 +293,7 @@ class endpoint:
 
     @staticmethod
     def _apply_operations(
-        obj: EndpointHandler[P] | PendingHandler[P] | Callable[P, APIResponse], operation: DeferredOperation[P]
+        obj: EndpointHandler[P] | PendingHandler[P] | Callable[P, RestResponse], operation: DeferredOperation[P]
     ) -> Any:
         """Apply an endpoint operation immediately (EndpointHandler) or defer it (function / PendingEndpoint)
 

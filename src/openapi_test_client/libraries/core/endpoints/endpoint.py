@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from ..types import APIResponse, EndpointModel
+from ..types import EndpointModel, RestResponse
 
 if TYPE_CHECKING:
     from ..base import APIBase
@@ -48,7 +48,7 @@ class Endpoint:
         with_hooks: bool = True,
         raw_options: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client
 
         NOTE: If the provided API client is in async mode, the returned value is a coroutine that needs be awaited by

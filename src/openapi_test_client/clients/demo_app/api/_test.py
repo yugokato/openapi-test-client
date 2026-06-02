@@ -2,7 +2,7 @@ from typing import Any, Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import APIResponse, Kwargs
+from openapi_test_client.libraries.openapi.types import Kwargs, RestResponse
 
 
 class _TestAPI(DemoAppBaseAPI):
@@ -24,16 +24,16 @@ class _TestAPI(DemoAppBaseAPI):
             return self.rest_client.get(self.echo.endpoint.path.format(value=value))
 
     @endpoint.get("/v1/test/wait/{delay}")
-    def wait(self, delay: float | int, /, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def wait(self, delay: float | int, /, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Test endpoint that returns a response after waiting for the specified delay"""
         ...
 
     @endpoint.get("/v1/test/redirect", follow_redirects=True)
-    def redirect(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def redirect(self, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Test endpoint that redirects to /redirected"""
         ...
 
     @endpoint.get("/v1/test/redirected")
-    def redirected(self, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def redirected(self, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Test endpoint for the redirected route"""
         ...

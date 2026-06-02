@@ -2,24 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from copy import copy
 from functools import cache, partial, wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Concatenate,
-    Generic,
-    Literal,
-    ParamSpec,
-    Self,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Concatenate, Generic, Literal, ParamSpec, Self, TypeVar, cast, overload
 
-from common_libs.clients.rest_client import RestClient, RestResponse
+from common_libs.clients.rest_client import RestClient
 from common_libs.clients.rest_client.utils import retry_on
 from common_libs.job_executor import Job, run_concurrent
 from common_libs.lock import Lock
@@ -27,7 +16,7 @@ from common_libs.logging import get_logger
 from common_libs.naming import to_class_name
 from httpx import HTTPError
 
-from ..types import APIResponse, EndpointModel
+from ..types import EndpointModel, RestResponse
 from ..utils import endpoint_call as endpoint_call_util
 from ..utils import endpoint_model as endpoint_model_util
 from .executors import AsyncExecutor, SyncExecutor
@@ -35,6 +24,7 @@ from .executors import AsyncExecutor, SyncExecutor
 if TYPE_CHECKING:
     from ..base import APIBase
     from ..base.api_client import APIClient
+    from ..types import _ResponseList, _ResponseOrExceptionList, _ResponseStream
     from .endpoint_handler import EndpointHandler
 
 
@@ -50,6 +40,26 @@ _SAFE_HTTP_METHODS: frozenset[str] = frozenset({"GET", "HEAD", "OPTIONS"})
 __all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
 
 logger = get_logger(__name__)
+
+
+def _as_response(f: Callable[_P, Awaitable[RestResponse]]) -> Callable[_P, RestResponse]:
+    """Retype an async callable as a plain callable returning RestResponse.
+
+    Applied to AsyncEndpointFunc.__call__ so that the SyncEndpointFunc | AsyncEndpointFunc union appears as a single
+    non-coroutine callable type to the type checker.
+    At runtime this is a no-op.
+    """
+    return cast(Callable[_P, RestResponse], f)
+
+
+def _as_response_stream(f: Callable[_P, object]) -> Callable[_P, _ResponseStream]:
+    """Retype a context-manager callable as returning the dual _ResponseStream.
+
+    Applied to both SyncEndpointFunc.stream() and AsyncEndpointFunc.stream() so the
+    SyncEndpointFunc | AsyncEndpointFunc union presents a single type that supports both ``with`` and ``async with``.
+    At runtime this is a no-op.
+    """
+    return cast(Callable[_P, "_ResponseStream"], f)
 
 
 def requires_instance(f: Callable[Concatenate[_T, _P], _R]) -> Callable[Concatenate[_T, _P], _R]:
@@ -90,7 +100,7 @@ class EndpointFunc(Generic[P]):
 
         self._instance: APIBase[Any] | None = instance
         self._owner: type[APIBase[Any]] = owner
-        self._original_func: Callable[..., APIResponse] = endpoint_handler.original_func
+        self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
         self._raw_options = endpoint_handler.default_raw_options
 
@@ -134,7 +144,7 @@ class EndpointFunc(Generic[P]):
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
     @requires_instance
-    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> APIResponse:
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         """Make an API call to the endpoint. This logic is commonly used for sync/acync API calls"""
         return await self._call(*args, **kwargs)  # type: ignore[arg-type]
 
@@ -145,7 +155,7 @@ class EndpointFunc(Generic[P]):
         with_hooks: bool | None = True,
         raw_options: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Make an API call to the endpoint. This logic is commonly used for sync/async API calls
 
         Parameters can be passed either positionally or as keyword arguments. Path parameters are identified by
@@ -248,7 +258,7 @@ class EndpointFunc(Generic[P]):
 
         def call_with_retry(f: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(f)
-            def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+            def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                 return retry_on(
                     condition,
                     num_retries=num_retries,
@@ -282,13 +292,13 @@ class EndpointFunc(Generic[P]):
             if self.api_client.async_mode:
 
                 @wraps(f)
-                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                async def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     with Lock(lock_name):
                         return await f(*args, **kwargs)
             else:
 
                 @wraps(f)
-                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     with Lock(lock_name):
                         return f(*args, **kwargs)
 
@@ -320,13 +330,13 @@ class EndpointFunc(Generic[P]):
             if self.api_client.async_mode:
 
                 @wraps(f)
-                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                async def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     return check(await f(*args, **kwargs))
 
             else:
 
                 @wraps(f)
-                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     return check(f(*args, **kwargs))
 
             return wrapper
@@ -357,13 +367,13 @@ class EndpointFunc(Generic[P]):
             if self.api_client.async_mode:
 
                 @wraps(f)
-                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                async def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     return check(await f(*args, **kwargs))
 
             else:
 
                 @wraps(f)
-                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     return check(f(*args, **kwargs))
 
             return wrapper
@@ -397,7 +407,7 @@ class EndpointFunc(Generic[P]):
             if self.api_client.async_mode:
 
                 @wraps(f)
-                async def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                async def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     deadline = time.monotonic() + timeout
                     while True:
                         r = await f(*args, **kwargs)
@@ -410,7 +420,7 @@ class EndpointFunc(Generic[P]):
             else:
 
                 @wraps(f)
-                def wrapper(*args: Any, **kwargs: Any) -> APIResponse:
+                def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
                     deadline = time.monotonic() + timeout
                     while True:
                         r = f(*args, **kwargs)
@@ -464,7 +474,7 @@ class EndpointFunc(Generic[P]):
 
     def _run_post_hook(
         self,
-        r: APIResponse | None,
+        r: RestResponse | None,
         exception: Exception | None,
         with_hooks: bool | None,
         path_params: tuple[Any, ...],
@@ -481,7 +491,7 @@ class EndpointFunc(Generic[P]):
 
     async def _call_original_func(
         self, func_args: tuple[Any, ...], func_kwargs: dict[str, Any], kwargs: dict[str, Any]
-    ) -> APIResponse | None:
+    ) -> RestResponse | None:
         """Call the user-defined original endpoint function with the original args/kwargs.
 
         :param func_args: Positional arguments as received by __call__
@@ -496,7 +506,7 @@ class EndpointFunc(Generic[P]):
             r = await r
         return r
 
-    async def _call_api_func(self, path: str, params: dict[str, Any]) -> APIResponse:
+    async def _call_api_func(self, path: str, params: dict[str, Any]) -> RestResponse:
         if self.api_client.async_mode:
             assert isinstance(self, AsyncEndpointFunc)
             assert isinstance(self.executor, AsyncExecutor)
@@ -530,10 +540,11 @@ class SyncEndpointFunc(EndpointFunc[P]):
     executor = SyncExecutor()
 
     @requires_instance
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> APIResponse:
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         """Make a sync API call to the endpoint"""
         return asyncio.run(super().__call__(*args, **kwargs))
 
+    @_as_response_stream
     @contextmanager
     @requires_instance
     def stream(
@@ -543,7 +554,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
         with_hooks: bool | None = True,
         raw_options: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Generator[APIResponse]:
+    ) -> Generator[RestResponse]:
         """Stream the response
 
         :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
@@ -576,15 +587,15 @@ class SyncEndpointFunc(EndpointFunc[P]):
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[P, list[APIResponse]]: ...
+    ) -> Callable[P, _ResponseList]: ...
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[P, list[APIResponse | Exception]]: ...
+    ) -> Callable[P, _ResponseOrExceptionList]: ...
     @requires_instance
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: bool = False
-    ) -> Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]]:
+    ) -> Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]:
         """Return a callable that concurrently makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters.
@@ -596,28 +607,26 @@ class SyncEndpointFunc(EndpointFunc[P]):
 
         def call_with_concurrency(f: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(f)
-            def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse]:
+            def wrapper(*args: Any, **kwargs: Any) -> list[RestResponse]:
                 return run_concurrent([Job(f, args, kwargs) for _ in range(num)], return_exceptions=return_exceptions)
 
             return wrapper
 
         return cast(
-            Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]],
+            "Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]",
             self._with_call_wrapper(call_with_concurrency),
         )
 
     @overload
-    def with_repeat(
-        self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[P, list[APIResponse]]: ...
+    def with_repeat(self, num: int = 2, *, return_exceptions: Literal[False] = ...) -> Callable[P, _ResponseList]: ...
     @overload
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[P, list[APIResponse | Exception]]: ...
+    ) -> Callable[P, _ResponseOrExceptionList]: ...
     @requires_instance
     def with_repeat(
         self, num: int = 2, *, return_exceptions: bool = False
-    ) -> Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]]:
+    ) -> Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]:
         """Return a callable that sequentially makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
@@ -632,9 +641,9 @@ class SyncEndpointFunc(EndpointFunc[P]):
 
         def call_with_repeat(f: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(f)
-            def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse] | list[APIResponse | Exception]:
+            def wrapper(*args: Any, **kwargs: Any) -> list[RestResponse] | list[RestResponse | Exception]:
                 if return_exceptions:
-                    results: list[APIResponse | Exception] = []
+                    results: list[RestResponse | Exception] = []
                     for _ in range(num):
                         try:
                             results.append(f(*args, **kwargs))
@@ -646,7 +655,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
             return wrapper
 
         return cast(
-            Callable[P, list[APIResponse]] | Callable[P, list[APIResponse | Exception]],
+            "Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]",
             self._with_call_wrapper(call_with_repeat),
         )
 
@@ -659,11 +668,13 @@ class AsyncEndpointFunc(EndpointFunc[P]):
 
     executor = AsyncExecutor()
 
+    @_as_response
     @requires_instance
-    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> APIResponse:
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         """Make an async API call to the endpoint"""
         return await super().__call__(*args, **kwargs)
 
+    @_as_response_stream
     @asynccontextmanager
     @requires_instance
     async def stream(
@@ -673,7 +684,7 @@ class AsyncEndpointFunc(EndpointFunc[P]):
         with_hooks: bool | None = True,
         raw_options: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> AsyncGenerator[APIResponse]:
+    ) -> AsyncGenerator[RestResponse]:
         """Stream response from an API call to the endpoint
 
         :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
@@ -706,18 +717,15 @@ class AsyncEndpointFunc(EndpointFunc[P]):
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse]]]: ...
+    ) -> Callable[P, _ResponseList]: ...
     @overload
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
+    ) -> Callable[P, _ResponseOrExceptionList]: ...
     @requires_instance
     def with_concurrency(
         self, num: int = 2, *, return_exceptions: bool = False
-    ) -> (
-        Callable[P, Coroutine[Any, Any, list[APIResponse]]]
-        | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]
-    ):
+    ) -> Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]:
         """Return a coroutine callable that concurrently makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters.
@@ -729,10 +737,10 @@ class AsyncEndpointFunc(EndpointFunc[P]):
 
         def call_with_concurrency(f: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(f)
-            async def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse] | list[APIResponse | Exception]:
+            async def wrapper(*args: Any, **kwargs: Any) -> list[RestResponse] | list[RestResponse | Exception]:
                 if return_exceptions:
 
-                    async def safe_f(*a: Any, **kw: Any) -> APIResponse | Exception:
+                    async def safe_f(*a: Any, **kw: Any) -> RestResponse | Exception:
                         try:
                             return await f(*a, **kw)
                         except Exception as e:
@@ -748,26 +756,20 @@ class AsyncEndpointFunc(EndpointFunc[P]):
             return wrapper
 
         return cast(
-            Callable[P, Coroutine[Any, Any, list[APIResponse]]]
-            | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]],
+            "Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]",
             self._with_call_wrapper(call_with_concurrency),
         )
 
     @overload
-    def with_repeat(
-        self, num: int = 2, *, return_exceptions: Literal[False] = ...
-    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse]]]: ...
+    def with_repeat(self, num: int = 2, *, return_exceptions: Literal[False] = ...) -> Callable[P, _ResponseList]: ...
     @overload
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[True]
-    ) -> Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]: ...
+    ) -> Callable[P, _ResponseOrExceptionList]: ...
     @requires_instance
     def with_repeat(
         self, num: int = 2, *, return_exceptions: bool = False
-    ) -> (
-        Callable[P, Coroutine[Any, Any, list[APIResponse]]]
-        | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]]
-    ):
+    ) -> Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]:
         """Return a coroutine callable that sequentially makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
@@ -782,9 +784,9 @@ class AsyncEndpointFunc(EndpointFunc[P]):
 
         def call_with_repeat(f: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(f)
-            async def wrapper(*args: Any, **kwargs: Any) -> list[APIResponse] | list[APIResponse | Exception]:
+            async def wrapper(*args: Any, **kwargs: Any) -> list[RestResponse] | list[RestResponse | Exception]:
                 if return_exceptions:
-                    results: list[APIResponse | Exception] = []
+                    results: list[RestResponse | Exception] = []
                     for _ in range(num):
                         try:
                             results.append(await f(*args, **kwargs))
@@ -796,7 +798,6 @@ class AsyncEndpointFunc(EndpointFunc[P]):
             return wrapper
 
         return cast(
-            Callable[P, Coroutine[Any, Any, list[APIResponse]]]
-            | Callable[P, Coroutine[Any, Any, list[APIResponse | Exception]]],
+            "Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]",
             self._with_call_wrapper(call_with_repeat),
         )

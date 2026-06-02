@@ -4,10 +4,10 @@ from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
-from openapi_test_client.libraries.openapi.types import APIResponse
+from openapi_test_client.libraries.openapi.types import RestResponse
 
 P = ParamSpec("P")
-R = TypeVar("R", bound=APIResponse)
+R = TypeVar("R", bound=RestResponse)
 
 
 def do_something_before_and_after_request(f: Callable[P, R]) -> Callable[P, R]:

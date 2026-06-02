@@ -26,7 +26,7 @@ from openapi_test_client.libraries.core import endpoint
 class UsersAPI(MyAppBaseAPI):
     """User APIs"""
     @endpoint.get("/users/{user_id}")
-    def get_user(self, user_id: int, include_posts: bool = False) -> APIResponse:
+    def get_user(self, user_id: int, include_posts: bool = False) -> RestResponse:
         """Get a user by ID"""
         ...
 ```
@@ -76,7 +76,7 @@ or request body fields.
 from typing import Annotated, Unpack
 
 from openapi_test_client.libraries.core import endpoint
-from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Query, Unset
+from openapi_test_client.libraries.core.types import RestResponse, Kwargs, Query, Unset
 
 from .base.my_app_api import MyAppBaseAPI
 
@@ -86,12 +86,12 @@ class AuthAPI(MyAppBaseAPI):
 
     @endpoint.is_public
     @endpoint.post("/auth/login")
-    def login(self, username: str, password: str, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def login(self, username: str, password: str, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Log in"""
         ...
 
     @endpoint.post("/auth/logout")
-    def logout(self, redirect_to: Annotated[str, Query()] = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def logout(self, redirect_to: Annotated[str, Query()] = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Log out"""
         ...
 
@@ -99,7 +99,7 @@ class AuthAPI(MyAppBaseAPI):
     @endpoint.post("/auth/sessions/{session_id}/refresh")
     def refresh_session(
         self, session_id: str, refresh_token: str, expires_in: int = 3600, scopes: list[str] = Unset
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Refresh an existing session"""
         ...
 ```
@@ -115,7 +115,7 @@ class AuthAPI(MyAppBaseAPI):
 from typing import Unpack
 
 from openapi_test_client.libraries.core import endpoint
-from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Unset
+from openapi_test_client.libraries.core.types import RestResponse, Kwargs, Unset
 
 from .base.my_app_api import MyAppBaseAPI
 
@@ -124,17 +124,17 @@ class UsersAPI(MyAppBaseAPI):
     """User APIs"""
 
     @endpoint.post("/users")
-    def create_user(self, username: str, email: str, role: str = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def create_user(self, username: str, email: str, role: str = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Create a user"""
         ...
 
     @endpoint.get("/users/{user_id}")
-    def get_user(self, user_id: int, include_posts: bool = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def get_user(self, user_id: int, include_posts: bool = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Get a user by ID"""
         ...
 
     @endpoint.get("/users")
-    def list_users(self, page: int = Unset, page_size: int = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def list_users(self, page: int = Unset, page_size: int = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """List users"""
         ...
 ```
@@ -252,7 +252,7 @@ Metadata decorators can appear anywhere in the stack — above or below `@endpoi
 @my_decorator   # Your custom decorator — must be registered
 @endpoint.is_deprecated
 @endpoint.get("/v1/items")
-def list_items(self, *, page: int = Unset, page_size: int = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def list_items(self, *, page: int = Unset, page_size: int = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     """List items (deprecated)"""
     ...
 ```
@@ -316,7 +316,7 @@ Both kinds can be defined as required (no default) or optional (with a default v
 
 ```python
 @endpoint.get('/v1/users/{user_id}/orders/{order_id}')
-def get_order(self, user_id: int, order_id: int, include_items: bool = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def get_order(self, user_id: int, order_id: int, include_items: bool = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     #               ^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     #               path params (name matches    body/query param (any other name)
     #               placeholder in path)
@@ -327,7 +327,7 @@ For path placeholders that are not valid Python identifiers (e.g. `{order-id}`),
 
 ```python
 @endpoint.get("/v1/users/{user_id}/orders/{order-id}")
-def get_order(self, user_id: int, order_id: int, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def get_order(self, user_id: int, order_id: int, **kwargs: Unpack[Kwargs]) -> RestResponse:
     #                             order_id  ↑ matches {order-id}
     ...
 ```
@@ -349,7 +349,7 @@ Concrete (non-`Unset`) default values are always included in the request when th
 ```python
 # page always defaults to 1 if not given; per_page is omitted unless the caller sets it
 @endpoint.get("/v1/items")
-def list_items(self, *, page: int = 1, per_page: int = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse: ...
+def list_items(self, *, page: int = 1, per_page: int = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse: ...
 
 r = client.Items.list_items()                     # payload: {"page": 1} 
 r = client.Items.list_items(page=2)               # payload: {"page": 2} 
@@ -361,15 +361,15 @@ r = client.Items.list_items(page=2, per_page=50)  # payload: {"page": 2, "per_pa
 
 In addition to `__call__`, every endpoint function provides the following configurable execution wrappers:
 
-| Method                                                                                                     | Description                                                                                                                                                                                                                                                                |
-|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `with_retry(condition=lambda r: not r.ok, num_retries=1, retry_after=5, safe_methods_only=False)` → `Self` | Configure retry and return a chainable endpoint func. `condition` can be a status code or exception class, a list of status codes or exception classes, a callable `(RestResponse \| Exception) -> bool`). Defaults to retrying on any non-2xx response.                   |
-| `with_lock(lock_name=None)` → `Self`                                                                       | Configure a distributed lock and return a chainable endpoint func. Default lock name is `<app_name>-<APIClass>.<func_name>`.                                                                                                                                               |
-| `with_expected_status(*status_codes)` → `Self`                                                             | Assert the response status code is one of the expected values. Raises `AssertionError` otherwise.                                                                                                                                                                          |
-| `with_max_response_time(threshold_msecs)` → `Self`                                                         | Assert the server response time does not exceed `threshold_msecs`. Raises `AssertionError` otherwise.                                                                                                                                                                      |
-| `with_polling(until, interval=5, timeout=60)` → `Self`                                                     | Poll the endpoint until `until(response)` returns `True`, waiting `interval` seconds between calls. Raises `TimeoutError` if not satisfied within `timeout` seconds.                                                                                                       |
-| `with_concurrency(num=2, *, return_exceptions=False)` → `Callable[..., list[APIResponse]]`                 | Configure concurrency and return a callable. Pass the endpoint's own parameters to that callable — it fires `num` concurrent calls and returns `list[APIResponse]`. Set `return_exceptions=True` to collect exceptions in the list instead of propagating.                 |
-| `with_repeat(num=2, *, return_exceptions=False)` → `Callable[..., list[APIResponse]]`                      | Configure sequential repetition and return a callable. Pass the endpoint's own parameters — it fires `num` sequential calls and returns `list[APIResponse]`. Set `return_exceptions=True` to collect exceptions (`list[APIResponse \| Exception]`) instead of propagating. |
+| Method                                                                                                     | Description                                                                                                                                                                                                                                                                  |
+|------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `with_retry(condition=lambda r: not r.ok, num_retries=1, retry_after=5, safe_methods_only=False)` → `Self` | Configure retry and return a chainable endpoint func. `condition` can be a status code or exception class, a list of status codes or exception classes, a callable `(RestResponse \| Exception) -> bool`). Defaults to retrying on any non-2xx response.                     |
+| `with_lock(lock_name=None)` → `Self`                                                                       | Configure a distributed lock and return a chainable endpoint func. Default lock name is `<app_name>-<APIClass>.<func_name>`.                                                                                                                                                 |
+| `with_expected_status(*status_codes)` → `Self`                                                             | Assert the response status code is one of the expected values. Raises `AssertionError` otherwise.                                                                                                                                                                            |
+| `with_max_response_time(threshold_msecs)` → `Self`                                                         | Assert the server response time does not exceed `threshold_msecs`. Raises `AssertionError` otherwise.                                                                                                                                                                        |
+| `with_polling(until, interval=5, timeout=60)` → `Self`                                                     | Poll the endpoint until `until(response)` returns `True`, waiting `interval` seconds between calls. Raises `TimeoutError` if not satisfied within `timeout` seconds.                                                                                                         |
+| `with_concurrency(num=2, *, return_exceptions=False)` → `Callable[..., list[RestResponse]]`                | Configure concurrency and return a callable. Pass the endpoint's own parameters to that callable — it fires `num` concurrent calls and returns `list[RestResponse]`. Set `return_exceptions=True` to collect exceptions in the list instead of propagating.                  |
+| `with_repeat(num=2, *, return_exceptions=False)` → `Callable[..., list[RestResponse]]`                     | Configure sequential repetition and return a callable. Pass the endpoint's own parameters — it fires `num` sequential calls and returns `list[RestResponse]`. Set `return_exceptions=True` to collect exceptions (`list[RestResponse \| Exception]`) instead of propagating. |
 
 > [!IMPORTANT]
 > - All `with_xxx()` wrappers use a **curried** call style: each wrapper accepts only its own configuration options
@@ -426,14 +426,14 @@ class APIClient:
     ) -> None: ...
 ```
 
-| Parameter     | Description                                                                                                                                                         |
-|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `app_name`    | Logical name for the application. Must match `app_name` on all associated API classes.                                                                              |
-| `env`         | Target environment label (e.g., `"dev"`, `"prod"`). Optional; accessible on API class instances via `self.env`.                                                     |
-| `base_url`    | Base URL prepended to every endpoint path. Mutually exclusive with `rest_client`.                                                                                   |
+| Parameter     | Description                                                                                                                                                          |
+|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app_name`    | Logical name for the application. Must match `app_name` on all associated API classes.                                                                               |
+| `env`         | Target environment label (e.g., `"dev"`, `"prod"`). Optional; accessible on API class instances via `self.env`.                                                      |
+| `base_url`    | Base URL prepended to every endpoint path. Mutually exclusive with `rest_client`.                                                                                    |
 | `rest_client` | Pre-configured `RestClient` or `AsyncRestClient` to inject. Use this when you need full control over transport-level settings (TLS, proxies, session cookies, etc.). |
-| `async_mode`  | Set to `True` to enable async mode. All endpoint calls must then be awaited.                                                                                        |
-| `**kwargs`    | Additional keyword arguments forwarded to the underlying REST client constructor (e.g., `headers`, `timeout`, `verify`).                                            |
+| `async_mode`  | Set to `True` to enable async mode. All endpoint calls must then be awaited.                                                                                         |
+| `**kwargs`    | Additional keyword arguments forwarded to the underlying REST client constructor (e.g., `headers`, `timeout`, `verify`).                                             |
 
 
 ## API Class (`APIBase`)
@@ -454,7 +454,7 @@ class MyAppBaseAPI(APIBase):
 class AuthAPI(MyAppBaseAPI):
 
     @endpoint.post("/auth/login")
-    def login(self, username: str, password: str, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def login(self, username: str, password: str, **kwargs: Unpack[Kwargs]) -> RestResponse:
         ...
 ```
 It is generic over the client type — `APIBase[T]` — so subclasses get a typed `self.api_client`.
@@ -490,7 +490,7 @@ Called immediately after each request completes (or raises an HTTP error).
 def post_request_hook(
     self,
     endpoint: Endpoint,
-    response: APIResponse | None,
+    response: RestResponse | None,
     exception: HTTPError | None,
     *path_params: Any,
     **params: Any,
@@ -534,7 +534,7 @@ from typing import Any
 from httpx import HTTPError
 
 from openapi_test_client.libraries.core import APIBase, Endpoint
-from openapi_test_client.libraries.core.types import APIResponse
+from openapi_test_client.libraries.core.types import RestResponse
 
 
 class MyAppBaseAPI(APIBase):
@@ -543,7 +543,7 @@ class MyAppBaseAPI(APIBase):
     def post_request_hook(
         self,
         endpoint: Endpoint,
-        response: APIResponse | None,
+        response: RestResponse | None,
         exception: HTTPError | None,
         *path_params: Any,
         **params: Any,
@@ -664,16 +664,6 @@ The object returned by every endpoint call. Key attributes:
 | `request_id`    | `str`            | UUID set per request in the `X-Request-ID` header.                                                          |
 | `response_time` | `float`          | Wall-clock seconds between request dispatch and response received.                                          |
 
-## `APIResponse`
-
-A type alias used as the return annotation for all endpoint functions:
-
-```python
-APIResponse: TypeAlias = RestResponse | Awaitable[RestResponse]
-```
-
-Sync calls return a `RestResponse` directly; async calls return an awaitable that resolves to one. Using `APIResponse` as the annotation means the same function signature works for both modes.
-
 ## `Kwargs` and `Unpack`
 
 `Kwargs` is a `TypedDict` that captures the three built-in keyword options accepted by every endpoint function:
@@ -689,10 +679,10 @@ Always include `**kwargs: Unpack[Kwargs]` in your endpoint function signatures s
 
 ```python
 from typing import Unpack
-from openapi_test_client.libraries.core.types import APIResponse, Kwargs
+from openapi_test_client.libraries.core.types import Kwargs, RestResponse
 
 @endpoint.get("/v1/items")
-def list_items(self, *, page: int = Unset, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def list_items(self, *, page: int = Unset, **kwargs: Unpack[Kwargs]) -> RestResponse:
     ...
 ```
 
@@ -711,7 +701,7 @@ Three equivalent forms are accepted:
 
 ```python
 from typing import Annotated, Unpack
-from openapi_test_client.libraries.core.types import APIResponse, Kwargs, Query, Unset
+from openapi_test_client.libraries.core.types import Kwargs, Query, RestResponse, Unset
 
 @endpoint.post("/v1/items/{item_id}")
 def update_item(
@@ -721,7 +711,7 @@ def update_item(
     payload: str = Unset,
     mode: Annotated[str, Query()] = Unset,   # sent as ?mode=<value> in the URL
     **kwargs: Unpack[Kwargs],
-) -> APIResponse:
+) -> RestResponse:
     ...
 ```
 
@@ -748,7 +738,7 @@ Use `Alias` inside `Annotated` when the API requires a parameter key name that i
 
 ```python
 from typing import Annotated, Unpack
-from openapi_test_client.libraries.core.types import Alias, APIResponse, Kwargs, Unset
+from openapi_test_client.libraries.core.types import Alias, RestResponse, Kwargs, Unset
 
 @endpoint.post("/v1/items")
 def create_item(
@@ -756,7 +746,7 @@ def create_item(
     *,
     content_type: Annotated[str, Alias("Content-Type")] = Unset,
     **kwargs: Unpack[Kwargs],
-) -> APIResponse:
+) -> RestResponse:
     ...
 ```
 
@@ -773,7 +763,7 @@ the parameters passed by the caller. In most cases you won't need to touch the b
 
 ```python
 @endpoint.post("/auth/login")
-def login(self, username: str, password: str, **kwargs: Unpack[Kwargs]) -> APIResponse:
+def login(self, username: str, password: str, **kwargs: Unpack[Kwargs]) -> RestResponse:
     """Log in"""
     ...
 ```
@@ -801,10 +791,10 @@ from functools import wraps
 from typing import Concatenate, ParamSpec, TypeVar
 
 from openapi_test_client.libraries.core import APIBase, endpoint
-from openapi_test_client.libraries.core.types import APIResponse
+from openapi_test_client.libraries.core.types import RestResponse
 
 P = ParamSpec("P")
-R = TypeVar("R", bound=APIResponse)
+R = TypeVar("R", bound=RestResponse)
 
 
 @endpoint.decorator
@@ -829,10 +819,10 @@ from functools import wraps
 from typing import ParamSpec, TypeVar
 
 from openapi_test_client.libraries.core import endpoint
-from openapi_test_client.libraries.core.types import APIResponse
+from openapi_test_client.libraries.core.types import RestResponse
 
 P = ParamSpec("P")
-R = TypeVar("R", bound=APIResponse)
+R = TypeVar("R", bound=RestResponse)
 
 
 @endpoint.decorator

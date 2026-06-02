@@ -6,7 +6,7 @@ from threading import RLock
 from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeAlias
 from weakref import WeakKeyDictionary
 
-from ..types import APIResponse
+from ..types import RestResponse
 from .endpoint_func import AsyncEndpointFunc, EndpointFunc, SyncEndpointFunc
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class PendingHandler(Generic[P]):
     newly created EndpointHandler.
     """
 
-    def __init__(self, f: Callable[P, APIResponse]) -> None:
+    def __init__(self, f: Callable[P, RestResponse]) -> None:
         self.func = f
         self.deferred_operations: list[DeferredOperation[P]] = []
 
@@ -46,7 +46,7 @@ class EndpointHandler(Generic[P]):
 
     def __init__(
         self,
-        original_func: Callable[..., APIResponse],
+        original_func: Callable[..., RestResponse],
         method: str,
         path: str,
         use_query_string: bool = False,

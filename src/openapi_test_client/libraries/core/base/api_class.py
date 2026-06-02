@@ -14,7 +14,7 @@ from httpx import HTTPError
 
 from ..endpoints import Endpoint
 from ..endpoints.endpoint_func import AsyncEndpointFunc, SyncEndpointFunc
-from ..types import APIResponse
+from ..types import RestResponse
 
 if TYPE_CHECKING:
     from .api_client import APIClient
@@ -93,7 +93,7 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
     def post_request_hook(
         self,
         endpoint: Endpoint,
-        response: APIResponse | None,
+        response: RestResponse | None,
         exception: HTTPError | None,
         *path_params: Any,
         **params: Any,

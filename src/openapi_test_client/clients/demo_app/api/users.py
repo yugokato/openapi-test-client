@@ -2,7 +2,7 @@ from typing import Annotated, Literal, Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import APIResponse, Constraint, File, Format, Kwargs, Optional, Unset
+from openapi_test_client.libraries.openapi.types import Constraint, File, Format, Kwargs, Optional, RestResponse, Unset
 
 from ..models.users import Metadata
 
@@ -20,12 +20,12 @@ class UsersAPI(DemoAppBaseAPI):
         role: Literal["admin", "viewer", "support"] = Unset,
         metadata: Optional[Metadata] = Unset,
         **kwargs: Unpack[Kwargs],
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Create a new user"""
         ...
 
     @endpoint.get("/v1/users/{user_id}")
-    def get_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def get_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Get user"""
         ...
 
@@ -37,7 +37,7 @@ class UsersAPI(DemoAppBaseAPI):
         email: Optional[Annotated[str, Format("email")]] = Unset,
         role: Optional[Literal["admin", "viewer", "support"]] = Unset,
         **kwargs: Unpack[Kwargs],
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Get users"""
         ...
 
@@ -45,11 +45,11 @@ class UsersAPI(DemoAppBaseAPI):
     @endpoint.post("/v1/users/images")
     def upload_image(
         self, *, file: File = Unset, description: Optional[str] = Unset, **kwargs: Unpack[Kwargs]
-    ) -> APIResponse:
+    ) -> RestResponse:
         """Upload user image"""
         ...
 
     @endpoint.delete("/v1/users/{user_id}")
-    def delete_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> APIResponse:
+    def delete_user(self, user_id: int, /, **kwargs: Unpack[Kwargs]) -> RestResponse:
         """Delete user"""
         ...

@@ -186,7 +186,7 @@ def generate_api_class(
     from openapi_test_client.libraries.openapi import endpoint
 
     code = "\n".join([f"from {_get_package(m)} import {m.__name__}" for m in [base_class, endpoint]]) + "\n"
-    code += f"from {inspect.getmodule(types_module).__name__} import APIResponse\n\n"
+    code += f"from {inspect.getmodule(types_module).__name__} import RestResponse\n\n"
     code += f"class {class_name}({base_class.__name__}):\n{TAB}TAGs = {tuple([tag])}\n\n"
     code = format_code(code, remove_unused_imports=False)
     if is_temp_client:
@@ -257,7 +257,7 @@ def update_endpoint_functions(
         >>>
         >>> from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
         >>> from openapi_test_client.libraries.openapi import endpoint
-        >>> from openapi_test_client.libraries.openapi.types import APIResponse, Kwargs, Unset
+        >>> from openapi_test_client.libraries.openapi.types import RestResponse, Kwargs, Unset
         >>>
         >>>
         >>> class SomeDemoAPI(DemoAppBaseAPI):
@@ -266,7 +266,7 @@ def update_endpoint_functions(
         >>>     @endpoint.get("/v1/something/{uuid}")
         >>>     def do_something(
         >>>         self, uuid: str, /, *, param1: str = Unset, param2: int = Unset, **kwargs: Unpack[Kwargs]
-        >>>     ) -> APIResponse:
+        >>>     ) -> RestResponse:
         >>>     """Do something"""
         >>>     ...
         >>>
@@ -293,7 +293,7 @@ def update_endpoint_functions(
         # decorator(s) below the endpoint decorator
         rf"(?P<decorators_below>(?:{tab}@[^\n]+\n)*?)"
         # function def
-        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> APIResponse:\n?)"
+        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> RestResponse:\n?)"
         # docstring
         rf"({tab}{{2}}(?P<docstring>\"{{3}}.*?\"{{3}})\n)?"
         # function body
@@ -487,7 +487,7 @@ def update_endpoint_functions(
                     undefined_ep_functions += (
                         f"\n"
                         f'{TAB}@{endpoint.__name__}.{meth}("{path}")\n'
-                        f"{TAB}def {undefined_func_name_prefix}{idx}(self) -> APIResponse:\n"
+                        f"{TAB}def {undefined_func_name_prefix}{idx}(self) -> RestResponse:\n"
                         f"{TAB * 2}...\n"
                     )
                 if undefined_ep_functions:

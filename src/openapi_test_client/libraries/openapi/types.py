@@ -21,7 +21,6 @@ from pydantic import BaseModel, ConfigDict
 
 from openapi_test_client.libraries.core.types import (
     Alias,
-    APIResponse,
     DataclassModel,
     DataclassModelField,
     EndpointModel,
@@ -29,6 +28,7 @@ from openapi_test_client.libraries.core.types import (
     MultipartFormData,
     ParamAnnotationType,
     Query,
+    RestResponse,
     Unset,
 )
 from openapi_test_client.libraries.core.types import Kwargs as _Kwargs
@@ -36,7 +36,6 @@ from openapi_test_client.libraries.openapi.json_encoder import CustomJsonEncoder
 
 # re-export core types so that openapi related code can import all types from the single location
 __all__ = [
-    "APIResponse",
     "Alias",
     "Constraint",
     "DataclassModel",
@@ -52,6 +51,7 @@ __all__ = [
     "ParamModel",
     "PydanticModel",
     "Query",
+    "RestResponse",
     "UncacheableLiteralArg",
     "Unset",
 ]
