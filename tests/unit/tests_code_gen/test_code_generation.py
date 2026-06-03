@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import NoneType
@@ -11,6 +12,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries.core.base import APIBase
+from openapi_test_client.libraries.core.base.api_class import get_api_classes
 from openapi_test_client.libraries.openapi import Endpoint, EndpointFunc
 from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
 from openapi_test_client.libraries.openapi.code_gen import utils
@@ -30,7 +32,11 @@ from openapi_test_client.libraries.openapi.types import (
     UncacheableLiteralArg,
     Unset,
 )
-from openapi_test_client.libraries.openapi.utils.modules import reload_obj
+from openapi_test_client.libraries.openapi.utils.modules import (
+    get_module_name_by_file_path,
+    import_module_with_new_code,
+    reload_obj,
+)
 from tests.unit.tests_code_gen import helper
 
 pytestmark = [pytest.mark.unittest]
@@ -273,6 +279,69 @@ class TestGenerateApiClient:
         )
         api_client.TestSomething1._unnamed_endpoint_1()
         mock.assert_called_once()
+
+    def test_generate_api_client_code_has_no_duplicate_accessors(self, temp_api_client: OpenAPIClient) -> None:
+        """Test that the generated API client class contains exactly one @cached_property accessor per API class."""
+        do_generate_api_class(temp_api_client, "TestSomething1API")
+        do_generate_api_class(temp_api_client, "TestSomething2API")
+
+        NewAPIClient = generate_api_client(temp_api_client)
+        client_file_path = Path(inspect.getfile(NewAPIClient))
+        client_code = client_file_path.read_text()
+
+        # The number of @cached_property decorators must equal the number of generated API classes (2)
+        cached_property_count = client_code.count("@cached_property")
+        assert cached_property_count == 2, (
+            f"Expected 2 @cached_property accessors in the generated client, found {cached_property_count}.\n"
+            f"Generated code:\n{client_code}"
+        )
+
+        # Each accessor name must appear exactly once
+        for accessor_name in ["TestSomething1", "TestSomething2"]:
+            accessor_occurrences = client_code.count(f"def {accessor_name}(self)")
+            assert accessor_occurrences == 1, (
+                f"Accessor '{accessor_name}' appears {accessor_occurrences} times (expected 1).\n"
+                f"Generated code:\n{client_code}"
+            )
+
+
+class TestGetApiClasses:
+    """Tests for get_api_classes()"""
+
+    def test_get_api_classes_deduplicates_stale_reload_artifacts(self, temp_api_client: OpenAPIClient) -> None:
+        """Test that get_api_classes() returns each API class exactly once even when stale class objects
+        from module reloads remain reachable via __subclasses__().
+        """
+        NewAPIClass = do_generate_api_class(temp_api_client, "TestSomethingAPI")
+
+        # Simulate a reload: exec the same source into the existing module, which defines a second
+        # class object with the same name. Keep a reference to the original so GC cannot collect it.
+        api_class_file_path = Path(inspect.getfile(NewAPIClass))
+        source = api_class_file_path.read_text()
+        stale_class = NewAPIClass  # prevent garbage collection
+        import_module_with_new_code(source, api_class_file_path)
+
+        # The stale class and the live class must now be distinct objects with the same __name__
+        live_class = getattr(sys.modules[NewAPIClass.__module__], NewAPIClass.__name__)
+        assert stale_class is not live_class, "Expected stale and live class to be different objects after reload"
+
+        # get_api_classes() must return exactly one entry per class name (the live one)
+        api_module_name = get_module_name_by_file_path(api_class_file_path.parent / "__init__.py").removesuffix(
+            ".__init__"
+        )
+        base_class = NewAPIClass.__bases__[0]
+        result = get_api_classes(api_module_name, base_class)
+
+        class_names = [cls.__name__ for cls in result]
+        assert class_names.count(NewAPIClass.__name__) == 1, (
+            f"get_api_classes() returned {class_names.count(NewAPIClass.__name__)} copies of "
+            f"'{NewAPIClass.__name__}' (expected 1). Full result: {class_names}"
+        )
+        # The returned class must be the live one, not a stale reload artifact
+        returned_class = next(cls for cls in result if cls.__name__ == NewAPIClass.__name__)
+        assert returned_class is live_class, (
+            "get_api_classes() returned the stale class object instead of the current live one"
+        )
 
 
 class TestCodeGenUtils:

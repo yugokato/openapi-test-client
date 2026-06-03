@@ -182,7 +182,9 @@ def get_api_classes(api_module_name: str, base_api_class: type[APIClassT]) -> li
         (
             cls
             for cls in _get_subclasses(base_api_class)
-            if cls.__module__.startswith(f"{api_module_name}.") and not cls.__name__.startswith("_")
+            if cls.__module__.startswith(f"{api_module_name}.")
+            and not cls.__name__.startswith("_")
+            and _is_live_class(cls)
         ),
         key=lambda cls: cls.__name__,
     )
@@ -196,3 +198,15 @@ def _get_subclasses(base_api_class: type[APIClassT]) -> set[type[APIClassT]]:
     """Recursively collect all subclasses of the given class."""
     direct: set[type[APIClassT]] = set(base_api_class.__subclasses__())
     return direct.union(*(_get_subclasses(s) for s in direct))
+
+
+def _is_live_class(cls: type) -> bool:
+    """Return whether `cls` is the object currently bound under its own name in its own module.
+
+    Module reloads during code generation create new class objects for the same class name while
+    the stale ones remain reachable via `__subclasses__()`. Only the class that is currently
+    bound in `sys.modules` under its own name is the live class; stale reload artifacts will
+    fail this check and are filtered out.
+    """
+    module = sys.modules.get(cls.__module__)
+    return getattr(module, cls.__name__, None) is cls
