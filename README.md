@@ -10,19 +10,24 @@ OpenAPI Test Client
 OpenAPI Test Client (with an emphasis on "test" client) can generate/update API clients in Python from any 
 OpenAPI 3.x specifications.  
 
+This API test client will make the entire testing process very easy and efficient by automatically handling a lot of
+boilerplate under the hood, while also providing you with full control over how and what you want to test, as well as
+how you want to extend or customize it for your own use case.  
+
 The goal of the project is to provide easy-to-use/maintain auto-generated API clients for QA engineers who need to 
 thoroughly perform automated API testing against API-first applications in a fast-paced development environment. 
 
-During each software release cycle, QA will need to perform various testing to ensure that new APIs to be released work 
-as expected. The testing tool for QA requires to have a lot of flexibility and intelligence to achieve this efficiently, 
-and to fully automate everything which of course includes negative cases and some unusual scenarios.
-This API test client will make the entire testing process very easy and efficient by automatically handling a lot of 
-boilerplate under the hood, while also providing you with full control over how and what you want to test, as well as 
-how you want to extend or customize it for your own use case.
 
-This project is built on top of the [API Client Core](src/openapi_test_client/libraries/core), a framework for 
-building Python API clients with decorator-driven endpoint declaration and sync/async dual-mode support.
+# Built on API Client Core Framework
 
+OpenAPI Test Client is built on top of [**API Client Core**](src/openapi_test_client/libraries/core), a reusable 
+framework for building Python API clients with decorator-driven endpoint declaration, rich endpoint metadata and 
+introspection, request hooks, and sync/async dual-mode support.  
+
+While OpenAPI Test Client focuses on OpenAPI-driven API client generation for testing purposes, API Client Core 
+provides the underlying framework and can be used independently to build general-purpose API clients.
+
+See [API Client Core README](src/openapi_test_client/libraries/core) for details of the framework.
 
 
 # SDK client v.s. Test client
