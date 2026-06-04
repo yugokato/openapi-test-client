@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import update_wrapper
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeAlias
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, TypeAlias, cast
 from weakref import WeakKeyDictionary
 
 from ..types import RestResponse
@@ -64,9 +64,7 @@ class EndpointHandler(Generic[P]):
         self.is_documented = True
         self.is_deprecated = False
         self._lock = RLock()
-        self._cache: WeakKeyDictionary[
-            APIBase[Any] | type[APIBase[Any]], dict[bool, SyncEndpointFunc[P] | AsyncEndpointFunc[P]]
-        ] = WeakKeyDictionary()
+        self._cache: WeakKeyDictionary[type[APIBase[Any]], SyncEndpointFunc[P]] = WeakKeyDictionary()
         self.__decorators: list[EndpointDecorator] = []
 
     def __get__(
@@ -78,20 +76,25 @@ class EndpointHandler(Generic[P]):
         if not (isinstance(owner, type) and issubclass(owner, APIBaseClass)):
             raise NotImplementedError(f"Unsupported API class: {owner}")
 
-        is_async = bool(instance and instance.api_client.async_mode)
-        cache_key = instance or owner
         with self._lock:
-            endpoint_map = self._cache.setdefault(cache_key, {})
-            if not (endpoint_func := endpoint_map.get(is_async)):
-                EndpointFuncClass = EndpointFunc._create(owner, self.original_func, is_async)
-                endpoint_func = EndpointFuncClass(self, instance, owner)
-                update_wrapper(endpoint_func, self.original_func)
-                endpoint_map[is_async] = endpoint_func
-
-            # Descriptor self-replacement optimization
-            if instance is not None:
-                instance.__dict__[self.original_func.__name__] = endpoint_func
-        return endpoint_func
+            endpoint_func: SyncEndpointFunc[P] | AsyncEndpointFunc[P] | None
+            if instance is None:
+                # Class-level access: used by APIBase.init() to populate endpoints.
+                # Cache in a handler-level WeakKeyDictionary keyed by the owner class (always sync).
+                endpoint_func = self._cache.get(owner)
+                if endpoint_func is None:
+                    endpoint_func = cast(SyncEndpointFunc[P], self._build_endpoint_func(None, owner, is_async=False))
+                    self._cache[owner] = endpoint_func
+            else:
+                # Per-instance caching via __dict__ self-replacement: the built EndpointFunc is stored
+                # directly on the instance so subsequent attribute access bypasses this descriptor.
+                # This ensures the EndpointFunc lifetime is tied to the instance, not to the handler.
+                func_name = self.original_func.__name__
+                endpoint_func = instance.__dict__.get(func_name)
+                if endpoint_func is None:
+                    endpoint_func = self._build_endpoint_func(instance, owner, instance.api_client.async_mode)
+                    instance.__dict__[func_name] = endpoint_func
+            return endpoint_func
 
     @property
     def decorators(self) -> list[EndpointDecorator]:
@@ -101,3 +104,12 @@ class EndpointHandler(Generic[P]):
     def register_decorator(self, *decorator: EndpointDecorator) -> None:
         """Register a decorator that will be applied on an endpoint function"""
         self.__decorators.extend([d for d in decorator])
+
+    def _build_endpoint_func(
+        self, instance: APIBase[Any] | None, owner: type[APIBase[Any]], is_async: bool
+    ) -> SyncEndpointFunc[P] | AsyncEndpointFunc[P]:
+        """Create, wrap, and return a new EndpointFunc for the given instance/owner."""
+        endpoint_func_class = EndpointFunc._create(owner, self.original_func, is_async)
+        endpoint_func = endpoint_func_class(self, instance, owner)
+        update_wrapper(endpoint_func, self.original_func)
+        return endpoint_func

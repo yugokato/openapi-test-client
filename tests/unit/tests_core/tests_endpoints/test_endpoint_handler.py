@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gc
+import weakref
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
@@ -77,15 +79,40 @@ class TestEndpointHandlerGet:
 
     @pytest.mark.parametrize("with_instance", [True, False])
     def test_cache_key(self, api_class: type[APIBase], api_client: APIClient, with_instance: bool) -> None:
-        """Test that __get__() stores results using a cache key"""
+        """Test that __get__() stores the result in the correct cache location per path.
+
+        - Instance path: stored in `instance.__dict__` under the wrapped function's name; the
+          handler-level `_cache` must not hold any entry for the owner class.
+        - Class path: stored in `handler._cache` keyed by the owner class.
+        """
         handler = EndpointHandler(api_class.get_something, "get", "/something")
         instance = api_class(api_client) if with_instance else None
-        is_async = instance.api_client.async_mode if instance else False
+        endpoint_func = handler.__get__(instance, api_class)
+
+        if instance is not None:
+            assert instance.__dict__.get(api_class.get_something.__name__) is endpoint_func
+            assert api_class not in handler._cache
+        else:
+            assert api_class in handler._cache
+            assert handler._cache[api_class] is endpoint_func
+
+    def test_instance_is_garbage_collectable(self, api_class: type[APIBase], api_client: APIClient) -> None:
+        """Test that client instances are released after all references are dropped.
+
+        Previously the handler's WeakKeyDictionary stored a value that strongly referenced
+        the instance via EndpointFunc._instance, preventing GC despite using a weak key.
+        """
+        handler = EndpointHandler(api_class.get_something, "get", "/something")
+        instance = api_class(api_client)
+        ref = weakref.ref(instance)
+
+        # Access the endpoint so the handler has a chance to cache the instance
         handler.__get__(instance, api_class)
 
-        expected_key = instance or api_class
-        assert expected_key in handler._cache
-        assert is_async in handler._cache[expected_key]
+        # Drop the only external reference; cyclic GC must collect the instance ↔ EndpointFunc cycle
+        del instance
+        gc.collect()
+        assert ref() is None, "Client instance was not released; the handler leaked a strong reference to it"
 
     def test_non_api_base_owner_raises_not_implemented(self) -> None:
         """Test that passing a non-APIBase class as owner raises NotImplementedError"""
