@@ -643,8 +643,8 @@ Endpoint(tags=('Auth',),
 
 An example of the additional capability the `EndpointFunc` obj provides - Automatic retry:
 ```pycon
-# Call the endpoint with the automatic retry (you can specify a retry condition if needed)
->>> r = client.Auth.login.with_retry()(username='foo', password='bar')
+# Call the endpoint with the automatic retry on status code 429
+>>> r = client.Auth.login.with_retry(429)(username='foo', password='bar')
 2024-01-01T00:00:00.153-0000 - request: POST http://127.0.0.1:5000/v1/auth/login
 2024-01-01T00:00:00.158-0000 - response: 429 (Too Many Requests)
 - request_id: 1b028ff7-0880-430c-b5a3-12aa057892cf
@@ -717,14 +717,14 @@ class UsersAPI(DemoAppBaseAPI):
 
     @endpoint.post("/v1/users")
     def create_user(
-            self,
-            *,
-            first_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
-            last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
-            email: Annotated[str, Format("email")] = Unset,
-            role: Literal["admin", "viewer", "support"] = Unset,
-            metadata: Optional[Metadata] = Unset,
-            **kwargs: Unpack[Kwargs],
+        self,
+        *,
+        first_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
+        last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
+        email: Annotated[str, Format("email")] = Unset,
+        role: Literal["admin", "viewer", "support"] = Unset,
+        metadata: Optional[Metadata] = Unset,
+        **kwargs: Unpack[Kwargs],
     ) -> RestResponse:
         """Create a new user"""
         ...
