@@ -544,42 +544,14 @@ class SyncEndpointFunc(EndpointFunc[P]):
     @_as_response_stream
     @contextmanager
     @requires_instance
-    def stream(
-        self,
-        *args: Any,
-        quiet: bool = False,
-        with_hooks: bool | None = True,
-        raw_options: dict[str, Any] | None = None,
-        **kwargs: Any,
-    ) -> Generator[RestResponse]:
+    def stream(self, *args: P.args, **kwargs: P.kwargs) -> Generator[RestResponse]:
         """Stream the response
 
         :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
-        :param quiet: A flag to suppress API request/response log
-        :param with_hooks: Invoke pre/post request hooks
-        :param raw_options: Raw request options passed to the underlying HTTP library
         :param kwargs: Endpoint parameters provided as keyword arguments (path and/or body/query parameters)
         """
-        path_params_dict, body_or_query_params = endpoint_call_util.split_params(
-            self.path, self._original_func, args, kwargs
-        )
-        path_params = tuple(
-            path_params_dict[ph] for ph in endpoint_call_util.get_path_placeholders(self.path) if ph in path_params_dict
-        )
-        path, params = self._prepare_stream_request(path_params, quiet, with_hooks, raw_options, body_or_query_params)
-        r = None
-        exception = None
-        try:
-            with self.executor.execute_stream(self, path, params) as r:
-                yield r
-        except HTTPError as e:
-            exception = e
-            raise
-        except (Exception, KeyboardInterrupt):
-            with_hooks = False
-            raise
-        finally:
-            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
+        with self._stream(*args, **kwargs) as r:  # type: ignore[arg-type]
+            yield r
 
     @overload
     def with_concurrency(
@@ -656,6 +628,44 @@ class SyncEndpointFunc(EndpointFunc[P]):
             self._with_call_wrapper(call_with_repeat),
         )
 
+    @contextmanager
+    def _stream(
+        self,
+        *args: Any,
+        quiet: bool = False,
+        with_hooks: bool | None = True,
+        raw_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Generator[RestResponse]:
+        """Stream the response (implementation)
+
+        :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
+        :param quiet: A flag to suppress API request/response log
+        :param with_hooks: Invoke pre/post request hooks
+        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param kwargs: Endpoint parameters provided as keyword arguments (path and/or body/query parameters)
+        """
+        path_params_dict, body_or_query_params = endpoint_call_util.split_params(
+            self.path, self._original_func, args, kwargs
+        )
+        path_params = tuple(
+            path_params_dict[ph] for ph in endpoint_call_util.get_path_placeholders(self.path) if ph in path_params_dict
+        )
+        path, params = self._prepare_stream_request(path_params, quiet, with_hooks, raw_options, body_or_query_params)
+        r = None
+        exception = None
+        try:
+            with self.executor.execute_stream(self, path, params) as r:
+                yield r
+        except HTTPError as e:
+            exception = e
+            raise
+        except (Exception, KeyboardInterrupt):
+            with_hooks = False
+            raise
+        finally:
+            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
+
 
 class AsyncEndpointFunc(EndpointFunc[P]):
     """Endpoint function class (Async)
@@ -674,42 +684,14 @@ class AsyncEndpointFunc(EndpointFunc[P]):
     @_as_response_stream
     @asynccontextmanager
     @requires_instance
-    async def stream(
-        self,
-        *args: Any,
-        quiet: bool = False,
-        with_hooks: bool | None = True,
-        raw_options: dict[str, Any] | None = None,
-        **kwargs: Any,
-    ) -> AsyncGenerator[RestResponse]:
+    async def stream(self, *args: P.args, **kwargs: P.kwargs) -> AsyncGenerator[RestResponse]:
         """Stream response from an API call to the endpoint
 
         :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
-        :param quiet: A flag to suppress API request/response log
-        :param with_hooks: Invoke pre/post request hooks
-        :param raw_options: Raw request options passed to the underlying HTTP library
         :param kwargs: Endpoint parameters provided as keyword arguments (path and/or body/query parameters)
         """
-        path_params_dict, body_or_query_params = endpoint_call_util.split_params(
-            self.path, self._original_func, args, kwargs
-        )
-        path_params = tuple(
-            path_params_dict[ph] for ph in endpoint_call_util.get_path_placeholders(self.path) if ph in path_params_dict
-        )
-        path, params = self._prepare_stream_request(path_params, quiet, with_hooks, raw_options, body_or_query_params)
-        r = None
-        exception = None
-        try:
-            async with self.executor.execute_stream(self, path, params) as r:
-                yield r
-        except HTTPError as e:
-            exception = e
-            raise
-        except (Exception, KeyboardInterrupt):
-            with_hooks = False
-            raise
-        finally:
-            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
+        async with self._stream(*args, **kwargs) as r:  # type: ignore[arg-type]
+            yield r
 
     @overload
     def with_concurrency(
@@ -798,3 +780,41 @@ class AsyncEndpointFunc(EndpointFunc[P]):
             "Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]",
             self._with_call_wrapper(call_with_repeat),
         )
+
+    @asynccontextmanager
+    async def _stream(
+        self,
+        *args: Any,
+        quiet: bool = False,
+        with_hooks: bool | None = True,
+        raw_options: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[RestResponse]:
+        """Stream response from an API call to the endpoint (implementation)
+
+        :param args: Endpoint parameters provided as positional arguments (path and/or body/query parameters)
+        :param quiet: A flag to suppress API request/response log
+        :param with_hooks: Invoke pre/post request hooks
+        :param raw_options: Raw request options passed to the underlying HTTP library
+        :param kwargs: Endpoint parameters provided as keyword arguments (path and/or body/query parameters)
+        """
+        path_params_dict, body_or_query_params = endpoint_call_util.split_params(
+            self.path, self._original_func, args, kwargs
+        )
+        path_params = tuple(
+            path_params_dict[ph] for ph in endpoint_call_util.get_path_placeholders(self.path) if ph in path_params_dict
+        )
+        path, params = self._prepare_stream_request(path_params, quiet, with_hooks, raw_options, body_or_query_params)
+        r = None
+        exception = None
+        try:
+            async with self.executor.execute_stream(self, path, params) as r:
+                yield r
+        except HTTPError as e:
+            exception = e
+            raise
+        except (Exception, KeyboardInterrupt):
+            with_hooks = False
+            raise
+        finally:
+            self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
