@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def do_something_after_request(
-    api_client: DemoAppAPIClient, endpoint: Endpoint, r: RestResponse, *path_params: Any, **params: Any
+    api_client: DemoAppAPIClient, endpoint: Endpoint[Any], r: RestResponse, *path_params: Any, **params: Any
 ) -> None:
     """This is a template of the post-request hook that will be called right after making a request
 
@@ -32,7 +32,7 @@ def do_something_after_request(
     ...
 
 
-def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint, r: RestResponse) -> None:
+def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint[Any], r: RestResponse) -> None:
     """Manage auth after successful login/logout
 
     :param api_client: API client

@@ -85,7 +85,7 @@ class OpenAPISpec:
         else:
             logger.warning("API spec is not available")
 
-    def get_endpoint_usage(self, endpoint: Endpoint) -> str | None:
+    def get_endpoint_usage(self, endpoint: Endpoint[Any]) -> str | None:
         """Return usage of the endpoint
 
         :param endpoint: Endpoint object

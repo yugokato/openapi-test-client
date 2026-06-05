@@ -23,7 +23,7 @@ class OpenAPIRequestValidator:
 
     def validate(
         self,
-        endpoint: Endpoint,
+        endpoint: Endpoint[Any],
         path_params: tuple[Any, ...],
         body_or_query_params: dict[str, Any],
     ) -> None:

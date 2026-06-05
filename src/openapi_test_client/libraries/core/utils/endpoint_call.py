@@ -172,7 +172,7 @@ def validate_path_and_params(
 
 
 def is_json_request(
-    endpoint: Endpoint,
+    endpoint: Endpoint[Any],
     params: dict[str, Any],
     raw_options: dict[str, Any],
     session_headers: dict[str, str],
@@ -201,7 +201,7 @@ def is_json_request(
 
 
 def generate_rest_func_params(
-    endpoint: Endpoint,
+    endpoint: Endpoint[Any],
     endpoint_params: dict[str, Any],
     session_headers: dict[str, str],
     quiet: bool = False,
@@ -312,7 +312,7 @@ def generate_rest_func_params(
     return rest_func_params
 
 
-def _check_params(endpoint: Endpoint, params: dict[str, Any], raw_options: dict[str, Any] | None = None) -> None:
+def _check_params(endpoint: Endpoint[Any], params: dict[str, Any], raw_options: dict[str, Any] | None = None) -> None:
     """Check the endpoint parameters
 
      A warning message will be logged if any of the following condition matches:
@@ -348,7 +348,7 @@ def _check_params(endpoint: Endpoint, params: dict[str, Any], raw_options: dict[
                 logger.warning(f"DEPRECATED: parameter '{param_name}' is deprecated")
 
 
-def _complete_endpoint(endpoint: Endpoint, path_params: tuple[str, ...]) -> str:
+def _complete_endpoint(endpoint: Endpoint[Any], path_params: tuple[str, ...]) -> str:
     """Complete endpoint path with given path variables
 
     :param endpoint: Endpoint obj

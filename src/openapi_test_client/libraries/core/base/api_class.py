@@ -32,8 +32,8 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
     app_name: str | None = None
     is_documented: bool = True
     is_deprecated: bool = False
-    endpoints: list[Endpoint] | None = None
-    _endpoint_class: ClassVar[type[Endpoint]] = Endpoint
+    endpoints: list[Endpoint[Any]] | None = None
+    _endpoint_class: ClassVar[type[Endpoint[Any]]] = Endpoint
     _sync_endpoint_func_class: ClassVar[type[SyncEndpointFunc[Any]]] = SyncEndpointFunc
     _async_endpoint_func_class: ClassVar[type[AsyncEndpointFunc[Any]]] = AsyncEndpointFunc
 
@@ -81,7 +81,7 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
         self.api_client = api_client
         self.rest_client = api_client.rest_client
 
-    def pre_request_hook(self, endpoint: Endpoint, *path_params: Any, **params: Any) -> None:
+    def pre_request_hook(self, endpoint: Endpoint[Any], *path_params: Any, **params: Any) -> None:
         """Hook function called before each request
 
         :param endpoint: Endpoint object associated with an endpoint function called
@@ -92,7 +92,7 @@ class APIBase(Generic[APIClientT], metaclass=ABCMeta):
 
     def post_request_hook(
         self,
-        endpoint: Endpoint,
+        endpoint: Endpoint[Any],
         response: RestResponse | None,
         exception: HTTPError | None,
         *path_params: Any,

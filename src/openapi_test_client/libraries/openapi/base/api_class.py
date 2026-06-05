@@ -32,7 +32,7 @@ class OpenAPIBase(APIBase[T]):
     """
 
     TAGs: ClassVar[tuple[str, ...]]
-    _endpoint_class: ClassVar[type[Endpoint]] = Endpoint
+    _endpoint_class: ClassVar[type[Endpoint[Any]]] = Endpoint
     _sync_endpoint_func_class: ClassVar[type[SyncEndpointFunc[Any]]] = SyncEndpointFunc
     _async_endpoint_func_class: ClassVar[type[AsyncEndpointFunc[Any]]] = AsyncEndpointFunc
 
@@ -43,7 +43,7 @@ class OpenAPIBase(APIBase[T]):
         if not isinstance(cls.TAGs, tuple):
             raise TypeError("TAGs must be a tuple of strings")
 
-    def pre_request_hook(self, endpoint: Endpoint, *args: Any, **params: Any) -> None:
+    def pre_request_hook(self, endpoint: Endpoint[Any], *args: Any, **params: Any) -> None:
         """Invoke Pydantic validation in strict mode when validation mode is active.
 
         :param endpoint: Endpoint object associated with an endpoint function called

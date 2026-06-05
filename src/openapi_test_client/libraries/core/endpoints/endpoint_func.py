@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from ..base import APIBase
     from ..base.api_client import APIClient
     from ..types import _ResponseList, _ResponseOrExceptionList, _ResponseStream
+    from .endpoint import Endpoint
     from .endpoint_handler import EndpointHandler
 
 
@@ -101,17 +102,20 @@ class EndpointFunc(Generic[P]):
         self._use_query_string = endpoint_handler.use_query_string
         self._raw_options = endpoint_handler.default_raw_options
 
-        self.endpoint = owner._endpoint_class(
-            api_class=owner,
-            method=self.method,
-            path=self.path,
-            func_name=self._original_func.__name__,
-            model=self.model,
-            url=f"{self.rest_client.base_url}{self.path}" if instance else None,
-            content_type=endpoint_handler.content_type,
-            is_public=endpoint_handler.is_public,
-            is_documented=owner.is_documented and endpoint_handler.is_documented,
-            is_deprecated=owner.is_deprecated or endpoint_handler.is_deprecated,
+        self.endpoint: Endpoint[P] = cast(
+            "Endpoint[P]",
+            owner._endpoint_class(
+                api_class=owner,
+                method=self.method,
+                path=self.path,
+                func_name=self._original_func.__name__,
+                model=self.model,
+                url=f"{self.rest_client.base_url}{self.path}" if instance else None,
+                content_type=endpoint_handler.content_type,
+                is_public=endpoint_handler.is_public,
+                is_documented=owner.is_documented and endpoint_handler.is_documented,
+                is_deprecated=owner.is_deprecated or endpoint_handler.is_deprecated,
+            ),
         )
 
         # Decorate the __call__ and stream() if wrappers are defined in the API class, or if decorators are

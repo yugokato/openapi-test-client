@@ -21,7 +21,7 @@ class DemoAppBaseAPI(OpenAPIBase[Any]):
 
     def post_request_hook(
         self,
-        endpoint: Endpoint,
+        endpoint: Endpoint[Any],
         response: RestResponse | None,
         exception: HTTPError | None,
         *path_params: Any,
