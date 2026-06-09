@@ -7,6 +7,8 @@ from pathlib import Path
 from common_libs.logging import get_logger, setup_logging
 from common_libs.utils import list_items
 
+from openapi_test_client.libraries.core.endpoints import Stats
+
 try:
     __version__ = version("openapi-test-client")
 except PackageNotFoundError:

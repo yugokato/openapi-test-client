@@ -7,11 +7,28 @@ declaration, request lifecycle hooks, sync/async dual-mode support, and runtime 
 The framework uses the `httpx`-based REST API client from [common-libs](https://github.com/yugokato/common-libs/tree/main/src/common_libs/clients/rest_client) for underlying HTTP request handling.
 
 
+# Table of Contents
+
+- [Design Goals](#design-goals)
+- [Quick Start](#quick-start)
+- [Try it out](#try-it-out)
+- [Core Concepts](#core-concepts)
+  - [Endpoint Factory (`endpoint`)](#endpoint-factory-endpoint)
+  - [Endpoint Functions (`EndpointFunc`)](#endpoint-functions-endpointfunc)
+  - [API Client (`APIClient`)](#api-client-apiclient)
+  - [API Class (`APIBase`)](#api-class-apibase)
+  - [Endpoint Object (`Endpoint`)](#endpoint-object-endpoint)
+  - [Auto-Discovery (`APIBase.init()`)](#auto-discovery-apibaseinit)
+  - [API Statistics](#api-statistics)
+- [Type and Response Reference](#type-and-response-reference)
+- [Extending Core](#extending-core)
+
+
 # Design Goals
 
 - **Decorator-driven endpoint declaration** — annotate a plain method with `@endpoint.<method>("/path")` and the framework handles the rest.
 - **Sync/async dual-mode** from the same source code — one endpoint definition works with both `sync` and `async` callers.
-- **Batteries included** for common needs: automatic retry, distributed locking, concurrent execution, and streaming responses.
+- **Batteries included** for common needs: automatic retry, distributed locking, concurrent execution, streaming responses, and API call Stats.
 - **Extensible** via request/response hooks and decorators.
 
 
@@ -595,8 +612,8 @@ Endpoint(api_class=<class 'myproject.clients.my_app.api.auth.AuthAPI'>,
 `Endpoint` is also callable. This lets you dispatch a request directly from an endpoint object without going through the API class accessor:
 
 ```pycon
->>> ep = client.Auth.login.endpoint
->>> r = ep(client, username="foo", password="bar")   # equivalent to client.Auth.login(username="foo", password="bar")
+>>> endpoint = client.Auth.login.endpoint
+>>> r = endpoint(client, username="foo", password="bar")   # equivalent to client.Auth.login(username="foo", password="bar")
 ```
 
 ### `EndpointModel`
@@ -644,6 +661,80 @@ POST /users
 
 > [!NOTE]
 > `APIBase.init()` must be called from an `__init__.py` file. Calling it from any other module raises a `RuntimeError`.
+
+
+## API Statistics
+
+The framework automatically records per-endpoint metrics including call counts, status-code distributions (`1xx`–`5xx`),
+errors, response times (`min` / `avg` / `max`), and estimated latency percentiles (`p50` / `p95` / `p99`) using DDSketch
+(≤1% relative error). Calls made via `stream()` are not included.
+
+### View statistics
+
+Call `Stats.show()` to display a formatted summary of recorded endpoint activity:
+
+```pycon
+>>> from openapi_test_client.libraries.core.endpoints import Stats
+>>> client.Auth.login.with_concurrency(num=10)(username="foo", password="bar")
+>>> client.Users.get_user(user_id=42)
+>>> Stats.show()
+                                                                                   Latency (ms)             
+                                                                    ----------------------------------------
+Endpoint             | Calls | 1xx | 2xx | 3xx | 4xx | 5xx | Error | min  | avg  | max  | p50  | p95  | p99 
+---------------------+-------+-----+-----+-----+-----+-----+-------+------+------+------+------+------+-----
+POST /auth/login     |    10 |   0 |  10 |   0 |   0 |   0 |     0 | 3.21 | 4.80 | 6.57 | 4.30 | 6.54 | 6.54
+GET /users/{user_id} |     1 |   0 |   1 |   0 |   0 |   0 |     0 | 0.68 | 0.68 | 0.68 | 0.68 | 0.68 | 0.68
+```
+
+Pass `sort_by` to sort results by `"calls"` (default), `"slowest"`, `"errors"`, or `"endpoint"`. Pass `reverse=False` 
+to sort ascending instead of descending.
+
+### Programmatic access
+
+Use `Stats.get()` to retrieve a single endpoint's stat record, or `Stats.all()` to get a snapshot list of all
+recorded stats. Both return independent copies, so reading them concurrently with ongoing calls is safe.
+
+```python
+stat = Stats.get("POST /auth/login")
+assert stat.num_2xx == 2
+```
+
+`Stats.dump(path)` serializes the global collector to an indented JSON file (complementing `aggregate()`, which
+file-locks and merges rather than overwrites):
+
+```python
+Stats.dump("run_stats.json")
+```
+
+### Scoped collection
+
+Use `Stats.collect()` context manager to measure metrics inside a specific block of code. Calls made inside count
+toward **both** the yielded scoped collector and the global total:
+
+```python
+with Stats.collect("login-flow") as stats:
+    r = client.Auth.login(username="foo", password="bar")
+
+stats.show()  # only the calls inside the `with` block
+Stats.show()  # all calls ever made
+```
+
+Scopes can be nested: an inner `collect()` block sees only its own calls, while the outer scope accumulates both.
+
+### Cross-process aggregation
+
+`Stats.aggregate(path)` merges the current process's snapshot into a shared JSON file using a file lock, making
+it safe for parallel workers to accumulate into one place.
+
+### Reset statistics
+
+Call `Stats.reset()` to clear all recorded stats.
+
+### Collection control
+
+Set `API_CLIENT_STATS_DISABLED` to `1` or `true` before import to disable collection process-wide, or call 
+`Stats.disable()` at runtime. Call `Stats.enable()` to re-enable it. Existing data is retained in both cases. Call 
+`Stats.reset()` to clear it.
 
 ---
 

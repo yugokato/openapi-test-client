@@ -20,9 +20,9 @@ thoroughly perform automated API testing against API-first applications in a fas
 
 # Built on API Client Core Framework
 
-OpenAPI Test Client is built on top of [**API Client Core**](src/openapi_test_client/libraries/core), a reusable 
-framework for building Python API clients with decorator-driven endpoint declaration, rich endpoint metadata and 
-introspection, request hooks, and sync/async dual-mode support.  
+OpenAPI Test Client is built on top of [**API Client Core**](src/openapi_test_client/libraries/core), a reusable framework for building Python API clients 
+with decorator-driven endpoint declaration, rich endpoint metadata and introspection, request hooks, automatic 
+endpoint call statistics, and sync/async dual-mode support.  
 
 While OpenAPI Test Client focuses on OpenAPI-driven API client generation for testing purposes, API Client Core 
 provides the underlying framework and can be used independently to build general-purpose API clients.
@@ -44,10 +44,6 @@ work on, and the test client will provide everything needed for testing APIs.
 > Pydantic strict mode on the client side.  
 > Please note that validation against response is not currently supported.
 
-
-# Async Support
-The same client code can support both `sync` (the default) and `async` modes. You can switch to the async mode by 
-giving `async_mode=True` when instantiating an API client, then specify `await` to each API function call.
 
 
 # Try it out

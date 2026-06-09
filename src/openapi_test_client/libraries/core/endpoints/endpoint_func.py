@@ -4,6 +4,7 @@ import asyncio
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager
+from contextvars import copy_context
 from copy import copy
 from functools import cache, partial, wraps
 from typing import TYPE_CHECKING, Any, Concatenate, Generic, Literal, ParamSpec, Self, TypeVar, cast, overload
@@ -20,6 +21,7 @@ from ..types import EndpointModel, RestResponse
 from ..utils import endpoint_call as endpoint_call_util
 from ..utils import endpoint_model as endpoint_model_util
 from .executors import AsyncExecutor, SyncExecutor
+from .stats import collect_stats
 
 if TYPE_CHECKING:
     from ..base import APIBase
@@ -145,6 +147,7 @@ class EndpointFunc(Generic[P]):
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
 
     @requires_instance
+    @collect_stats
     async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         """Make an API call to the endpoint. This logic is commonly used for sync/acync API calls"""
         return await self._call(*args, **kwargs)  # type: ignore[arg-type]
@@ -581,7 +584,11 @@ class SyncEndpointFunc(EndpointFunc[P]):
         def call_with_concurrency(f: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(f)
             def wrapper(*args: Any, **kwargs: Any) -> list[RestResponse]:
-                return run_concurrent([Job(f, args, kwargs) for _ in range(num)], return_exceptions=return_exceptions)
+                # ThreadPoolExecutor does not propagate contextvars to worker threads; capture a
+                # snapshot of the current context (including any active `Stats.collect()` scope)
+                # per job so scoped stats see concurrent calls correctly.
+                jobs = [Job(copy_context().run, (f, *args), kwargs) for _ in range(num)]
+                return run_concurrent(jobs, return_exceptions=return_exceptions)
 
             return wrapper
 
