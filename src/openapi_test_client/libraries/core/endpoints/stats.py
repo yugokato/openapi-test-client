@@ -363,22 +363,37 @@ class StatsCollector:
             aggregated.merge(self)
             _atomic_write(path, json.dumps(aggregated.to_dict()))
 
-    def show(self, sort_by: SortBy = "calls", reverse: bool = True) -> None:
+    def show(
+        self,
+        sort_by: SortBy = "calls",
+        reverse: bool = True,
+        endpoint: str | None = None,
+        app_name: str | None = None,
+    ) -> None:
         """Print a formatted, colored statistics table grouped by app.
 
         :param sort_by: Column to sort by. One of `"calls"`, `"slowest"`, `"errors"`, or `"endpoint"`.
                         When `"slowest"`, endpoints with no timing data (error-only calls) sort below all timed
                         entries in descending order and above them in ascending order.
         :param reverse: When `True`, sort in descending order.
+        :param endpoint: When given, restrict the report to this endpoint and hide the Endpoint column.
+        :param app_name: When given, restrict the report to this app.
         """
         if sort_by not in _SORT_KEYS:
             raise ValueError(f"sort_by must be one of {sorted(_SORT_KEYS)!r}, got {sort_by!r}")
 
         all_stats = self.all()
+        filters = {"endpoint": endpoint, "app_name": app_name}
+        if app_name is not None:
+            all_stats = [s for s in all_stats if s.app_name == app_name]
+        if endpoint is not None:
+            all_stats = [s for s in all_stats if s.endpoint == endpoint]
         if not all_stats:
-            print("No stats recorded")  # noqa: T201
+            applied = ", ".join(f"{k}={v!r}" for k, v in filters.items() if v is not None)
+            print(f"No stats recorded matching {applied}" if applied else "No stats recorded")  # noqa: T201
             return
 
+        hide_endpoint_col = endpoint is not None
         by_app: dict[str, list[EndpointStat]] = {}
         for stat in all_stats:
             by_app.setdefault(stat.app_name, []).append(stat)
@@ -388,15 +403,16 @@ class StatsCollector:
         except OSError:
             terminal_width = 130
         formatted = [
-            (app, _format_report(stats, sort_by=sort_by, reverse=reverse)) for app, stats in sorted(by_app.items())
+            (app, _format_report(stats, sort_by=sort_by, reverse=reverse, hide_endpoint_col=hide_endpoint_col))
+            for app, stats in sorted(by_app.items())
         ]
         # The separator line (index 3) gives the visual table width; strip ANSI before measuring
         table_width = max(len(_ANSI_RE.sub("", rep.splitlines()[3])) for _, rep in formatted)
         width = min(table_width, terminal_width)
-        for app_name, report_str in formatted:
+        for app, report_str in formatted:
             if len(by_app) > 1:
-                filler = "-" * ((width - len(app_name) - 2) // 2)
-                print(color(f"\n{filler} {app_name} {filler}", ColorCodes.GREEN))  # noqa: T201
+                filler = "-" * ((width - len(app) - 2) // 2)
+                print(color(f"\n{filler} {app} {filler}", ColorCodes.GREEN))  # noqa: T201
             print(report_str)  # noqa: T201
 
     @classmethod
@@ -581,15 +597,19 @@ class Stats:
         _global.dump(path, indent=indent)
 
     @classmethod
-    def show(cls, sort_by: SortBy = "calls", reverse: bool = True) -> None:
+    def show(
+        cls, sort_by: SortBy = "calls", reverse: bool = True, endpoint: str | None = None, app_name: str | None = None
+    ) -> None:
         """Print a formatted, colored statistics table from the global collector.
 
         :param sort_by: Column to sort by. One of `"calls"`, `"slowest"`, `"errors"`, or `"endpoint"`.
                         When `"slowest"`, endpoints with no timing data (error-only calls) sort below all timed
                         entries in descending order and above them in ascending order.
         :param reverse: When `True`, sort in descending order.
+        :param endpoint: When given, restrict the report to this endpoint and hide the Endpoint column.
+        :param app_name: When given, restrict the report to this app.
         """
-        _global.show(sort_by=sort_by, reverse=reverse)
+        _global.show(sort_by=sort_by, reverse=reverse, endpoint=endpoint, app_name=app_name)
 
     @classmethod
     def enable(cls) -> None:
@@ -690,7 +710,7 @@ def _ms(seconds: float | None) -> str:
     return f"{seconds * 1000:.2f}" if seconds is not None else "-"
 
 
-def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool) -> str:
+def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool, hide_endpoint_col: bool = False) -> str:
     """Build a fixed-width, ANSI-colored table for a single app's stats.
 
     This is a pure string-building function (no I/O) so it can be unit-tested directly.
@@ -698,6 +718,7 @@ def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool) ->
     :param stats: List of `EndpointStat` records for one app.
     :param sort_by: Sort key — one of `"calls"`, `"slowest"`, `"errors"`, `"endpoint"`.
     :param reverse: Descending order when `True`.
+    :param hide_endpoint_col: When `True`, omit the Endpoint column from the output.
     """
 
     def sort_key(s: EndpointStat) -> Any:
@@ -711,37 +732,43 @@ def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool) ->
 
     sorted_stats = sorted(stats, key=sort_key, reverse=reverse)
 
+    col_start = 1 if hide_endpoint_col else 0
+    col_headers = _COL_HEADERS[col_start:]
+    col_4xx = _COL_4XX - col_start
+    col_5xx = _COL_5XX - col_start
+    col_error = _COL_ERROR - col_start
+    lat_col_start = _LATENCY_COL_START - col_start
+
     # Build raw cell values first so we can measure column widths
     rows: list[tuple[str, ...]] = []
     for s in sorted_stats:
         pcts = s._percentiles(50, 95, 99)
-        rows.append(
-            (
-                s.endpoint,
-                str(s.num_calls),
-                str(s.num_1xx),
-                str(s.num_2xx),
-                str(s.num_3xx),
-                str(s.num_4xx),
-                str(s.num_5xx),
-                str(s.num_errors),
-                _ms(s.min_response_time),
-                _ms(s.avg_response_time),
-                _ms(s.max_response_time),
-                _ms(pcts[50]),
-                _ms(pcts[95]),
-                _ms(pcts[99]),
-            )
+        full_row: tuple[str, ...] = (
+            s.endpoint,
+            str(s.num_calls),
+            str(s.num_1xx),
+            str(s.num_2xx),
+            str(s.num_3xx),
+            str(s.num_4xx),
+            str(s.num_5xx),
+            str(s.num_errors),
+            _ms(s.min_response_time),
+            _ms(s.avg_response_time),
+            _ms(s.max_response_time),
+            _ms(pcts[50]),
+            _ms(pcts[95]),
+            _ms(pcts[99]),
         )
+        rows.append(full_row[col_start:])
 
     # Column widths: max of header and all data values
-    widths = [max([len(h), *(len(row[i]) for row in rows)]) for i, h in enumerate(_COL_HEADERS)]
+    widths = [max([len(h), *(len(row[i]) for row in rows)]) for i, h in enumerate(col_headers)]
 
     def _row(cells: tuple[str, ...], cell_colors: dict[int, str] | None = None) -> str:
         parts: list[str] = []
         for i, (cell, w) in enumerate(zip(cells, widths)):
-            # Left-align the endpoint column; right-align all numeric columns
-            aligned = cell.ljust(w) if i == 0 else cell.rjust(w)
+            # Left-align the endpoint column (only present when not hidden); right-align all others
+            aligned = cell.ljust(w) if (i == 0 and not hide_endpoint_col) else cell.rjust(w)
             if cell_colors and i in cell_colors:
                 aligned = color(aligned, cell_colors[i])
             parts.append(aligned)
@@ -749,8 +776,8 @@ def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool) ->
 
     sep = "-+-".join("-" * w for w in widths)
 
-    non_lat_widths = widths[:_LATENCY_COL_START]
-    lat_widths = widths[_LATENCY_COL_START:]
+    non_lat_widths = widths[:lat_col_start]
+    lat_widths = widths[lat_col_start:]
     non_lat_content_len = sum(non_lat_widths) + (len(non_lat_widths) - 1) * 3
     lat_content_len = sum(lat_widths) + (len(lat_widths) - 1) * 3
 
@@ -760,9 +787,10 @@ def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool) ->
     latency_sep_row = " " * (non_lat_content_len + 2) + "-" * (lat_content_len + 1)
 
     non_lat_header_parts = [
-        _COL_HEADERS[i].ljust(w) if i == 0 else _COL_HEADERS[i].rjust(w) for i, w in enumerate(non_lat_widths)
+        col_headers[i].ljust(w) if (i == 0 and not hide_endpoint_col) else col_headers[i].rjust(w)
+        for i, w in enumerate(non_lat_widths)
     ]
-    lat_header_parts = [h.center(w) for h, w in zip(_COL_HEADERS[_LATENCY_COL_START:], lat_widths)]
+    lat_header_parts = [h.center(w) for h, w in zip(col_headers[lat_col_start:], lat_widths)]
     header = " | ".join(non_lat_header_parts + lat_header_parts)
     lines = [
         color(latency_label_row, ColorCodes.CYAN, bold=True),
@@ -773,11 +801,11 @@ def _format_report(stats: list[EndpointStat], sort_by: SortBy, reverse: bool) ->
     for s, cells in zip(sorted_stats, rows):
         cell_colors: dict[int, str] = {}
         if s.num_4xx > 0:
-            cell_colors[_COL_4XX] = ColorCodes.YELLOW
+            cell_colors[col_4xx] = ColorCodes.YELLOW
         if s.num_5xx > 0:
-            cell_colors[_COL_5XX] = ColorCodes.RED
+            cell_colors[col_5xx] = ColorCodes.RED
         if s.num_errors > 0:
-            cell_colors[_COL_ERROR] = ColorCodes.RED
+            cell_colors[col_error] = ColorCodes.RED
         lines.append(_row(cells, cell_colors))
 
     return "\n".join(lines)

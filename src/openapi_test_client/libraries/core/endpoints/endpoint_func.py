@@ -21,7 +21,7 @@ from ..types import EndpointModel, RestResponse
 from ..utils import endpoint_call as endpoint_call_util
 from ..utils import endpoint_model as endpoint_model_util
 from .executors import AsyncExecutor, SyncExecutor
-from .stats import collect_stats
+from .stats import Stats, collect_stats
 
 if TYPE_CHECKING:
     from ..base import APIBase
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from ..types import _ResponseList, _ResponseOrExceptionList, _ResponseStream
     from .endpoint import Endpoint
     from .endpoint_handler import EndpointHandler
+    from .stats import StatsCollector
 
 
 P = ParamSpec("P")
@@ -437,6 +438,52 @@ class EndpointFunc(Generic[P]):
             return wrapper
 
         return self._with_call_wrapper(call_with_polling)
+
+    @requires_instance
+    def with_stats(self) -> Self:
+        """Return a configured, chainable endpoint func that reports collected statistics after the call.
+
+        Opens a scoped `Stats.collect()` block around the call and prints the scoped statistics table
+        once the call completes (including on failure). The report covers only the calls made through
+        this wrapper, so chaining with `with_concurrency`/`with_repeat` aggregates every call in the
+        burst.
+
+        Call the returned callable with the endpoint's own parameters, or chain with other with_xxx()
+        wrappers before the final call.
+        """
+
+        def call_with_stats(f: Callable[..., Any]) -> Callable[..., Any]:
+            endpoint_str = str(self.endpoint)
+            if self.api_client.async_mode:
+
+                @wraps(f)
+                async def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
+                    with Stats.collect(endpoint_str) as stats:
+                        try:
+                            return await f(*args, **kwargs)
+                        finally:
+                            _show_stats(stats)
+
+            else:
+
+                @wraps(f)
+                def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
+                    with Stats.collect(endpoint_str) as stats:
+                        try:
+                            return f(*args, **kwargs)
+                        finally:
+                            _show_stats(stats)
+
+            def _show_stats(stats: StatsCollector) -> None:
+                # A reporting failure must not mask the exception raised by the API call itself
+                try:
+                    stats.show(endpoint=endpoint_str)
+                except Exception as show_err:
+                    logger.warning(f"Failed to show API statistics: {show_err}")
+
+            return wrapper
+
+        return self._with_call_wrapper(call_with_stats)
 
     @staticmethod
     @cache

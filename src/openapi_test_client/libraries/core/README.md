@@ -385,15 +385,16 @@ In addition to `__call__`, every endpoint function provides the following config
 | `with_expected_status(*status_codes)` → `Self`                                                             | Assert the response status code is one of the expected values. Raises `AssertionError` otherwise.                                                                                                                                                                            |
 | `with_max_response_time(threshold_msecs)` → `Self`                                                         | Assert the server response time does not exceed `threshold_msecs`. Raises `AssertionError` otherwise.                                                                                                                                                                        |
 | `with_polling(until, interval=5, timeout=60)` → `Self`                                                     | Poll the endpoint until `until(response)` returns `True`, waiting `interval` seconds between calls. Raises `TimeoutError` if not satisfied within `timeout` seconds.                                                                                                         |
+| `with_stats()` → `Self`                                                                                     | Print a scoped statistics report after the call completes (even on failure). Covers only the calls made through this wrapper, so chaining with `with_concurrency`/`with_repeat` aggregates the whole burst. See [API Statistics](#api-statistics).                           |
 | `with_concurrency(num=2, *, return_exceptions=False)` → `Callable[..., list[RestResponse]]`                | Configure concurrency and return a callable. Pass the endpoint's own parameters to that callable — it fires `num` concurrent calls and returns `list[RestResponse]`. Set `return_exceptions=True` to collect exceptions in the list instead of propagating.                  |
 | `with_repeat(num=2, *, return_exceptions=False)` → `Callable[..., list[RestResponse]]`                     | Configure sequential repetition and return a callable. Pass the endpoint's own parameters — it fires `num` sequential calls and returns `list[RestResponse]`. Set `return_exceptions=True` to collect exceptions (`list[RestResponse \| Exception]`) instead of propagating. |
 
 > [!IMPORTANT]
 > - All `with_xxx()` wrappers use a **curried** call style: each wrapper accepts only its own configuration options
 > and returns a configured callable. Pass the endpoint's own parameters to that returned callable.
-> - `with_retry`, `with_lock`, `with_expected_status`, `with_max_response_time`, and `with_polling` return the
-> concrete endpoint func (`Self`), so they can be **chained** before the final call. `with_concurrency` and
-> `with_repeat` are terminal and must always be last.
+> - `with_retry`, `with_lock`, `with_expected_status`, `with_max_response_time`, `with_polling`, and `with_stats`
+> return the concrete endpoint func (`Self`), so they can be **chained** before the final call. `with_concurrency`
+> and `with_repeat` are terminal and must always be last.
 
 **Examples:**
 
@@ -410,7 +411,6 @@ Chaining wrappers:
 # Apply a lock, retry on transient failures, and validate the status code
 r = client.Auth.login.with_lock().with_retry(condition=429).with_expected_status(200)(username="foo", password="bar")
 ```
-
 
 > [!TIP]
 > Wrappers compose left-to-right — The first wrapper applied becomes the outermost layer, so the example above is 
@@ -720,6 +720,13 @@ Stats.show()  # all calls ever made
 ```
 
 Scopes can be nested: an inner `collect()` block sees only its own calls, while the outer scope accumulates both.
+
+For a one-off scoped report on a single endpoint, the `with_stats()` wrapper is a shortcut for the above: it opens a
+scoped collector around the call and prints the report (filtered to that endpoint)once the call completes:
+
+```python
+r = client.Auth.login.with_stats().with_concurrency(num=10)(username="foo", password="bar")
+```
 
 ### Cross-process aggregation
 

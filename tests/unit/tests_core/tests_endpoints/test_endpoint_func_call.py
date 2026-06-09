@@ -1,6 +1,7 @@
 """Unit tests for endpoints_func.py (func calls)"""
 
-from collections.abc import Callable
+import re
+from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager, contextmanager
 from functools import wraps
 from typing import Any, NoReturn
@@ -21,10 +22,12 @@ import openapi_test_client.libraries.core.utils.endpoint_call as endpoint_call_u
 from openapi_test_client.libraries.core.base import APIBase, APIClient
 from openapi_test_client.libraries.core.endpoints import (
     AsyncEndpointFunc,
+    Stats,
     SyncEndpointFunc,
     endpoint,
 )
 from openapi_test_client.libraries.core.endpoints.executors import AsyncExecutor, SyncExecutor
+from openapi_test_client.libraries.core.endpoints.stats import StatsCollector
 from openapi_test_client.libraries.core.types import Unset
 
 pytestmark = [pytest.mark.unittest]
@@ -1896,6 +1899,141 @@ class TestEndpointFuncCallWithRepeat:
 
         assert len(results) == 2
         assert AsyncClient.request.call_count == 2
+
+
+class TestEndpointFuncCallWithStats:
+    """Tests for EndpointFunc.with_stats()."""
+
+    @pytest.fixture(autouse=True)
+    def reset_stats(self) -> Generator[None, None, None]:
+        """Reset the global Stats collector and restore enabled state before and after each test."""
+        Stats.reset()
+        Stats.enable()
+        yield
+        Stats.reset()
+        Stats.enable()
+
+    def test_sync_with_stats_returns_response_and_shows_report(
+        self,
+        mocker: MockerFixture,
+        api_client: APIClient,
+        api_class: type[APIBase],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that with_stats() returns a RestResponse and prints a stats report without the Endpoint column."""
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class(api_client)
+
+        assert isinstance(instance.get_something, SyncEndpointFunc)
+
+        r = instance.get_something.with_stats()()
+
+        assert isinstance(r, RestResponse)
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "Calls" in output
+        assert "GET /v1/something" not in output
+
+    def test_sync_with_stats_shows_report_on_failure(
+        self,
+        mocker: MockerFixture,
+        api_client: APIClient,
+        api_class: type[APIBase],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that with_stats() prints the stats report even when the call raises an exception."""
+        mocker.patch.object(Client, "request", side_effect=ValueError("simulated failure"))
+        instance = api_class(api_client)
+
+        with pytest.raises(ValueError):
+            instance.get_something.with_stats()()
+
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "Calls" in output
+        assert "GET /v1/something" not in output
+
+    def test_sync_with_stats_show_failure_does_not_mask_call_outcome(
+        self,
+        mocker: MockerFixture,
+        api_client: APIClient,
+        api_class: type[APIBase],
+    ) -> None:
+        """Test that a failure in the report printing neither masks the call's exception nor breaks its result."""
+        mocker.patch.object(StatsCollector, "show", side_effect=RuntimeError("simulated show failure"))
+        instance = api_class(api_client)
+
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        r = instance.get_something.with_stats()()
+        assert isinstance(r, RestResponse)
+
+        mocker.patch.object(Client, "request", side_effect=ValueError("simulated failure"))
+        with pytest.raises(ValueError, match="simulated failure"):
+            instance.get_something.with_stats()()
+
+    def test_sync_with_stats_composes_with_concurrency(
+        self,
+        mocker: MockerFixture,
+        api_client: APIClient,
+        api_class: type[APIBase],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that with_stats().with_concurrency() aggregates all concurrent calls in the report."""
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class(api_client)
+
+        results = instance.get_something.with_stats().with_concurrency(num=3)()
+
+        assert len(results) == 3
+        assert all(isinstance(r, RestResponse) for r in results)
+        assert Client.request.call_count == 3
+        stat = Stats.get("GET /v1/something")
+        assert stat is not None
+        assert stat.num_calls == 3
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "Calls" in output
+        assert "GET /v1/something" not in output
+
+    async def test_async_with_stats_returns_response_and_shows_report(
+        self,
+        mocker: MockerFixture,
+        api_client_async: APIClient,
+        api_class_async: type[APIBase],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that async with_stats() returns a RestResponse and prints a stats report without the Endpoint column."""
+        mocker.patch.object(AsyncClient, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class_async(api_client_async)
+
+        assert isinstance(instance.get_something, AsyncEndpointFunc)
+
+        r = await instance.get_something.with_stats()()
+
+        assert isinstance(r, RestResponse)
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "Calls" in output
+        assert "GET /v1/something" not in output
+
+    async def test_async_with_stats_composes_with_concurrency(
+        self,
+        mocker: MockerFixture,
+        api_client_async: APIClient,
+        api_class_async: type[APIBase],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that async with_stats().with_concurrency() aggregates all concurrent calls in the report."""
+        mocker.patch.object(AsyncClient, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class_async(api_client_async)
+
+        results = await instance.get_something.with_stats().with_concurrency(num=3)()
+
+        assert len(results) == 3
+        assert all(isinstance(r, RestResponse) for r in results)
+        assert AsyncClient.request.call_count == 3
+        stat = Stats.get("GET /v1/something")
+        assert stat is not None
+        assert stat.num_calls == 3
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "Calls" in output
+        assert "GET /v1/something" not in output
 
 
 def _make_stream_response() -> MagicMock:

@@ -910,6 +910,33 @@ class TestFormatReport:
         assert "GET /alpha" in output
         assert "POST /beta" in output
 
+    def test_format_report_hide_endpoint_col_omits_endpoint(self) -> None:
+        """Test that hide_endpoint_col=True omits both the Endpoint header and the endpoint value."""
+        output = _format_report([self._make_stat("POST /login")], sort_by="calls", reverse=True, hide_endpoint_col=True)
+        assert "Endpoint" not in output
+        assert "POST /login" not in output
+        assert "Calls" in output
+
+    def test_format_report_hide_endpoint_col_colors_only_related_columns(self) -> None:
+        """Test that with hide_endpoint_col=True, colors land on the shifted 4xx, 5xx, and Error cells."""
+        s = EndpointStat(app_name="app", endpoint="GET /mixed")
+        s.record_response(200, 0.1)
+        s.record_response(404, 0.2)
+        s.record_response(404, 0.2)
+        s.record_response(503, 0.3)
+        s.record_error()
+        s.record_error()
+        s.record_error()
+        output = _format_report([s], sort_by="calls", reverse=True, hide_endpoint_col=True)
+
+        data_line = output.splitlines()[-1]
+
+        # Distinct counts (4xx=2, 5xx=1, Error=3) prove each color is applied to the correct shifted cell
+        yellow_cells = re.findall(re.escape(ColorCodes.YELLOW) + r"([^\x1b]*)", data_line)
+        red_cells = re.findall(re.escape(ColorCodes.RED) + r"([^\x1b]*)", data_line)
+        assert [c.strip() for c in yellow_cells] == ["2"]
+        assert sorted(c.strip() for c in red_cells) == ["1", "3"]
+
 
 class TestShowStats:
     """Tests for StatsCollector.show() output."""
@@ -931,6 +958,44 @@ class TestShowStats:
         output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
         for app in ("alpha", "beta"):
             assert re.search(rf"-+ {app} -+", output)
+
+    def test_show_filter_by_endpoint_hides_endpoint_column(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test that show(endpoint=...) restricts the report to that endpoint and omits the Endpoint column."""
+        c = StatsCollector()
+        c._record("my-app", "GET /a", status_code=200, response_time=0.1, is_error=False)
+        c._record("my-app", "GET /b", status_code=200, response_time=0.2, is_error=False)
+        c.show(endpoint="GET /a")
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "Calls" in output
+        assert "Endpoint" not in output
+        assert "GET /a" not in output
+        assert "GET /b" not in output
+
+    def test_show_filter_by_app_name(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test that show(app_name=...) restricts the report to endpoints of that app."""
+        c = StatsCollector()
+        c._record("alpha", "GET /a", status_code=200, response_time=0.1, is_error=False)
+        c._record("beta", "GET /b", status_code=200, response_time=0.2, is_error=False)
+        c.show(app_name="alpha")
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "GET /a" in output
+        assert "GET /b" not in output
+
+    def test_show_filter_no_match_prints_message_with_filters(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test that show() prints a message including the filters when they match no recorded stats."""
+        c = StatsCollector()
+        c._record("my-app", "GET /a", status_code=200, response_time=0.1, is_error=False)
+        c.show(endpoint="GET /nope", app_name="other-app")
+        output = capsys.readouterr().out
+        assert "No stats recorded matching endpoint='GET /nope', app_name='other-app'" in output
+
+    def test_show_no_stats_prints_plain_message(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test that show() on an empty collector prints the plain no-stats message without filter info."""
+        c = StatsCollector()
+        c.show()
+        output = capsys.readouterr().out
+        assert "No stats recorded" in output
+        assert "matching" not in output
 
 
 class TestStatsMultiprocessAggregation:
