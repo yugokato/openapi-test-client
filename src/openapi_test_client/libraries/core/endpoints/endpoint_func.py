@@ -562,21 +562,23 @@ class SyncEndpointFunc(EndpointFunc[P]):
 
     @overload
     def with_concurrency(
-        self, num: int = 2, *, return_exceptions: Literal[False] = ...
+        self, num: int = 2, *, max_connections: int | None = None, return_exceptions: Literal[False] = ...
     ) -> Callable[P, _ResponseList]: ...
     @overload
     def with_concurrency(
-        self, num: int = 2, *, return_exceptions: Literal[True]
+        self, num: int = 2, *, max_connections: int | None = None, return_exceptions: Literal[True]
     ) -> Callable[P, _ResponseOrExceptionList]: ...
     @requires_instance
     def with_concurrency(
-        self, num: int = 2, *, return_exceptions: bool = False
+        self, num: int = 2, *, max_connections: int | None = None, return_exceptions: bool = False
     ) -> Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]:
         """Return a callable that concurrently makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters.
 
         :param num: Number of concurrent API calls
+        :param max_connections: Maximum number of concurrent HTTP connections (i.e. `ThreadPoolExecutor` workers).
+                                Use this to avoid `OSError: [Errno 24] Too many open files` when `num` is large.
         :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
                                   list instead of being propagated
         """
@@ -588,7 +590,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
                 # snapshot of the current context (including any active `Stats.collect()` scope)
                 # per job so scoped stats see concurrent calls correctly.
                 jobs = [Job(copy_context().run, (f, *args), kwargs) for _ in range(num)]
-                return run_concurrent(jobs, return_exceptions=return_exceptions)
+                return run_concurrent(jobs, max_workers=max_connections, return_exceptions=return_exceptions)
 
             return wrapper
 
@@ -706,21 +708,24 @@ class AsyncEndpointFunc(EndpointFunc[P]):
 
     @overload
     def with_concurrency(
-        self, num: int = 2, *, return_exceptions: Literal[False] = ...
+        self, num: int = 2, *, max_connections: int | None = None, return_exceptions: Literal[False] = ...
     ) -> Callable[P, _ResponseList]: ...
     @overload
     def with_concurrency(
-        self, num: int = 2, *, return_exceptions: Literal[True]
+        self, num: int = 2, *, max_connections: int | None = None, return_exceptions: Literal[True]
     ) -> Callable[P, _ResponseOrExceptionList]: ...
     @requires_instance
     def with_concurrency(
-        self, num: int = 2, *, return_exceptions: bool = False
+        self, num: int = 2, *, max_connections: int | None = None, return_exceptions: bool = False
     ) -> Callable[P, _ResponseList] | Callable[P, _ResponseOrExceptionList]:
         """Return a coroutine callable that concurrently makes duplicated API calls to the endpoint.
 
         Call the returned callable with the endpoint's own parameters.
 
         :param num: Number of concurrent API calls
+        :param max_connections: Maximum number of concurrent HTTP connections. When set, a `asyncio.Semaphore`
+                                limits active tasks to this value even when `num` is larger, preventing
+                                resource exhaustion.
         :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
                                   list instead of being propagated.
         """
@@ -739,8 +744,19 @@ class AsyncEndpointFunc(EndpointFunc[P]):
                     target: Callable[..., Any] = safe_f
                 else:
                     target = f
-                async with asyncio.TaskGroup() as tg:
-                    tasks = [tg.create_task(target(*args, **kwargs)) for _ in range(num)]
+
+                if max_connections is not None:
+                    sem = asyncio.Semaphore(max_connections)
+
+                    async def _run() -> RestResponse | Exception:
+                        async with sem:
+                            return await target(*args, **kwargs)
+
+                    async with asyncio.TaskGroup() as tg:
+                        tasks = [tg.create_task(_run()) for _ in range(num)]
+                else:
+                    async with asyncio.TaskGroup() as tg:
+                        tasks = [tg.create_task(target(*args, **kwargs)) for _ in range(num)]
                 return [t.result() for t in tasks]
 
             return wrapper
