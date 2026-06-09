@@ -2,7 +2,8 @@ API Client Core — General-Purpose API Client Framework
 =================================================
 
 This directory contains the core framework for building Python API clients. It provides decorator-driven endpoint 
-declaration, request lifecycle hooks, sync/async dual-mode support, and runtime capabilities such as automatic retry, concurrency, streaming, and locking.
+declaration, request lifecycle hooks, sync/async dual-mode support, built-in API statistics and observability, and 
+runtime capabilities such as automatic retry, concurrency, streaming, and locking.
 
 The framework uses the `httpx`-based REST API client from [common-libs](https://github.com/yugokato/common-libs/tree/main/src/common_libs/clients/rest_client) for underlying HTTP request handling.
 
@@ -19,7 +20,7 @@ The framework uses the `httpx`-based REST API client from [common-libs](https://
   - [API Class (`APIBase`)](#api-class-apibase)
   - [Endpoint Object (`Endpoint`)](#endpoint-object-endpoint)
   - [Auto-Discovery (`APIBase.init()`)](#auto-discovery-apibaseinit)
-  - [API Statistics](#api-statistics)
+  - [API Statistics (`Stats`)](#api-statistics-stats)
 - [Type and Response Reference](#type-and-response-reference)
 - [Extending Core](#extending-core)
 
@@ -28,7 +29,7 @@ The framework uses the `httpx`-based REST API client from [common-libs](https://
 
 - **Decorator-driven endpoint declaration** — annotate a plain method with `@endpoint.<method>("/path")` and the framework handles the rest.
 - **Sync/async dual-mode** from the same source code — one endpoint definition works with both `sync` and `async` callers.
-- **Batteries included** for common needs: automatic retry, distributed locking, concurrent execution, streaming responses, and API call Stats.
+- **Batteries included** for common needs: automatic retry, distributed locking, concurrent execution, streaming responses, and API call statistics.
 - **Extensible** via request/response hooks and decorators.
 
 
@@ -663,7 +664,7 @@ POST /users
 > `APIBase.init()` must be called from an `__init__.py` file. Calling it from any other module raises a `RuntimeError`.
 
 
-## API Statistics
+## API Statistics (`Stats`)
 
 The framework automatically records per-endpoint metrics including call counts, status-code distributions (`1xx`–`5xx`),
 errors, response times (`min` / `avg` / `max`), and estimated latency percentiles (`p50` / `p95` / `p99`) using DDSketch
