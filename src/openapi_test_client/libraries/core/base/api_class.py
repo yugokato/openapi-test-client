@@ -175,7 +175,7 @@ def get_api_classes(api_module_name: str, base_api_class: type[APIClassT]) -> li
         raise TypeError(f"{api_module_name} is not a package")
 
     for module_info in pkgutil.walk_packages(mod.__path__, prefix=f"{api_module_name}."):
-        if not module_info.name.startswith("__"):
+        if not module_info.name.rsplit(".", 1)[-1].startswith("__"):
             importlib.import_module(module_info.name)
 
     api_classes = sorted(

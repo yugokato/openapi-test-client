@@ -195,12 +195,30 @@ class TestSplitParams:
         assert body_params == {}
 
     def test_unknown_kwarg_reraises_as_natural_type_error(self) -> None:
-        """Test that an unknown keyword argument causes a natural TypeError (not a bare raise)"""
+        """Test that an unknown keyword argument causes a natural TypeError including the function name"""
 
         def _func(self: Any, a: str) -> None: ...
 
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match=r"_func\(\) got an unexpected keyword argument 'unknown_kwarg'"):
             endpoint_call_util.split_params("/v1/test", _func, (), {"unknown_kwarg": "val"})
+
+    def test_explicit_unset_path_param_falls_back_to_default(self) -> None:
+        """Test that a path param explicitly given as Unset behaves as omitted and uses the signature default"""
+
+        def _func(self: Any, user_id: str = "default-id") -> None: ...
+
+        path_params, body_params = endpoint_call_util.split_params("/v1/users/{user_id}", _func, (), {"user_id": Unset})
+        assert path_params == {"user_id": "default-id"}
+        assert body_params == {}
+
+    def test_explicit_unset_path_param_without_default_is_dropped(self) -> None:
+        """Test that a path param explicitly given as Unset with no default is treated as not provided"""
+
+        def _func(self: Any, user_id: str) -> None: ...
+
+        path_params, body_params = endpoint_call_util.split_params("/v1/users/{user_id}", _func, (), {"user_id": Unset})
+        assert path_params == {}
+        assert body_params == {}
 
 
 class TestGetSignatureDefaults:
@@ -423,6 +441,19 @@ class TestGenerateRestFuncParams:
         assert result.get("json") == {"name": "Alice"}
         assert "data" not in result
         assert "params" not in result
+
+    def test_unset_value_is_excluded_from_request(self) -> None:
+        """Test that params explicitly given as Unset are excluded from the request entirely"""
+        endpoint = _make_endpoint({"name": str, "page": Annotated[int, Query()]})
+        result = endpoint_call_util.generate_rest_func_params(endpoint, {"name": Unset, "page": Unset}, {})
+        assert "json" not in result
+        assert "params" not in result
+
+    def test_unset_value_suppresses_merged_signature_default(self) -> None:
+        """Test that an explicit Unset removes a param even when a concrete signature default was merged in"""
+        endpoint = _make_endpoint({"name": str, "page": int})
+        result = endpoint_call_util.generate_rest_func_params(endpoint, {"name": "Alice", "page": Unset}, {})
+        assert result.get("json") == {"name": "Alice"}
 
     def test_query_annotation_instance_goes_to_params(self) -> None:
         """Test that `Annotated[T, Query()]` routes the param to the `params` (query string) key"""

@@ -21,18 +21,6 @@ P = ParamSpec("P")
 class EndpointFunc(_EndpointFunc[P]):
     """EndpointFunc subclass with OpenAPI-specific helpers (docs, get_usage)."""
 
-    @property
-    def model(self) -> type[EndpointModel]:
-        """Return the dynamically created model of the endpoint, using the OpenAPI-aware field-name sanitizer.
-
-        Overrides the core implementation to inject the richer OpenAPI sanitizer, which additionally
-        covers OpenAPI annotation type names (Format, Constraint, ParamModel, …), dict method names,
-        and OpenAPI-specific control kwargs (validate, …) that must never be used as API parameter names.
-        """
-        return core_endpoint_model_util.create_endpoint_model(
-            self, field_name_sanitizer=param_model_util.alias_illegal_model_field_names
-        )
-
     def docs(self) -> None:
         """Display OpenAPI spec definition for this endpoint."""
         if api_spec_definition := self.get_usage():
@@ -46,6 +34,17 @@ class EndpointFunc(_EndpointFunc[P]):
             api_spec = getattr(self.api_client, "api_spec", None)
             if api_spec is not None:
                 return api_spec.get_endpoint_usage(self.endpoint)
+
+    def _create_model(self) -> type[EndpointModel]:
+        """Create the endpoint model using the OpenAPI-aware field-name sanitizer.
+
+        Overrides the core implementation to inject the richer OpenAPI sanitizer, which additionally
+        covers OpenAPI annotation type names (Format, Constraint, ParamModel, …), dict method names,
+        and OpenAPI-specific control kwargs (validate, …) that must never be used as API parameter names.
+        """
+        return core_endpoint_model_util.create_endpoint_model(
+            self, field_name_sanitizer=param_model_util.alias_illegal_model_field_names
+        )
 
 
 class SyncEndpointFunc(EndpointFunc[P], _SyncEndpointFunc[P]):

@@ -68,12 +68,16 @@ class APIClient:
                 self.rest_client = RestClient(self.base_url, **kwargs)
 
     def __enter__(self) -> Self:
+        if self.async_mode:
+            raise TypeError(f"{type(self).__name__} is in async mode. Use 'async with' instead of 'with'.")
         return self
 
     def __exit__(self, *args: Any) -> None:
         self.rest_client.close()
 
     async def __aenter__(self) -> Self:
+        if not self.async_mode:
+            raise TypeError(f"{type(self).__name__} is in sync mode. Use 'with' instead of 'async with'.")
         return self
 
     async def __aexit__(self, *args: Any) -> None:

@@ -109,6 +109,23 @@ class TestAPIClientContextManager:
 
         rest_client.close.assert_called_once()
 
+    def test_sync_context_manager_raises_in_async_mode(self) -> None:
+        """Test that using `with` on an async-mode client raises TypeError instead of leaking the connection"""
+        client = APIClient("myapp", base_url=BASE_URL, async_mode=True)
+        with pytest.raises(TypeError, match="async mode"), client:
+            ...
+
+    def test_async_context_manager_raises_in_sync_mode(self) -> None:
+        """Test that using `async with` on a sync-mode client raises a clear TypeError"""
+        client = APIClient("myapp", base_url=BASE_URL)
+
+        async def _enter() -> None:
+            async with client:
+                ...
+
+        with pytest.raises(TypeError, match="sync mode"):
+            asyncio.run(_enter())
+
 
 class TestAPIClientBaseUrl:
     """Tests for the APIClient.base_url property setter"""

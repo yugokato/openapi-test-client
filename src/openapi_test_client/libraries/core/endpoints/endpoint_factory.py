@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from functools import partial, wraps
-from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeVar, cast, overload
 
 from ..types import RestResponse
 from .endpoint_handler import (
@@ -130,7 +130,7 @@ class endpoint:
         :param use_query_string: Force send all parameters as query strings instead of request body
                                  NOTE: Parameters annotated with Annotated[type, "query"] will always be sent as query
                                        strings regardless of this option
-        :param default_raw_options: Raw request options passed to the httpx
+        :param default_raw_options: Raw request options passed to the underlying HTTP library
         """
         return endpoint._create("patch", path, use_query_string=use_query_string, **default_raw_options)
 
@@ -176,8 +176,19 @@ class endpoint:
         """
         return endpoint._create("trace", path, use_query_string=use_query_string, **default_raw_options)
 
+    @overload
     @staticmethod
-    def undocumented(obj: EndpointHandler[P] | type[T]) -> EndpointHandler[P] | type[T]:
+    def undocumented(obj: type[T]) -> type[T]: ...
+    @overload
+    @staticmethod
+    def undocumented(obj: EndpointHandler[P]) -> EndpointHandler[P]: ...
+    @overload
+    @staticmethod
+    def undocumented(obj: PendingHandler[P] | Callable[Concatenate[T, P], R]) -> PendingHandler[P]: ...
+    @staticmethod
+    def undocumented(
+        obj: EndpointHandler[P] | PendingHandler[P] | Callable[Concatenate[T, P], R] | type[T],
+    ) -> EndpointHandler[P] | PendingHandler[P] | type[T]:
         """Mark an endpoint as undocumented. If an API class is decorated, all endpoints on the class will be
         automatically marked as undocumented.
         The flag value is available with an Endpoint object's is_documented attribute
@@ -188,11 +199,19 @@ class endpoint:
 
         if inspect.isclass(obj) and issubclass(obj, APIBase):
             obj.is_documented = False
-            return obj
+            return cast(type[T], obj)
         return endpoint._apply_operations(obj, lambda h: setattr(h, "is_documented", False))
 
+    @overload
     @staticmethod
-    def is_public(obj: EndpointHandler[P]) -> EndpointHandler[P]:
+    def is_public(obj: EndpointHandler[P]) -> EndpointHandler[P]: ...
+    @overload
+    @staticmethod
+    def is_public(obj: PendingHandler[P] | Callable[Concatenate[T, P], R]) -> PendingHandler[P]: ...
+    @staticmethod
+    def is_public(
+        obj: EndpointHandler[P] | PendingHandler[P] | Callable[Concatenate[T, P], R],
+    ) -> EndpointHandler[P] | PendingHandler[P]:
         """Mark an endpoint as a public API that does not require authentication.
         The flag value is available with an Endpoint object's is_public attribute
 
@@ -200,8 +219,19 @@ class endpoint:
         """
         return endpoint._apply_operations(obj, lambda h: setattr(h, "is_public", True))
 
+    @overload
     @staticmethod
-    def is_deprecated(obj: EndpointHandler[P] | type[T]) -> EndpointHandler[P] | type[T]:
+    def is_deprecated(obj: type[T]) -> type[T]: ...
+    @overload
+    @staticmethod
+    def is_deprecated(obj: EndpointHandler[P]) -> EndpointHandler[P]: ...
+    @overload
+    @staticmethod
+    def is_deprecated(obj: PendingHandler[P] | Callable[Concatenate[T, P], R]) -> PendingHandler[P]: ...
+    @staticmethod
+    def is_deprecated(
+        obj: EndpointHandler[P] | PendingHandler[P] | Callable[Concatenate[T, P], R] | type[T],
+    ) -> EndpointHandler[P] | PendingHandler[P] | type[T]:
         """Mark an endpoint as a deprecated API. If an API class is decorated, all endpoints on the class will be
         automatically marked as deprecated.
 
@@ -211,7 +241,7 @@ class endpoint:
 
         if inspect.isclass(obj) and issubclass(obj, APIBase):
             obj.is_deprecated = True
-            return obj
+            return cast(type[T], obj)
         return endpoint._apply_operations(obj, lambda h: setattr(h, "is_deprecated", True))
 
     @staticmethod
@@ -236,6 +266,10 @@ class endpoint:
         Due to the way we encapsulate an API class function, the first argument of a regular decorator applied on our
         API function will be an EndpointHandler object instead of the decorated function. Decorating the decorator with
         this `endpoint.decorator` will make it usable on an API class function
+
+        NOTE: A registered decorator that takes arguments cannot receive a single bare callable as its only
+        argument (e.g. `@my_decorator(some_function)`) — that call is indistinguishable from applying the
+        decorator directly on an API function. Pass such a callable as a keyword argument instead
 
         >>> # The decorator definition
         >>> @endpoint.decorator # This is what you need

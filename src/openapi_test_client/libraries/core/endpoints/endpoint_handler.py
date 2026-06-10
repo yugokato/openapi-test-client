@@ -12,11 +12,11 @@ from .endpoint_func import AsyncEndpointFunc, EndpointFunc, SyncEndpointFunc
 if TYPE_CHECKING:
     from ..base import APIBase
 
-P = ParamSpec("P")
-EndpointDecorator: TypeAlias = Callable[[Callable[..., Any]], Callable[..., Any]]
 
 __all__ = ["EndpointHandler"]
 
+P = ParamSpec("P")
+EndpointDecorator: TypeAlias = Callable[[Callable[..., Any]], Callable[..., Any]]
 DeferredOperation = Callable[["EndpointHandler[P]"], None]
 
 
@@ -101,9 +101,9 @@ class EndpointHandler(Generic[P]):
         """Returns decorators that should be applied on an endpoint function"""
         return self.__decorators
 
-    def register_decorator(self, *decorator: EndpointDecorator) -> None:
+    def register_decorator(self, *decorators: EndpointDecorator) -> None:
         """Register a decorator that will be applied on an endpoint function"""
-        self.__decorators.extend([d for d in decorator])
+        self.__decorators.extend(decorators)
 
     def _build_endpoint_func(
         self, instance: APIBase[Any] | None, owner: type[APIBase[Any]], is_async: bool

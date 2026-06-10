@@ -71,7 +71,7 @@ def requires_instance(f: Callable[Concatenate[_T, _P], _R]) -> Callable[Concaten
     def wrapper(self: _T, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         if self._instance is None:
             func_name = self._original_func.__name__ if f.__name__ == "__call__" else f.__name__
-            raise TypeError(f"You can not access {func_name}() directly through the {self._owner.__name__} class.")
+            raise TypeError(f"You cannot access {func_name}() directly through the {self._owner.__name__} class.")
         return f(self, *args, **kwargs)
 
     return wrapper
@@ -104,6 +104,7 @@ class EndpointFunc(Generic[P]):
         self._original_func: Callable[..., RestResponse] = endpoint_handler.original_func
         self._use_query_string = endpoint_handler.use_query_string
         self._raw_options = endpoint_handler.default_raw_options
+        self._model: type[EndpointModel] | None = None
 
         self.endpoint: Endpoint[P] = cast(
             "Endpoint[P]",
@@ -230,8 +231,10 @@ class EndpointFunc(Generic[P]):
 
     @property
     def model(self) -> type[EndpointModel]:
-        """Return the dynamically created model of the endpoint"""
-        return endpoint_model_util.create_endpoint_model(self)
+        """Return the dynamically created model of the endpoint (created once per endpoint func and cached)"""
+        if self._model is None:
+            self._model = self._create_model()
+        return self._model
 
     def help(self) -> None:
         """Display the API function definition"""
@@ -285,6 +288,10 @@ class EndpointFunc(Generic[P]):
 
         Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
         the final call.
+
+        NOTE: The lock is acquired synchronously (file-based, reentrant within the process). In async mode this
+              means waiting on a lock held by another process blocks the event loop, and coroutines running in the same
+              thread are not mutually excluded from each other.
 
         :param lock_name: Explicitly specify the lock name. Use this when the same lock needs to be
                           shared among multiple endpoints. Defaults to
@@ -495,6 +502,14 @@ class EndpointFunc(Generic[P]):
         class_name = f"{api_class.__name__}{to_class_name(orig_func.__name__, suffix=EndpointFunc.__name__)}"
         return cast(type[SyncEndpointFunc[Any]] | type[AsyncEndpointFunc[Any]], type(class_name, (base_class,), {}))
 
+    def _create_model(self) -> type[EndpointModel]:
+        """Create the endpoint model.
+
+        Override this in a subclass to customize model creation (e.g. to inject a custom field-name sanitizer).
+        The result is cached by the `model` property.
+        """
+        return endpoint_model_util.create_endpoint_model(self)
+
     def _prepare_stream_request(
         self,
         path_params: tuple[Any, ...],
@@ -575,8 +590,8 @@ class EndpointFunc(Generic[P]):
         # becomes the outermost layer (intuitive left-to-right reading).
         assert _self._base_call is not None  # always set for instance-bound funcs; with_xxx() requires an instance
         call = _self._base_call
-        for wrapper in reversed(_self._call_wrappers):
-            call = wrapper(call)
+        for call_wrapper in reversed(_self._call_wrappers):
+            call = call_wrapper(call)
         _cls.__call__ = call  # type: ignore[method-assign]
         _self.__class__ = _cls
         return _self
@@ -623,6 +638,8 @@ class SyncEndpointFunc(EndpointFunc[P]):
 
         Call the returned callable with the endpoint's own parameters.
 
+        NOTE: This is terminal and must always be the last wrapper in a chain.
+
         :param num: Number of concurrent API calls
         :param max_connections: Maximum number of concurrent HTTP connections (i.e. `ThreadPoolExecutor` workers).
                                 Use this to avoid `OSError: [Errno 24] Too many open files` when `num` is large.
@@ -661,7 +678,8 @@ class SyncEndpointFunc(EndpointFunc[P]):
         Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
         When return_exceptions=True, exceptions are collected in the returned list instead of being propagated —
         so all num calls run even when some fail (KeyboardInterrupt/SystemExit still propagate).
-        Returns the results in call order. This is terminal and must always be the last wrapper in a chain.
+
+        NOTE: This is terminal and must always be the last wrapper in a chain.
 
         :param num: Number of sequential API calls
         :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned
@@ -769,6 +787,8 @@ class AsyncEndpointFunc(EndpointFunc[P]):
 
         Call the returned callable with the endpoint's own parameters.
 
+        NOTE: This is terminal and must always be the last wrapper in a chain.
+
         :param num: Number of concurrent API calls
         :param max_connections: Maximum number of concurrent HTTP connections. When set, a `asyncio.Semaphore`
                                 limits active tasks to this value even when `num` is larger, preventing
@@ -828,7 +848,8 @@ class AsyncEndpointFunc(EndpointFunc[P]):
         Call the returned callable with the endpoint's own parameters. The endpoint is called num times sequentially.
         When return_exceptions=True, exceptions are collected in the returned list instead of being propagated —
         so all num calls run even when some fail (KeyboardInterrupt/SystemExit/CancelledError still propagate).
-        Returns the results in call order. This is terminal and must always be the last wrapper in a chain.
+
+        NOTE: This is terminal and must always be the last wrapper in a chain.
 
         :param num: Number of sequential API calls
         :param return_exceptions: If True, exceptions raised during calls are collected and included in the returned

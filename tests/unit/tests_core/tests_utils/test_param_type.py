@@ -237,6 +237,15 @@ class TestMatchesType:
             ({1: 2}, dict[str, str], False),
             ({}, _DictModel, False),
             (_DictModel(param1="foo"), dict[str, int], False),
+            # parameterized generics without dedicated handling (validated against the origin type)
+            ((1, 2), tuple[int, int], True),
+            ({"a"}, set[str], True),
+            ([1], set[str], False),
+            # None against Annotated/Literal
+            (None, Annotated[int | None, "meta"], True),
+            (None, Annotated[int, "meta"], False),
+            (None, Literal[None], True),
+            (None, Literal["a", "b"], False),
         ],
     )
     def test_matches_type(self, value: Any, tp: Any, is_valid: bool) -> None:

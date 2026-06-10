@@ -114,9 +114,14 @@ def split_params(
     for lookup_name, original_ph in get_path_param_lookup(path).items():
         if original_ph in path_params_dict:
             continue  # already resolved via a higher-priority match
-        if lookup_name in named:
-            path_params_dict[original_ph] = named.pop(lookup_name)
-        elif (param := sig.parameters.get(lookup_name)) and param.default is not inspect.Parameter.empty:
+        # An explicitly given Unset means "not provided" and falls back to the signature default
+        if lookup_name in named and (value := named.pop(lookup_name)) is not Unset:
+            path_params_dict[original_ph] = value
+        elif (
+            (param := sig.parameters.get(lookup_name))
+            and param.default is not inspect.Parameter.empty
+            and param.default is not Unset
+        ):
             # Apply the path parameter's signature default when the caller omits it
             path_params_dict[original_ph] = param.default
 
@@ -230,6 +235,10 @@ def generate_rest_func_params(
     rest_func_params: dict[str, Any] = dict(quiet=quiet, **raw_options)
     specified_content_type_header = _get_specified_content_type_header(raw_options, session_headers)
     for param_name, param_value in endpoint_params.items():
+        if param_value is Unset:
+            # Unset means "not provided" — exclude the parameter from the request entirely.
+            # An explicit Unset also suppresses a concrete signature default merged by the caller
+            continue
         if param_name == "raw_options":
             for k, v in raw_options.items():
                 rest_func_params[k] = v

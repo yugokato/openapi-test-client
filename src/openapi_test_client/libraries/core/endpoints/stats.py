@@ -338,7 +338,7 @@ class StatsCollector:
         :param path: Destination file path (created or overwritten).
         :param indent: Indent level for JSON output.
         """
-        Path(path).write_text(json.dumps(self.to_dict(), indent=indent))
+        _atomic_write(Path(path), json.dumps(self.to_dict(), indent=indent))
 
     def aggregate(self, path: str | Path) -> None:
         """Merge this collector's snapshot into a shared JSON file (cross-process safe).
@@ -487,7 +487,7 @@ class Stats:
     Two access modes:
 
     1. **Global (always-on):** Every API call routed through `EndpointFunc.__call__` is automatically counted here.
-       Access via `Stats.report()`, `Stats.get()`, `Stats.reset()`, etc.
+       Access via `Stats.show()`, `Stats.get()`, `Stats.reset()`, etc.
 
     2. **Scoped:** `Stats.collect()` creates a scoped collector for a code block.
        Stats inside the block roll up to both the scoped collector and the global total.
@@ -523,8 +523,8 @@ class Stats:
             with Stats.collect("login-flow") as stats:
                 client.Auth.login(username="foo", password="bar")
 
-            stats.report()  # Only the login call
-            Stats.report()  # All calls ever made
+            stats.show()  # Only the login call
+            Stats.show()  # All calls ever made
         """
         collector = StatsCollector(name)
         token = _scope_stack.set((*_scope_stack.get(), collector))
@@ -644,16 +644,15 @@ def collect_stats(
     async def wrapper(self: EndpointFunc[P], *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         response: RestResponse | None = None
         exception: Exception | None = None
-        called = False
         try:
-            called = True
             response = await f(self, *args, **kwargs)
             return response
         except Exception as e:
             exception = e
             raise
         finally:
-            if called:
+            if response is not None or exception is not None:
+                # Exclude BaseException from recording
                 try:
                     StatsCollector.record(self, response, exception)
                 except Exception as rec_err:

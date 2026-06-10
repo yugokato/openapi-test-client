@@ -85,7 +85,7 @@ class TestEndpointFunc:
         with pytest.raises(
             TypeError,
             match=re.escape(
-                f"You can not access {endpoint_func.__name__}() directly through the {api_class.__name__} class."
+                f"You cannot access {endpoint_func.__name__}() directly through the {api_class.__name__} class."
             ),
         ):
             endpoint_func()
@@ -100,7 +100,7 @@ class TestEndpointFunc:
         assert endpoint_func._instance is None
         with pytest.raises(
             TypeError,
-            match=re.escape(f"You can not access with_retry() directly through the {api_class.__name__} class."),
+            match=re.escape(f"You cannot access with_retry() directly through the {api_class.__name__} class."),
         ):
             endpoint_func.with_retry()
 

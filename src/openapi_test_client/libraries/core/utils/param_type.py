@@ -52,34 +52,34 @@ def matches_type(value: Any, tp: Any) -> bool:
         # Unresolvable annotation (e.g. from __future__ import annotations with a local-variable
         # reference that get_type_hints() couldn't evaluate). isinstance() would raise TypeError.
         return False
-    if value is None:
-        return type(None) in get_args(tp)
-
-    # Union / Optional
-    if get_origin(tp) in (Union, UnionType):
-        return any(matches_type(value, arg) for arg in get_args(tp))
 
     origin = get_origin(tp)
+    if origin in (Union, UnionType):
+        return any(matches_type(value, arg) for arg in get_args(tp))
     if origin is Annotated:
-        base, *_ = get_args(tp)
-        if not matches_type(value, base):
-            return False
-        return True
-    elif origin is Literal:
+        return matches_type(value, get_args(tp)[0])
+    if origin is Literal:
         return value in get_args(tp)
-    elif origin is list:
+    # None is only valid for NoneType itself; nullable unions and Literal[None] are unwrapped above
+    if value is None:
+        return tp in (None, NoneType)
+    if origin is list:
         if not isinstance(value, list):
             return False
         (elem_type,) = get_args(tp)
         return all(matches_type(v, elem_type) for v in value)
-    elif origin is dict:
+    if origin is dict:
         if not isinstance(value, dict):
             return False
         k_type, v_type = get_args(tp)
         return all(matches_type(k, k_type) for k in value.keys()) and all(
             matches_type(v, v_type) for v in value.values()
         )
-    # TODO: Add more if needed
+    if origin is not None:
+        # Other parameterized generics (e.g. tuple[int, int], set[str]): isinstance() rejects
+        # subscripted generics, so check the value against the unsubscripted origin type
+        # TODO: Add element-type checks for more containers if needed
+        return isinstance(origin, type) and isinstance(value, origin)
 
     return isinstance(value, tp)
 
