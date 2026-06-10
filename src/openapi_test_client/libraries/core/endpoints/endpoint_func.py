@@ -38,6 +38,7 @@ P = ParamSpec("P")
 _T = TypeVar("_T", bound="EndpointFunc")  # type: ignore[type-arg]
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+_F = TypeVar("_F", bound=Callable[..., Any])
 
 _SAFE_HTTP_METHODS: frozenset[str] = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -64,6 +65,22 @@ def _as_response_stream(f: Callable[_P, object]) -> Callable[_P, _ResponseStream
     At runtime this is a no-op.
     """
     return cast(Callable[_P, "_ResponseStream"], f)
+
+
+def _terminal(f: _F) -> _F:
+    """Mark a `with_xxx()` wrapper method as terminal.
+
+    Stamps `._terminal_wrapper` on the returned `EndpointFunc` copy so that `_with_call_wrapper`
+    can raise if any further wrapper is chained after this one.
+    """
+
+    @wraps(f)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        result = f(self, *args, **kwargs)
+        result._terminal_wrapper = f.__name__
+        return result
+
+    return cast(_F, wrapper)
 
 
 def requires_instance(f: Callable[Concatenate[_T, _P], _R]) -> Callable[Concatenate[_T, _P], _R]:
@@ -98,6 +115,7 @@ class EndpointFunc(Generic[P]):
         # State used by _with_call_wrapper to compose with_xxx() wrappers in left-to-right (first=outermost) order
         self._call_wrappers: tuple[Callable[[Callable[..., Any]], Callable[..., Any]], ...] = ()
         self._base_call: Callable[..., Any] | None = None
+        self._terminal_wrapper: str | None = None
 
         self._instance: APIBase[Any] | None = instance
         self._owner: type[APIBase[Any]] = owner
@@ -583,6 +601,10 @@ class EndpointFunc(Generic[P]):
             return self.executor.execute(self, path, params)
 
     def _with_call_wrapper(self, wrapper: Callable[[Callable[..., Any]], Callable[..., Any]]) -> Self:
+        if self._terminal_wrapper is not None:
+            raise RuntimeError(
+                f"`{self._terminal_wrapper}()` is terminal and must always be the last wrapper in a chain."
+            )
         _self = copy(self)
         _self._call_wrappers = (*_self._call_wrappers, wrapper)
         _cls = type(type(_self).__name__, (type(_self),), {})
@@ -630,6 +652,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
     def with_concurrency(
         self, num: int = 2, *, max_connections: int | None = None, return_exceptions: Literal[True]
     ) -> Callable[P, _ResponseOrExceptionList]: ...
+    @_terminal
     @requires_instance
     def with_concurrency(
         self, num: int = 2, *, max_connections: int | None = None, return_exceptions: bool = False
@@ -669,6 +692,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[True]
     ) -> Callable[P, _ResponseOrExceptionList]: ...
+    @_terminal
     @requires_instance
     def with_repeat(
         self, num: int = 2, *, return_exceptions: bool = False
@@ -779,6 +803,7 @@ class AsyncEndpointFunc(EndpointFunc[P]):
     def with_concurrency(
         self, num: int = 2, *, max_connections: int | None = None, return_exceptions: Literal[True]
     ) -> Callable[P, _ResponseOrExceptionList]: ...
+    @_terminal
     @requires_instance
     def with_concurrency(
         self, num: int = 2, *, max_connections: int | None = None, return_exceptions: bool = False
@@ -839,6 +864,7 @@ class AsyncEndpointFunc(EndpointFunc[P]):
     def with_repeat(
         self, num: int = 2, *, return_exceptions: Literal[True]
     ) -> Callable[P, _ResponseOrExceptionList]: ...
+    @_terminal
     @requires_instance
     def with_repeat(
         self, num: int = 2, *, return_exceptions: bool = False

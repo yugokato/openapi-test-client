@@ -1722,6 +1722,36 @@ class TestEndpointFuncCallWithChaining:
         assert isinstance(r, RestResponse)
         assert r.status_code == 200
 
+    def test_sync_terminal_wrapper_in_the_middle_raises(self, api_client: APIClient, api_class: type[APIBase]) -> None:
+        """Test that chaining any wrapper after a terminal one raises TypeError at chain-build time."""
+        instance = api_class(api_client)
+        with pytest.raises(RuntimeError, match="terminal"):
+            instance.get_something.with_concurrency().with_retry()
+
+    def test_sync_terminal_wrapper_after_another_terminal_raises(
+        self, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that chaining a second terminal wrapper after the first raises TypeError."""
+        instance = api_class(api_client)
+        with pytest.raises(RuntimeError, match="terminal"):
+            instance.get_something.with_concurrency().with_repeat()
+
+    def test_sync_repeat_terminal_wrapper_in_the_middle_raises(
+        self, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that chaining any wrapper after with_repeat() raises TypeError."""
+        instance = api_class(api_client)
+        with pytest.raises(RuntimeError, match="terminal"):
+            instance.get_something.with_repeat().with_expected_status(200)
+
+    async def test_async_terminal_wrapper_in_the_middle_raises(
+        self, api_client_async: APIClient, api_class_async: type[APIBase]
+    ) -> None:
+        """Test that chaining any wrapper after a terminal one raises TypeError in async mode."""
+        instance = api_class_async(api_client_async)
+        with pytest.raises(RuntimeError, match="terminal"):
+            instance.get_something.with_concurrency().with_retry()
+
 
 class TestEndpointFuncCallWithRepeat:
     """Tests for with_repeat() — sequential repeated calls that collect all results"""
