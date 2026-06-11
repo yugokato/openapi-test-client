@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 
 import pytest
+from common_libs.clients.rest_client.utils import get_supported_request_parameters
 from pytest_mock import MockerFixture
 
 import openapi_test_client.libraries.core.utils.endpoint_call as endpoint_call_util
@@ -366,7 +367,7 @@ class TestValidatePathAndParams:
     def test_invalid_raw_option_raises_runtime_error(self, mocker: MockerFixture) -> None:
         """Test that an unrecognized raw option key raises RuntimeError"""
         mocker.patch(
-            "openapi_test_client.libraries.core.utils.endpoint_call.get_supported_request_parameters",
+            f"{endpoint_call_util.__name__}.{get_supported_request_parameters.__name__}",
             return_value=set(),
         )
         endpoint = _make_endpoint({})

@@ -11,6 +11,7 @@ from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries.core import endpoint
 from openapi_test_client.libraries.core.base import APIBase, APIClient
+from openapi_test_client.libraries.core.base.api_class import get_api_classes
 from openapi_test_client.libraries.core.endpoints import Endpoint
 
 pytestmark = [pytest.mark.unittest]
@@ -54,7 +55,7 @@ class TestAPIBaseInit:
         mocker.patch("inspect.currentframe", return_value=MagicMock(f_back=mock_prev_frame))
         mocker.patch("inspect.getframeinfo", return_value=MagicMock(filename="/fake/api/__init__.py"))
         mocker.patch(
-            "openapi_test_client.libraries.core.base.api_class.get_api_classes",
+            f"{get_api_classes.__module__}.{get_api_classes.__name__}",
             return_value=[DiscoveryConcreteAPI],
         )
 
@@ -89,7 +90,7 @@ class TestAPIBaseInit:
         mocker.patch("inspect.currentframe", return_value=MagicMock(f_back=mock_prev_frame))
         mocker.patch("inspect.getframeinfo", return_value=MagicMock(filename="/fake/api/__init__.py"))
         mocker.patch(
-            "openapi_test_client.libraries.core.base.api_class.get_api_classes",
+            f"{get_api_classes.__module__}.{get_api_classes.__name__}",
             return_value=[AggregateAlphaAPI, AggregateBetaAPI],
         )
 
@@ -117,7 +118,7 @@ class TestAPIBaseInit:
         mocker.patch("inspect.currentframe", return_value=MagicMock(f_back=mock_prev_frame))
         mocker.patch("inspect.getframeinfo", return_value=MagicMock(filename="/fake/api/__init__.py"))
         mocker.patch(
-            "openapi_test_client.libraries.core.base.api_class.get_api_classes",
+            f"{get_api_classes.__module__}.{get_api_classes.__name__}",
             return_value=[ReturnAPI],
         )
 

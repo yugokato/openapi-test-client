@@ -11,8 +11,8 @@ from uuid import uuid4
 import pytest
 from common_libs.clients.rest_client import RestResponse
 from common_libs.clients.rest_client.ext import RequestExt, ResponseExt
-from common_libs.clients.rest_client.utils import set_request_to_exception
-from common_libs.lock import Lock
+from common_libs.clients.rest_client.utils import retry_on, set_request_to_exception
+from common_libs.lock import AsyncLock, Lock
 from filelock import Timeout as FileLockTimeout
 from httpx import AsyncClient, Client, ConnectError, HTTPError, Request
 from pytest_mock import MockerFixture
@@ -856,7 +856,7 @@ class TestEndpointFuncCallWithLock:
     ) -> None:
         """Test that with_lock auto-generates a lock name as '{app_name}-{APIClass}.{func_name}'"""
         mocker.patch.object(Client, "request")
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock = mocker.patch(f"{SyncEndpointFunc.__module__}.{Lock.__name__}")
         mock_lock.return_value.__enter__ = mocker.MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = mocker.MagicMock(return_value=False)
 
@@ -871,7 +871,7 @@ class TestEndpointFuncCallWithLock:
     ) -> None:
         """Test that explicitly providing lock_name overrides the auto-generated name"""
         mocker.patch.object(Client, "request")
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock = mocker.patch(f"{SyncEndpointFunc.__module__}.{Lock.__name__}")
         mock_lock.return_value.__enter__ = mocker.MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = mocker.MagicMock(return_value=False)
 
@@ -900,7 +900,7 @@ class TestEndpointFuncCallWithLock:
 
         mock_request.side_effect = _request_side_effect
 
-        mock_lock_cls = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock_cls = mocker.patch(f"{SyncEndpointFunc.__module__}.{Lock.__name__}")
         mock_lock_instance = mocker.MagicMock()
         mock_lock_cls.return_value = mock_lock_instance
         mock_lock_instance.__enter__ = mocker.MagicMock(side_effect=lambda: call_order.append("lock_enter"))
@@ -931,7 +931,7 @@ class TestEndpointFuncCallWithLock:
 
         mock_request.side_effect = _request_side_effect
 
-        mock_lock_cls = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.AsyncLock")
+        mock_lock_cls = mocker.patch(f"{SyncEndpointFunc.__module__}.{AsyncLock.__name__}")
         mock_lock_instance = mocker.MagicMock()
         mock_lock_cls.return_value = mock_lock_instance
         mock_lock_instance.__aenter__.side_effect = lambda: call_order.append("lock_enter")
@@ -947,7 +947,7 @@ class TestEndpointFuncCallWithLock:
     ) -> None:
         """Test that with_lock returns a RestResponse"""
         mocker.patch.object(Client, "request")
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock = mocker.patch(f"{SyncEndpointFunc.__module__}.{Lock.__name__}")
         mock_lock.return_value.__enter__ = mocker.MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = mocker.MagicMock(return_value=False)
 
@@ -1078,7 +1078,7 @@ class TestEndpointFuncCallWithRetrySync:
         self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
     ) -> None:
         """Test that with_retry passes the correct keyword arguments to retry_on"""
-        mock_retry_on = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.retry_on")
+        mock_retry_on = mocker.patch(f"{SyncEndpointFunc.__module__}.{retry_on.__name__}")
         identity: Callable[..., Any] = lambda f: f
         mock_retry_on.return_value = identity
 
@@ -1099,7 +1099,7 @@ class TestEndpointFuncCallWithRetrySync:
         self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
     ) -> None:
         """Test that safe_methods_only=True is forwarded to retry_on"""
-        mock_retry_on = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.retry_on")
+        mock_retry_on = mocker.patch(f"{SyncEndpointFunc.__module__}.{retry_on.__name__}")
         identity: Callable[..., Any] = lambda f: f
         mock_retry_on.return_value = identity
 
@@ -1147,7 +1147,7 @@ class TestEndpointFuncCallWithRetryAsync:
         self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
     ) -> None:
         """Test that async with_retry passes async_mode=True to retry_on"""
-        mock_retry_on = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.retry_on")
+        mock_retry_on = mocker.patch(f"{SyncEndpointFunc.__module__}.{retry_on.__name__}")
         identity: Callable[..., Any] = lambda f: f
         mock_retry_on.return_value = identity
 
@@ -1167,7 +1167,7 @@ class TestEndpointFuncCallWithRetryAsync:
         self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
     ) -> None:
         """Test that safe_methods_only=True is forwarded to retry_on"""
-        mock_retry_on = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.retry_on")
+        mock_retry_on = mocker.patch(f"{SyncEndpointFunc.__module__}.{retry_on.__name__}")
         identity: Callable[..., Any] = lambda f: f
         mock_retry_on.return_value = identity
 
@@ -1625,7 +1625,7 @@ class TestEndpointFuncCallWithChaining:
             "request",
             side_effect=[_make_httpx_response(503, mocker), _make_httpx_response(200, mocker)],
         )
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock = mocker.patch(f"{SyncEndpointFunc.__module__}.{Lock.__name__}")
         mock_lock.return_value.__enter__ = mocker.MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = mocker.MagicMock(return_value=False)
 
@@ -1650,7 +1650,7 @@ class TestEndpointFuncCallWithChaining:
             "request",
             side_effect=[_make_httpx_response(503, mocker), _make_httpx_response(200, mocker)],
         )
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock = mocker.patch(f"{SyncEndpointFunc.__module__}.{Lock.__name__}")
         mock_lock.return_value.__enter__ = mocker.MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = mocker.MagicMock(return_value=False)
 
@@ -1675,7 +1675,7 @@ class TestEndpointFuncCallWithChaining:
             "request",
             side_effect=[_make_httpx_response(503, mocker), _make_httpx_response(200, mocker)],
         )
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.AsyncLock")
+        mock_lock = mocker.patch(f"{SyncEndpointFunc.__module__}.{AsyncLock.__name__}")
 
         instance = api_class_async(api_client_async)
         r = await instance.get_something.with_lock().with_retry(condition=503, num_retries=1, retry_after=0)()
