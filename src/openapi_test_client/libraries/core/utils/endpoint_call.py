@@ -91,16 +91,8 @@ def split_params(
     sig = get_params_signature(func)
     try:
         bound = sig.bind_partial(*args, **kwargs)
-    except TypeError:
-        # User-provided params don't align with the func signature. Expose the real call error to users.
-        # func(*args, **kwargs) will always raise the natural Python mismatch error. The fallback bind
-        # ensures `bound` is defined if, in some edge case, func() does not raise.
-        try:
-            func(*args, **kwargs)
-        except Exception as e:
-            raise e from None
-        # raise the original error in case the func call does not raise for any reason
-        raise
+    except TypeError as e:
+        raise TypeError(f"{func.__name__}(): {e}") from None
 
     var_kw_name = next((n for n, p in sig.parameters.items() if p.kind == inspect.Parameter.VAR_KEYWORD), None)
     named: dict[str, Any] = {}

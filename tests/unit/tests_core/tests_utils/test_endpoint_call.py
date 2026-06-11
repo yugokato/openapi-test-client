@@ -200,8 +200,27 @@ class TestSplitParams:
 
         def _func(self: Any, a: str) -> None: ...
 
-        with pytest.raises(TypeError, match=r"_func\(\) got an unexpected keyword argument 'unknown_kwarg'"):
+        with pytest.raises(TypeError, match=r"_func\(\): got an unexpected keyword argument 'unknown_kwarg'"):
             endpoint_call_util.split_params("/v1/test", _func, (), {"unknown_kwarg": "val"})
+
+    def test_too_many_positional_args_reraises_with_function_name(self) -> None:
+        """Test that too many positional arguments raises a TypeError with the function name"""
+
+        def _func(self: Any, a: str) -> None: ...
+
+        with pytest.raises(TypeError, match=r"_func\(\): too many positional arguments"):
+            endpoint_call_util.split_params("/v1/test", _func, ("v1", "v2"), {})
+
+    def test_too_many_positional_args_does_not_execute_function_body(self) -> None:
+        """Test that an argument mismatch error does not cause the function body to execute"""
+        executed = []
+
+        def _func(self: Any, a: str) -> None:
+            executed.append(True)
+
+        with pytest.raises(TypeError):
+            endpoint_call_util.split_params("/v1/test", _func, ("v1", "v2"), {})
+        assert not executed
 
     def test_explicit_unset_path_param_falls_back_to_default(self) -> None:
         """Test that a path param explicitly given as Unset behaves as omitted and uses the signature default"""
