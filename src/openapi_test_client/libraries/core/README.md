@@ -697,7 +697,7 @@ recorded stats. Both return independent copies, so reading them concurrently wit
 
 ```python
 stat = Stats.get("POST /auth/login")
-assert stat.num_2xx == 2
+assert stat.num_2xx == 10
 ```
 
 `Stats.dump(path)` serializes the global collector to an indented JSON file (complementing `aggregate()`, which
