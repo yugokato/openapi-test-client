@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Concatenate, Generic, Literal, ParamSpec,
 from common_libs.clients.rest_client import RestClient
 from common_libs.clients.rest_client.utils import retry_on
 from common_libs.job_executor import Job, run_concurrent
-from common_libs.lock import Lock
+from common_libs.lock import AsyncLock, Lock
 from common_libs.logging import get_logger
 from common_libs.naming import to_class_name
 from httpx import HTTPError
@@ -32,6 +32,9 @@ if TYPE_CHECKING:
     from .stats import StatsCollector
 
 
+__all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
+
+
 P = ParamSpec("P")
 # _T is intentionally unparameterized: bound="EndpointFunc[Any]" widens the class-scoped P to Any in the return type of
 # requires_instance-decorated methods that return Callable[P, R], which breaks the propagation of P
@@ -41,8 +44,6 @@ _R = TypeVar("_R")
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 _SAFE_HTTP_METHODS: frozenset[str] = frozenset({"GET", "HEAD", "OPTIONS"})
-
-__all__ = ["AsyncEndpointFunc", "EndpointFunc", "SyncEndpointFunc"]
 
 logger = get_logger(__name__)
 
@@ -307,10 +308,6 @@ class EndpointFunc(Generic[P]):
         Call the returned callable with the endpoint's own parameters, or chain with other with_xxx() wrappers before
         the final call.
 
-        NOTE: The lock is acquired synchronously (file-based, reentrant within the process). In async mode this
-              means waiting on a lock held by another process blocks the event loop, and coroutines running in the same
-              thread are not mutually excluded from each other.
-
         :param lock_name: Explicitly specify the lock name. Use this when the same lock needs to be
                           shared among multiple endpoints. Defaults to
                           '{app_name}-{APIClass}.{func_name}'.
@@ -323,7 +320,7 @@ class EndpointFunc(Generic[P]):
 
                 @wraps(f)
                 async def wrapper(*args: Any, **kwargs: Any) -> RestResponse:
-                    with Lock(lock_name):
+                    async with AsyncLock(lock_name):
                         return await f(*args, **kwargs)
             else:
 

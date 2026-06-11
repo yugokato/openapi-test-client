@@ -931,11 +931,11 @@ class TestEndpointFuncCallWithLock:
 
         mock_request.side_effect = _request_side_effect
 
-        mock_lock_cls = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
+        mock_lock_cls = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.AsyncLock")
         mock_lock_instance = mocker.MagicMock()
         mock_lock_cls.return_value = mock_lock_instance
-        mock_lock_instance.__enter__ = mocker.MagicMock(side_effect=lambda: call_order.append("lock_enter"))
-        mock_lock_instance.__exit__ = mocker.MagicMock(side_effect=lambda *a: call_order.append("lock_exit"))
+        mock_lock_instance.__aenter__.side_effect = lambda: call_order.append("lock_enter")
+        mock_lock_instance.__aexit__.side_effect = lambda *a: call_order.append("lock_exit")
 
         instance = api_class_async(api_client_async)
         await instance.get_something.with_lock()()
@@ -1675,9 +1675,7 @@ class TestEndpointFuncCallWithChaining:
             "request",
             side_effect=[_make_httpx_response(503, mocker), _make_httpx_response(200, mocker)],
         )
-        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.Lock")
-        mock_lock.return_value.__enter__ = mocker.MagicMock(return_value=None)
-        mock_lock.return_value.__exit__ = mocker.MagicMock(return_value=False)
+        mock_lock = mocker.patch("openapi_test_client.libraries.core.endpoints.endpoint_func.AsyncLock")
 
         instance = api_class_async(api_client_async)
         r = await instance.get_something.with_lock().with_retry(condition=503, num_retries=1, retry_after=0)()
