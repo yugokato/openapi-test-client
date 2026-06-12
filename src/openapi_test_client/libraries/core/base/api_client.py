@@ -73,7 +73,7 @@ class APIClient:
         return self
 
     def __exit__(self, *args: Any) -> None:
-        self.rest_client.close()
+        self.close()
 
     async def __aenter__(self) -> Self:
         if not self.async_mode:
@@ -81,6 +81,26 @@ class APIClient:
         return self
 
     async def __aexit__(self, *args: Any) -> None:
+        await self.aclose()
+
+    def close(self) -> None:
+        """Close the underlying HTTP client and release its connection pool.
+
+        Safe to call multiple times. Prefer using the client as a context manager
+        (`with client: ...`) when possible.
+        """
+        if self.async_mode:
+            raise TypeError(f"{type(self).__name__} is in async mode. Use `await client.aclose()` instead.")
+        self.rest_client.close()
+
+    async def aclose(self) -> None:
+        """Asynchronously close the underlying HTTP client and release its connection pool.
+
+        Safe to call multiple times. Prefer using the client as an async context manager
+        (`async with client: ...`) when possible.
+        """
+        if not self.async_mode:
+            raise TypeError(f"{type(self).__name__} is in sync mode. Use `client.close()` instead.")
         await self.rest_client.close()
 
     @property

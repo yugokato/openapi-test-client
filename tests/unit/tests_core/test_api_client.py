@@ -127,6 +127,55 @@ class TestAPIClientContextManager:
             asyncio.run(_enter())
 
 
+class TestAPIClientClose:
+    """Tests for APIClient.close() and APIClient.aclose()"""
+
+    def test_close_delegates_to_rest_client(self, mocker: MockerFixture) -> None:
+        """Test that close() delegates to the underlying REST client's close method"""
+        mock_close = mocker.patch.object(Client, "close")
+        client = APIClient("myapp", base_url=BASE_URL)
+        client.close()
+        mock_close.assert_called_once()
+
+    def test_close_raises_in_async_mode(self) -> None:
+        """Test that close() raises TypeError when the client is in async mode"""
+        client = APIClient("myapp", base_url=BASE_URL, async_mode=True)
+        with pytest.raises(TypeError, match="async mode"):
+            client.close()
+
+    async def test_aclose_delegates_to_rest_client(self, mocker: MockerFixture) -> None:
+        """Test that aclose() delegates to the underlying async REST client's close method"""
+        mocker.patch.object(AsyncClient, "aclose")
+        rest_client = AsyncRestClient(BASE_URL)
+        mocker.patch.object(rest_client, "close", return_value=None)
+        client = APIClient("myapp", rest_client=rest_client, async_mode=True)
+        await client.aclose()
+        rest_client.close.assert_called_once()
+
+    def test_aclose_raises_in_sync_mode(self) -> None:
+        """Test that aclose() raises TypeError when the client is in sync mode"""
+        client = APIClient("myapp", base_url=BASE_URL)
+        with pytest.raises(TypeError, match="sync mode"):
+            asyncio.run(client.aclose())
+
+    def test_context_manager_exit_calls_close(self, mocker: MockerFixture) -> None:
+        """Test that __exit__ routes through the public close() method"""
+        mock_close = mocker.patch.object(APIClient, "close")
+        with APIClient("myapp", base_url=BASE_URL):
+            pass
+        mock_close.assert_called_once()
+
+    async def test_async_context_manager_exit_calls_aclose(self, mocker: MockerFixture) -> None:
+        """Test that __aexit__ routes through the public aclose() method"""
+        mocker.patch.object(AsyncClient, "aclose")
+        rest_client = AsyncRestClient(BASE_URL)
+        mocker.patch.object(rest_client, "close", return_value=None)
+        mock_aclose = mocker.patch.object(APIClient, "aclose", return_value=None)
+        async with APIClient("myapp", rest_client=rest_client, async_mode=True):
+            pass
+        mock_aclose.assert_called_once()
+
+
 class TestAPIClientBaseUrl:
     """Tests for the APIClient.base_url property setter"""
 
