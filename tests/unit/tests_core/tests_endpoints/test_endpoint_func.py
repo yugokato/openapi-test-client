@@ -1,4 +1,8 @@
-"""Unit tests for endpoints_func.py"""
+"""Unit tests for endpoints_func.py
+
+NOTE: Any tests related to endpoint function calls (__call__, stream(), with_xxx()) should be tested in
+test_endpoint_func_call.py
+"""
 
 import re
 from dataclasses import MISSING

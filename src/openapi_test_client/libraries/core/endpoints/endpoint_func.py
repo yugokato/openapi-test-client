@@ -440,9 +440,10 @@ class EndpointFunc(Generic[P]):
                         r = await f(*args, **kwargs)
                         if until(r):
                             return r
-                        if time.monotonic() + interval >= deadline:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
                             raise TimeoutError(msg)
-                        await asyncio.sleep(interval)
+                        await asyncio.sleep(min(interval, remaining))
 
             else:
 
@@ -453,9 +454,10 @@ class EndpointFunc(Generic[P]):
                         r = f(*args, **kwargs)
                         if until(r):
                             return r
-                        if time.monotonic() + interval >= deadline:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
                             raise TimeoutError(msg)
-                        time.sleep(interval)
+                        time.sleep(min(interval, remaining))
 
             return wrapper
 
@@ -589,13 +591,11 @@ class EndpointFunc(Generic[P]):
 
     async def _call_api_func(self, path: str, params: dict[str, Any]) -> RestResponse:
         if self.api_client.async_mode:
-            assert isinstance(self, AsyncEndpointFunc)
-            assert isinstance(self.executor, AsyncExecutor)
-            return await self.executor.execute(self, path, params)
+            async_self = cast(AsyncEndpointFunc[Any], self)
+            return await async_self.executor.execute(async_self, path, params)
         else:
-            assert isinstance(self, SyncEndpointFunc)
-            assert isinstance(self.executor, SyncExecutor)
-            return self.executor.execute(self, path, params)
+            sync_self = cast(SyncEndpointFunc[Any], self)
+            return sync_self.executor.execute(sync_self, path, params)
 
     def _with_call_wrapper(self, wrapper: Callable[[Callable[..., Any]], Callable[..., Any]]) -> Self:
         if self._terminal_wrapper is not None:

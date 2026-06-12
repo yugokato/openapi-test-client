@@ -1553,6 +1553,34 @@ class TestEndpointFuncCallWithPolling:
         instance.get_something.with_polling(until=lambda resp: resp.ok, timeout=0)()
         assert mock_request.call_count == 1
 
+    def test_sync_polling_does_not_timeout_early(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that with_polling() does not raise TimeoutError before the deadline when interval > timeout"""
+        mocker.patch.object(Client, "request")
+
+        # Simulate: t=0 (start), t=0.1 (after first call), t=0.9 (after sleep), t=1.1 (after second call → expired)
+        times = [0.0, 0.1, 0.9, 1.1]
+        mocker.patch("time.monotonic", side_effect=times)
+        sleep_mock = mocker.patch("time.sleep")
+
+        call_count = 0
+
+        def until(r: RestResponse) -> bool:
+            nonlocal call_count
+            call_count += 1
+            return call_count >= 2
+
+        instance = api_class(api_client)
+        result = instance.get_something.with_polling(until=until, interval=10, timeout=1.0)()
+
+        assert isinstance(result, RestResponse)
+        assert call_count == 2
+        # sleep was called with min(10, ~0.9) ≈ 0.9, not the full interval of 10
+        sleep_mock.assert_called_once()
+        slept = sleep_mock.call_args[0][0]
+        assert slept < 10
+
     async def test_async_returns_immediately_when_condition_met_on_first_call(
         self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
     ) -> None:
