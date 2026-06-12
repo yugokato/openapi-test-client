@@ -50,7 +50,7 @@ def create_endpoint_model(
     body_or_query_param_fields: list[DataclassModelField] = []
     try:
         resolved_hints = typing.get_type_hints(endpoint_func._original_func, include_extras=True)
-    except Exception as e:
+    except (NameError, TypeError, AttributeError) as e:
         func_name = f"{endpoint_func._owner.__name__}.{endpoint_func._original_func.__name__}"
         logger.warning(f"[{func_name}]: Failed to resolve type hints: {e}. Falling back to unresolved annotations.")
         resolved_hints = {}

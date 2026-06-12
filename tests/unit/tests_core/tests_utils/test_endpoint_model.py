@@ -344,6 +344,16 @@ class TestCreateEndpointModel:
         # Model was still built (using raw annotation from param_obj.annotation)
         assert "name" in model.__dataclass_fields__
 
+    def test_unexpected_error_from_get_type_hints_propagates(self, mocker: MockerFixture) -> None:
+        """Test that unexpected exceptions from get_type_hints() are not swallowed"""
+
+        def _f(self: Any, name: str) -> None: ...
+
+        ef = _FakeEndpointFunc(_f, path="/v1/test-unexpected-error")
+        mocker.patch.object(typing, "get_type_hints", side_effect=RuntimeError("something unexpected"))
+        with pytest.raises(RuntimeError, match="something unexpected"):
+            endpoint_model_util.create_endpoint_model(ef)
+
     def test_self_and_var_keyword_are_excluded(self) -> None:
         """Test that `self` and `**kwargs` parameters are not included in the model"""
 
