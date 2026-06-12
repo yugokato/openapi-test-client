@@ -47,14 +47,14 @@ class Executor(Generic[P], ABC):
 
 class SyncExecutor(Executor[P]):
     def execute(self, endpoint_func: SyncEndpointFunc[P], completed_path: str, params: dict[str, Any]) -> RestResponse:
-        rest_func = SyncExecutor.get_rest_func(endpoint_func, stream=False)
+        rest_func = Executor.get_rest_func(endpoint_func, stream=False)
         return rest_func(completed_path, **params)
 
     @contextmanager
     def execute_stream(
         self, endpoint_func: SyncEndpointFunc[P], completed_path: str, params: dict[str, Any]
     ) -> Generator[RestResponse]:
-        rest_func = SyncExecutor.get_rest_func(endpoint_func, stream=True)
+        rest_func = Executor.get_rest_func(endpoint_func, stream=True)
         with rest_func(completed_path, **params) as resp:
             yield resp
 
