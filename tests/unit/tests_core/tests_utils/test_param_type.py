@@ -251,3 +251,16 @@ class TestMatchesType:
     def test_matches_type(self, value: Any, tp: Any, is_valid: bool) -> None:
         """Test that a value can be validated if it conforms to the type annotation"""
         assert param_type_util.matches_type(value, tp) is is_valid
+
+    @pytest.mark.parametrize(
+        ("value", "tp", "expected"),
+        [
+            (["a", "b"], list[str], True),
+            ([1, 2], list[str], False),
+            ({"a": 1}, dict[str, int], True),
+            ({"a": "b"}, dict[str, int], False),
+        ],
+    )
+    def test_list_and_dict_element_type_checking(self, value: Any, tp: Any, expected: bool) -> None:
+        """Test that list and dict annotations validate element/key/value types correctly"""
+        assert param_type_util.matches_type(value, tp) is expected

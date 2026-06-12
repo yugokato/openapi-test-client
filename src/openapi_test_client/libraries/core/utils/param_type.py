@@ -66,12 +66,18 @@ def matches_type(value: Any, tp: Any) -> bool:
     if origin is list:
         if not isinstance(value, list):
             return False
-        (elem_type,) = get_args(tp)
+        list_args = get_args(tp)
+        if len(list_args) != 1:
+            return isinstance(value, list)
+        (elem_type,) = list_args
         return all(matches_type(v, elem_type) for v in value)
     if origin is dict:
         if not isinstance(value, dict):
             return False
-        k_type, v_type = get_args(tp)
+        dict_args = get_args(tp)
+        if len(dict_args) != 2:
+            return isinstance(value, dict)
+        k_type, v_type = dict_args
         return all(matches_type(k, k_type) for k in value.keys()) and all(
             matches_type(v, v_type) for v in value.values()
         )
