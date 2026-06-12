@@ -262,7 +262,11 @@ def generate_rest_func_params(
                     # Process alias name and query parameter
                     metadata = annotated_type.__metadata__
                     if alias_param := [x for x in metadata if isinstance(x, Alias)]:
-                        assert len(alias_param) == 1
+                        if len(alias_param) != 1:
+                            raise ValueError(
+                                f"Field '{param_name}' on {endpoint.model.__name__} has {len(alias_param)} "
+                                f"Alias metadata entries but exactly 1 is required."
+                            )
                         # Resolve the actual param name
                         param_name = alias_param[0].value
 

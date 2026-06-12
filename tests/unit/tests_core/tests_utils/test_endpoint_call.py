@@ -647,6 +647,12 @@ class TestGenerateRestFuncParams:
         assert "files" in result
         assert result.get("data") == {"unknown_a": "val_a", "unknown_b": 123}
 
+    def test_duplicate_alias_metadata_raises_value_error(self) -> None:
+        """Test that a field carrying more than one Alias metadata entry raises ValueError"""
+        endpoint = _make_endpoint({"field": Annotated[str, Alias("a"), Alias("b")]})
+        with pytest.raises(ValueError, match="exactly 1 is required"):
+            endpoint_call_util.generate_rest_func_params(endpoint, {"field": "val"}, {})
+
     def test_raw_options_param_name_does_not_appear_in_json_or_data(self) -> None:
         """Test that `endpoint_params["raw_options"]` is intercepted and not forwarded to json/data
 
