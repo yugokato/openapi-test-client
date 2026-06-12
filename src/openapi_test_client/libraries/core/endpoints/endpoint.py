@@ -35,10 +35,10 @@ class Endpoint(Generic[P]):
         return f"{self.method.upper()} {self.path}"
 
     def __eq__(self, obj: Any) -> bool:
-        return isinstance(obj, Endpoint) and str(self) == str(obj)
+        return isinstance(obj, Endpoint) and self.api_class is obj.api_class and str(self) == str(obj)
 
     def __hash__(self) -> int:
-        return hash(str(self))
+        return hash((self.api_class, str(self)))
 
     def __call__(self, api_client: APIClientT, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         """Make an API call directly from this endpoint obj to the associated endpoint using the given API client

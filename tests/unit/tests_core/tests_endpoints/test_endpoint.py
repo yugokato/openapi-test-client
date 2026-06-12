@@ -43,7 +43,7 @@ class TestEndpointObject:
         assert str(ep) == f"{ep.method.upper()} {ep.path}"
 
     def test_eq(self, api_class: type[APIBase]) -> None:
-        """Test that endpoints with same method+path are equal regardless of other fields"""
+        """Test that endpoints with the same api_class, method, and path are equal regardless of func_name"""
         ep = api_class.get_something.endpoint
         other = Endpoint(
             api_class=ep.api_class,
@@ -76,10 +76,40 @@ class TestEndpointObject:
         )
         assert ep != different_method
 
-    def test_hash_matches_str_hash(self, api_class: type[APIBase]) -> None:
-        """Test that Endpoint hash matches hash of its str representation"""
+    def test_hash_is_stable_and_consistent(self, api_class: type[APIBase]) -> None:
+        """Test that Endpoint hash is stable (same value each call) and consistent between equal endpoints"""
         ep = api_class.get_something.endpoint
-        assert hash(ep) == hash(str(ep))
+        other = Endpoint(
+            api_class=ep.api_class,
+            method=ep.method,
+            path=ep.path,
+            func_name="different_name",
+            model=ep.model,
+        )
+        assert hash(ep) == hash(ep)
+        assert ep == other
+        assert hash(ep) == hash(other)
+
+    def test_eq_different_api_class_not_equal(self, api_client: APIClient) -> None:
+        """Test that endpoints with the same method and path on different API classes are not equal"""
+
+        class API1(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/shared")
+            def shared_endpoint(self) -> RestResponse: ...
+
+        class API2(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/shared")
+            def shared_endpoint(self) -> RestResponse: ...
+
+        ep1 = API1.shared_endpoint.endpoint
+        ep2 = API2.shared_endpoint.endpoint
+
+        assert ep1 != ep2
+        assert hash(ep1) != hash(ep2)
 
     def test_is_frozen(self, api_class: type[APIBase]) -> None:
         """Test that Endpoint is a frozen dataclass and attributes cannot be modified"""
