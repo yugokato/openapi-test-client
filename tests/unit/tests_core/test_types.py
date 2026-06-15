@@ -46,15 +46,18 @@ class TestMultipartFormData:
     """Tests for the MultipartFormData MutableMapping wrapper"""
 
     @pytest.fixture(scope="class")
-    def logo(self) -> File:
+    @classmethod
+    def logo(cls) -> File:
         return File("logo.png", b"logo-content", "image/png")
 
     @pytest.fixture(scope="class")
-    def favicon(self) -> File:
+    @classmethod
+    def favicon(cls) -> File:
         return File("favicon.ico", b"fav-content", "image/x-icon")
 
     @pytest.fixture(scope="class")
-    def dict_file(self) -> dict[str, Any]:
+    @classmethod
+    def dict_file(cls) -> dict[str, Any]:
         return {"filename": "data.csv", "content": b"col1,col2", "content_type": "text/csv"}
 
     def test_init_with_file_objects(self, logo: File, favicon: File) -> None:
