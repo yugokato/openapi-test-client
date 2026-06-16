@@ -39,10 +39,14 @@ Define an API endpoint by annotating a class method with `@endpoint.<method>("/p
 
 ```python
 from openapi_test_client.libraries.core import endpoint
+from openapi_test_client.libraries.core.types import RestResponse
+
+from .base.my_app import MyAppBaseAPI
 
 
 class UsersAPI(MyAppBaseAPI):
     """User APIs"""
+    
     @endpoint.get("/users/{user_id}")
     def get_user(self, user_id: int, include_posts: bool = False) -> RestResponse:
         """Get a user by ID"""
@@ -68,7 +72,7 @@ assumes a fictional "my-app" service at `https://api.example.com`.
 Define an app-level base class with an `app_name`, optionally with shared request/response hooks and request wrappers:
 
 ```python
-# myproject/clients/my_app/api/base/my_app_api.py
+# myproject/clients/my_app/api/base/my_app.py
 
 from openapi_test_client.libraries.core import APIBase
 
@@ -96,7 +100,7 @@ from typing import Annotated, Unpack
 from openapi_test_client.libraries.core import endpoint
 from openapi_test_client.libraries.core.types import RestResponse, Kwargs, Query, Unset
 
-from .base.my_app_api import MyAppBaseAPI
+from .base.my_app import MyAppBaseAPI
 
 
 class AuthAPI(MyAppBaseAPI):
@@ -135,7 +139,7 @@ from typing import Unpack
 from openapi_test_client.libraries.core import endpoint
 from openapi_test_client.libraries.core.types import RestResponse, Kwargs, Unset
 
-from .base.my_app_api import MyAppBaseAPI
+from .base.my_app import MyAppBaseAPI
 
 
 class UsersAPI(MyAppBaseAPI):
