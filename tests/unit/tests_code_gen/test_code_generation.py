@@ -274,9 +274,7 @@ class TestGenerateApiClient:
         # Make an API request using a mocked RestAPI client function call
         rest_client = api_client.rest_client
         assert hasattr(NewAPIClass1, "_unnamed_endpoint_1")
-        mock = mocker.patch(
-            f"{rest_client.__module__}.{type(rest_client).__name__}._{NewAPIClass1._unnamed_endpoint_1.method}"
-        )
+        mock = mocker.patch(f"{rest_client.__module__}.{type(rest_client).__name__}._request")
         api_client.TestSomething1._unnamed_endpoint_1()
         mock.assert_called_once()
 

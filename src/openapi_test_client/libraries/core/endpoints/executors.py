@@ -38,10 +38,8 @@ class Executor(Generic[P], ABC):
         | Callable[..., AsyncGenerator[RestResponse]]
     ):
         rest_client: RestClient | AsyncRestClient = endpoint_func.rest_client
-        if stream:
-            rest_func = partial(getattr(rest_client, "stream"), endpoint_func.endpoint.method.upper())
-        else:
-            rest_func = getattr(rest_client, f"_{endpoint_func.method}")
+        func_name = "stream" if stream else "_request"
+        rest_func = partial(getattr(rest_client, func_name), endpoint_func.endpoint.method.upper())
         return rest_func
 
 

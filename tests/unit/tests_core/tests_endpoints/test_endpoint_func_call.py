@@ -206,7 +206,7 @@ class TestSyncEndpointFuncCall:
 
             @endpoint.get("/v1/something")
             def get_something(self) -> RestResponse:
-                return self.api_client.rest_client._get("/v1/something")
+                return self.api_client.rest_client._request("GET", "/v1/something")
 
         instance = SyncCustomAPI(api_client)
         r = instance.get_something()
@@ -485,7 +485,7 @@ class TestAsyncEndpointFuncCall:
 
             @endpoint.get("/v1/something")
             def get_something(self) -> RestResponse:
-                return self.api_client.rest_client._get("/v1/something")
+                return self.api_client.rest_client._request("GET", "/v1/something")
 
         instance = AsyncCustomAPI(api_client_async)
         r = await instance.get_something()
