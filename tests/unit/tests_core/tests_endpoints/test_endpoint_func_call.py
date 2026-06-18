@@ -1560,9 +1560,10 @@ class TestEndpointFuncCallWithPolling:
         mocker.patch.object(Client, "request")
 
         # Simulate: t=0 (start), t=0.1 (after first call), t=0.9 (after sleep), t=1.1 (after second call → expired)
-        times = [0.0, 0.1, 0.9, 1.1]
-        mocker.patch("time.monotonic", side_effect=times)
-        sleep_mock = mocker.patch("time.sleep")
+        mock_time = mocker.MagicMock()
+        mock_time.monotonic.side_effect = [0.0, 0.1, 0.9, 1.1]
+        mocker.patch.object(_endpoint_func_module, "time", mock_time)
+        sleep_mock = mock_time.sleep
 
         call_count = 0
 
