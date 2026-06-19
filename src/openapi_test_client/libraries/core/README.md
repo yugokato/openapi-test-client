@@ -727,7 +727,7 @@ Stats.show()  # all calls ever made
 Scopes can be nested: an inner `collect()` block sees only its own calls, while the outer scope accumulates both.
 
 For a one-off scoped report on a single endpoint, the `with_stats()` wrapper is a shortcut for the above: it opens a
-scoped collector around the call and prints the report (filtered to that endpoint)once the call completes:
+scoped collector around the call and prints the report (filtered to that endpoint) once the call completes:
 
 ```python
 r = client.Auth.login.with_stats().with_concurrency(num=10)(username="foo", password="bar")
