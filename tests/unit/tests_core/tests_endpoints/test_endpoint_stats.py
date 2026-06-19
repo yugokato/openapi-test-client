@@ -16,8 +16,8 @@ from unittest.mock import MagicMock
 import pytest
 from common_libs.ansi_colors import ColorCodes
 from common_libs.clients.rest_client import RestResponse
-from common_libs.clients.rest_client.ext import ResponseExt
-from httpx import AsyncClient, Client, ConnectError, Request
+from common_libs.clients.rest_client.types import Request, Response
+from httpx import AsyncClient, Client, ConnectError
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries.core.base import APIBase, APIClient
@@ -41,7 +41,7 @@ _APP_NAME = "test"
 
 def _make_mock_response(mocker: MockerFixture, status_code: int = 200, response_time: float = 0.1) -> MagicMock:
     """Return a mock ResponseExt configured to produce a valid RestResponse."""
-    mock = mocker.MagicMock(spec=ResponseExt)
+    mock = mocker.MagicMock(spec=Response)
     mock.status_code = status_code
     mock.is_success = 200 <= status_code < 300
     mock.is_stream = False

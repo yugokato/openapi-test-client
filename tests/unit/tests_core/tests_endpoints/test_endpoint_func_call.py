@@ -10,11 +10,11 @@ from uuid import uuid4
 
 import pytest
 from common_libs.clients.rest_client import RestResponse
-from common_libs.clients.rest_client.ext import RequestExt, ResponseExt
+from common_libs.clients.rest_client.types import Request, Response
 from common_libs.clients.rest_client.utils import retry_on, set_request_to_exception
 from common_libs.lock import AsyncLock, Lock
 from filelock import Timeout as FileLockTimeout
-from httpx import AsyncClient, Client, ConnectError, HTTPError, Request
+from httpx import AsyncClient, Client, ConnectError, HTTPError
 from pytest_mock import MockerFixture
 
 import openapi_test_client.libraries.core.endpoints.endpoint_func as _endpoint_func_module
@@ -63,10 +63,11 @@ class TestSyncEndpointFuncCall:
         """Test that pre_request_hook and post_request_hook are called during sync execution"""
         call_stack: list[str] = []
 
-        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> ResponseExt:
+        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> Response:
             call_stack.append("call")
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
+            mock_response.is_stream = False
             return mock_response
 
         mocker.patch.object(Client, "request", side_effect=mock_httpx_side_effect)
@@ -95,10 +96,11 @@ class TestSyncEndpointFuncCall:
         """Test that endpoint decorators and request wrappers fire in correct order in sync mode"""
         call_stack: list[str] = []
 
-        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> ResponseExt:
+        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> Response:
             call_stack.append("call")
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
+            mock_response.is_stream = False
             return mock_response
 
         mocker.patch.object(Client, "request", side_effect=mock_httpx_side_effect)
@@ -342,10 +344,11 @@ class TestAsyncEndpointFuncCall:
         """Test that pre_request_hook and post_request_hook are called during async execution"""
         call_stack: list[str] = []
 
-        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> ResponseExt:
+        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> Response:
             call_stack.append("call")
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
+            mock_response.is_stream = False
             return mock_response
 
         mocker.patch.object(AsyncClient, "request", side_effect=mock_httpx_side_effect)
@@ -374,10 +377,11 @@ class TestAsyncEndpointFuncCall:
         """Test that endpoint decorators and request wrappers fire in correct order in async mode"""
         call_stack: list[str] = []
 
-        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> ResponseExt:
+        def mock_httpx_side_effect(*args: Any, **kwargs: Any) -> Response:
             call_stack.append("call")
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
+            mock_response.is_stream = False
             return mock_response
 
         mocker.patch.object(AsyncClient, "request", side_effect=mock_httpx_side_effect)
@@ -2101,9 +2105,9 @@ def _make_stream_response() -> MagicMock:
     return r
 
 
-def _make_httpx_response(status_code: int, mocker: MockerFixture) -> ResponseExt:
+def _make_httpx_response(status_code: int, mocker: MockerFixture) -> Response:
     """Build a minimal mock httpx response with the given status code."""
-    r = mocker.MagicMock(spec=ResponseExt)
+    r = mocker.MagicMock(spec=Response)
     r.status_code = status_code
     r.headers = {}
     r.content = b""
@@ -2124,5 +2128,5 @@ def _raise_with_request(exc: Exception, method: str) -> NoReturn:
     :param exc: Exception to raise
     :param method: HTTP method string (e.g. "GET", "POST") to embed in the attached request
     """
-    set_request_to_exception(exc, RequestExt(method, "https://example.com/api/v1/something"))
+    set_request_to_exception(exc, Request(method, "https://example.com/api/v1/something"))
     raise exc

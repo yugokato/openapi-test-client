@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from common_libs.clients.rest_client import RestResponse
-from common_libs.clients.rest_client.ext import ResponseExt
+from common_libs.clients.rest_client.types import Response
 from httpx import AsyncClient, Client
 from pytest_mock import MockerFixture
 
@@ -21,8 +21,9 @@ pytestmark = [pytest.mark.unittest]
 def _mock_response(mocker: MockerFixture, *, is_async: bool = False) -> Any:
     """Patch httpx Client.request (or AsyncClient.request) to return a 200 mock."""
     cls = AsyncClient if is_async else Client
-    mock_response = mocker.MagicMock(spec=ResponseExt)
+    mock_response = mocker.MagicMock(spec=Response)
     mock_response.status_code = 200
+    mock_response.is_stream = False
     mocker.patch.object(cls, "request", return_value=mock_response)
 
 
@@ -83,10 +84,11 @@ class TestValidateKwargOnCall:
         """Test that validate= kwarg does not appear in the outgoing HTTP request body"""
         captured: dict[str, Any] = {}
 
-        def capture_request(*args: Any, **kwargs: Any) -> ResponseExt:
+        def capture_request(*args: Any, **kwargs: Any) -> Response:
             captured.update(kwargs)
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
+            mock_response.is_stream = False
             return mock_response
 
         mocker.patch.object(Client, "request", side_effect=capture_request)
@@ -173,9 +175,10 @@ class TestValidateKwargOnStream:
         monkeypatch.setenv("VALIDATION_MODE", "true")
 
         def mock_stream(*args: Any, **kwargs: Any) -> Any:
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
             mock_response.is_closed = True
+            mock_response.is_stream = True
             return mocker.MagicMock(__enter__=lambda s: mock_response, __exit__=lambda s, *a: None)
 
         mocker.patch.object(Client, "stream", side_effect=mock_stream)
@@ -195,7 +198,7 @@ class TestValidateKwargOnStream:
         monkeypatch.setenv("VALIDATION_MODE", "true")
 
         def mock_stream(*args: Any, **kwargs: Any) -> Any:
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
             mock_response.is_closed = True
             return mocker.MagicMock(__enter__=lambda s: mock_response, __exit__=lambda s, *a: None)
@@ -224,9 +227,10 @@ class TestValidateKwargOnStream:
         """Test that stream validate=False (default) does not raise for invalid param types"""
 
         def mock_stream(*args: Any, **kwargs: Any) -> Any:
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
             mock_response.is_closed = True
+            mock_response.is_stream = True
             return mocker.MagicMock(__enter__=lambda s: mock_response, __exit__=lambda s, *a: None)
 
         mocker.patch.object(Client, "stream", side_effect=mock_stream)
@@ -243,9 +247,10 @@ class TestValidateKwargOnStream:
 
         def capture_stream(*args: Any, **kwargs: Any) -> Any:
             captured.update(kwargs)
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
             mock_response.is_closed = True
+            mock_response.is_stream = True
             return mocker.MagicMock(__enter__=lambda s: mock_response, __exit__=lambda s, *a: None)
 
         mocker.patch.object(Client, "stream", side_effect=capture_stream)
@@ -317,10 +322,11 @@ class TestValidateKwargOnAsyncCall:
         """Test that validate= kwarg does not appear in the outgoing async HTTP request"""
         captured: dict[str, Any] = {}
 
-        async def capture_request(*args: Any, **kwargs: Any) -> ResponseExt:
+        async def capture_request(*args: Any, **kwargs: Any) -> Response:
             captured.update(kwargs)
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
+            mock_response.is_stream = False
             return mock_response
 
         mocker.patch.object(AsyncClient, "request", side_effect=capture_request)
@@ -346,9 +352,10 @@ class TestValidateKwargOnAsyncStream:
         monkeypatch.setenv("VALIDATION_MODE", "true")
 
         def mock_stream(*args: Any, **kwargs: Any) -> Any:
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
             mock_response.is_closed = True
+            mock_response.is_stream = True
 
             async def aenter(s: Any) -> Any:
                 return mock_response
@@ -400,9 +407,10 @@ class TestValidateKwargOnAsyncStream:
         """Test that async stream validate=False does not raise for invalid params"""
 
         def mock_stream(*args: Any, **kwargs: Any) -> Any:
-            mock_response = mocker.MagicMock(spec=ResponseExt)
+            mock_response = mocker.MagicMock(spec=Response)
             mock_response.status_code = 200
             mock_response.is_closed = True
+            mock_response.is_stream = True
 
             async def aenter(s: Any) -> Any:
                 return mock_response
