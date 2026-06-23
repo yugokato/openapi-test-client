@@ -627,7 +627,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
     @requires_instance
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> RestResponse:
         """Make a sync API call to the endpoint"""
-        return asyncio.run(super().__call__(*args, **kwargs))
+        return self._run_coroutine_sync(super().__call__(*args, **kwargs))
 
     @_as_response_stream
     @contextmanager
@@ -764,6 +764,27 @@ class SyncEndpointFunc(EndpointFunc[P]):
             raise
         finally:
             self._run_post_hook(r, exception, with_hooks, path_params, body_or_query_params)
+
+    @staticmethod
+    def _run_coroutine_sync(coro: Coroutine[Any, Any, _R]) -> _R:
+        """Drive a non-suspending coroutine to completion without an event loop.
+
+        The sync request path is async-shaped only to share `EndpointFunc._call` with the async path.
+        In sync mode none of its awaits suspend (the sync executor performs blocking I/O), so stepping
+        the coroutine directly avoids per-call event loop creation. This is also what allows a custom
+        sync endpoint body to call another sync endpoint (re-entrant/nested call) without hitting
+        `asyncio.run() cannot be called from a running event loop`.
+
+        :param coro: A coroutine that completes without ever suspending on the event loop
+        """
+        try:
+            coro.send(None)
+        except StopIteration as e:
+            return cast(_R, e.value)
+        coro.close()
+        raise RuntimeError(
+            "A sync API call unexpectedly awaited a real async operation. Use async_mode=True for async execution."
+        )
 
 
 class AsyncEndpointFunc(EndpointFunc[P]):

@@ -1,5 +1,6 @@
 """Unit tests for endpoints_func.py (func calls)"""
 
+import asyncio
 import re
 from collections.abc import Callable, Generator
 from contextlib import asynccontextmanager, contextmanager
@@ -267,6 +268,37 @@ class TestSyncEndpointFuncCall:
             instance.get_something()
 
         assert post_hook_called is True
+
+    def test_sync_call_works_inside_running_event_loop(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that a sync endpoint call succeeds even when invoked from within a running event loop"""
+        mocker.patch.object(Client, "request")
+        instance = api_class(api_client)
+
+        async def _call() -> RestResponse:
+            return instance.get_something()
+
+        r = asyncio.run(_call())
+        assert isinstance(r, RestResponse)
+
+    def test_sync_call_supports_nested_endpoint_call(self, mocker: MockerFixture, api_client: APIClient) -> None:
+        """Test that a custom sync endpoint body can call another sync endpoint (re-entrant call)"""
+        mocker.patch.object(Client, "request")
+
+        class NestedAPI(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/inner")
+            def get_inner(self) -> RestResponse: ...
+
+            @endpoint.get("/v1/outer")
+            def get_outer(self) -> RestResponse:
+                return self.get_inner()
+
+        instance = NestedAPI(api_client)
+        r = instance.get_outer()
+        assert isinstance(r, RestResponse)
 
     def test_sync_with_concurrency_makes_multiple_calls(
         self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
