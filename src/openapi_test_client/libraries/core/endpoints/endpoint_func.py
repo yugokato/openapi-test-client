@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Coroutine, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import copy_context
 from copy import copy
@@ -242,7 +242,7 @@ class EndpointFunc(Generic[P]):
         except HTTPError as e:
             exception = e
             raise
-        except Exception:
+        except BaseException:
             with_hooks = False
             raise
         finally:
@@ -759,7 +759,7 @@ class SyncEndpointFunc(EndpointFunc[P]):
         except HTTPError as e:
             exception = e
             raise
-        except (Exception, KeyboardInterrupt):
+        except BaseException:
             with_hooks = False
             raise
         finally:
@@ -823,7 +823,8 @@ class AsyncEndpointFunc(EndpointFunc[P]):
             @wraps(f)
             async def wrapper(*args: Any, **kwargs: Any) -> list[RestResponse] | list[RestResponse | Exception]:
                 if return_exceptions:
-
+                    # Catch only Exception so BaseException/CancelledError still propagate.
+                    # asyncio.gather(return_exceptions=True) would capture and suppress them.
                     async def safe_f(*a: Any, **kw: Any) -> RestResponse | Exception:
                         try:
                             return await f(*a, **kw)
@@ -841,12 +842,10 @@ class AsyncEndpointFunc(EndpointFunc[P]):
                         async with sem:
                             return await target(*args, **kwargs)
 
-                    async with asyncio.TaskGroup() as tg:
-                        tasks = [tg.create_task(_run()) for _ in range(num)]
+                    coros = [_run() for _ in range(num)]
                 else:
-                    async with asyncio.TaskGroup() as tg:
-                        tasks = [tg.create_task(target(*args, **kwargs)) for _ in range(num)]
-                return [t.result() for t in tasks]
+                    coros = [target(*args, **kwargs) for _ in range(num)]
+                return list(await asyncio.gather(*coros))
 
             return wrapper
 
@@ -931,7 +930,7 @@ class AsyncEndpointFunc(EndpointFunc[P]):
         except HTTPError as e:
             exception = e
             raise
-        except (Exception, KeyboardInterrupt):
+        except BaseException:
             with_hooks = False
             raise
         finally:

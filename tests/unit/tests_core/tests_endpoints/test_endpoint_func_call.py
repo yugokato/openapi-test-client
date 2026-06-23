@@ -296,6 +296,16 @@ class TestSyncEndpointFuncCall:
         assert all(isinstance(r, ValueError) for r in results)
         assert Client.request.call_count == 3
 
+    def test_sync_with_concurrency_propagates_bare_exception(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that with_concurrency propagates a bare exception (not wrapped) when return_exceptions=False"""
+        mocker.patch.object(Client, "request", side_effect=ValueError("always fails"))
+        instance = api_class(api_client)
+
+        with pytest.raises(ValueError, match="always fails"):
+            instance.get_something.with_concurrency(num=3)()
+
     def test_sync_call_uses_endpoint_path(self, mocker: MockerFixture, api_client: APIClient) -> None:
         """Test that the sync endpoint call uses the configured endpoint path"""
         mock_httpx_request = mocker.patch.object(Client, "request")
@@ -556,7 +566,7 @@ class TestAsyncEndpointFuncCall:
     async def test_async_with_concurrency_makes_multiple_calls(
         self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
     ) -> None:
-        """Test that with_concurrency in async mode issues N concurrent HTTP requests via TaskGroup"""
+        """Test that with_concurrency in async mode issues N concurrent HTTP requests via asyncio.gather"""
         mock_httpx_request = mocker.patch.object(AsyncClient, "request")
         instance = api_class_async(api_client_async)
         endpoint_func = instance.get_something
@@ -580,6 +590,20 @@ class TestAsyncEndpointFuncCall:
         assert len(results) == 3
         assert all(isinstance(r, ValueError) for r in results)
         assert AsyncClient.request.call_count == 3
+
+    async def test_async_with_concurrency_propagates_bare_exception(
+        self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
+    ) -> None:
+        """Test that async with_concurrency propagates a bare exception when return_exceptions=False.
+
+        Confirms parity with the sync path: the exception should be a plain exception, not wrapped in
+        an ExceptionGroup.
+        """
+        mocker.patch.object(AsyncClient, "request", side_effect=ValueError("always fails"))
+        instance = api_class_async(api_client_async)
+
+        with pytest.raises(ValueError, match="always fails"):
+            await instance.get_something.with_concurrency(num=3)()
 
     async def test_async_call_uses_endpoint_path(self, mocker: MockerFixture, api_client_async: APIClient) -> None:
         """Test that the async endpoint call uses the configured endpoint path"""
