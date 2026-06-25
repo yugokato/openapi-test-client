@@ -2,7 +2,7 @@
 #   docker build -f src/demo_app/Dockerfile . -t demo_app
 #
 # Run:
-#   docker run -p 5000:5000 demo_app
+#   docker run -p 8000:8000 demo_app
 
 FROM python:3.13-slim
 
@@ -22,4 +22,4 @@ RUN SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0 uv pip install --system ".[app]"
 RUN useradd -m demo && chown -R demo:demo /app
 USER demo
 
-CMD ["hypercorn", "demo_app:app", "--bind", "0.0.0.0:5000", "--access-logfile", "-"]
+CMD ["fastapi", "run", "src/demo_app"]
