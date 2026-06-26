@@ -10,7 +10,7 @@ from functools import cache, partial, wraps
 from typing import TYPE_CHECKING, Any, Concatenate, Generic, Literal, ParamSpec, Self, TypeVar, cast, overload
 
 from common_libs.clients.rest_client import RestClient
-from common_libs.clients.rest_client.utils import retry_on
+from common_libs.clients.rest_client.retry import BackoffStrategy, retry_on
 from common_libs.job_executor import Job, run_concurrent
 from common_libs.lock import AsyncLock, Lock
 from common_libs.logging import get_logger
@@ -264,11 +264,10 @@ class EndpointFunc(Generic[P]):
         self,
         condition: int
         | type[Exception]
-        | Sequence[int]
-        | Sequence[type[Exception]]
+        | Sequence[int | type[Exception]]
         | Callable[[RestResponse | Exception], bool] = lambda r: not r.ok,
         num_retries: int = 1,
-        retry_after: float | int | Callable[[RestResponse | Exception], float | int] = 5,
+        retry_after: float | int | Callable[[RestResponse | Exception], float | int] | BackoffStrategy = 5,
         safe_methods_only: bool = False,
     ) -> Self:
         """Return a configured, chainable endpoint func that retries on the given condition.
@@ -279,7 +278,9 @@ class EndpointFunc(Generic[P]):
         :param condition: Either status code(s), a callable that takes the response object, or an exception class
                           (or tuple of exception classes) to retry on when raised
         :param num_retries: The max number of retries
-        :param retry_after: A short wait time in seconds before a retry
+        :param retry_after: Wait time in seconds before each retry. Accepts a number, a callable
+                            `(response | exception) -> float`, or a `BackoffStrategy` instance for exponential backoff
+                            with optional jitter.
         :param safe_methods_only: Only retry for safe HTTP methods (GET, HEAD, OPTIONS)
         """
 

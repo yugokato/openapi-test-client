@@ -11,22 +11,18 @@ from uuid import uuid4
 
 import pytest
 from common_libs.clients.rest_client import RestResponse
+from common_libs.clients.rest_client.retry import retry_on
 from common_libs.clients.rest_client.types import Request, Response
-from common_libs.clients.rest_client.utils import retry_on, set_request_to_exception
+from common_libs.clients.rest_client.utils import set_request_to_exception
 from common_libs.lock import AsyncLock, Lock
 from filelock import Timeout as FileLockTimeout
-from httpx import AsyncClient, Client, ConnectError, HTTPError
+from httpx import AsyncClient, Client, ConnectError, HTTPError, HTTPStatusError
 from pytest_mock import MockerFixture
 
 import openapi_test_client.libraries.core.endpoints.endpoint_func as _endpoint_func_module
 import openapi_test_client.libraries.core.utils.endpoint_call as endpoint_call_util
 from openapi_test_client.libraries.core.base import APIBase, APIClient
-from openapi_test_client.libraries.core.endpoints import (
-    AsyncEndpointFunc,
-    Stats,
-    SyncEndpointFunc,
-    endpoint,
-)
+from openapi_test_client.libraries.core.endpoints import AsyncEndpointFunc, Stats, SyncEndpointFunc, endpoint
 from openapi_test_client.libraries.core.endpoints.executors import AsyncExecutor, SyncExecutor
 from openapi_test_client.libraries.core.endpoints.stats import StatsCollector
 from openapi_test_client.libraries.core.types import Unset
