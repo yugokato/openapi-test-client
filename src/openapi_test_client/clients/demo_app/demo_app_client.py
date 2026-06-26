@@ -19,9 +19,23 @@ class DemoAppAPIClient(OpenAPIClient):
     """
 
     def __init__(
-        self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, **kwargs: Any
+        self,
+        *,
+        env: str = "dev",
+        base_url: str | None = None,
+        async_mode: bool = False,
+        raise_on_error: bool = False,
+        **kwargs: Any,
     ) -> None:
-        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode, **kwargs)
+        super().__init__(
+            "demo_app",
+            env=env,
+            base_url=base_url,
+            doc="openapi.json",
+            async_mode=async_mode,
+            raise_on_error=raise_on_error,
+            **kwargs,
+        )
 
     @cached_property
     def Auth(self) -> AuthAPI:

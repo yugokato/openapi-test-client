@@ -2149,6 +2149,115 @@ class TestEndpointFuncCallWithStats:
         assert "GET /v1/something" not in output
 
 
+class TestEndpointFuncCallRaiseOnError:
+    """Tests for APIClient.raise_on_error flag and its interaction with the request lifecycle"""
+
+    def test_sync_non_2xx_raises_http_status_error_when_flag_enabled(
+        self, mocker: MockerFixture, api_class: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that a non-2xx response raises HTTPStatusError when raise_on_error=True"""
+        client = api_client_factory(raise_on_error=True)
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(404, mocker))
+        instance = api_class(client)
+
+        with pytest.raises(HTTPStatusError):
+            instance.get_something()
+
+    def test_sync_2xx_does_not_raise_when_flag_enabled(
+        self, mocker: MockerFixture, api_class: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that a 2xx response does not raise even when raise_on_error=True"""
+        client = api_client_factory(raise_on_error=True)
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class(client)
+
+        r = instance.get_something()
+        assert isinstance(r, RestResponse)
+        assert r.status_code == 200
+
+    def test_sync_non_2xx_does_not_raise_when_flag_disabled(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that a non-2xx response is returned normally when raise_on_error=False (default)"""
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(404, mocker))
+        instance = api_class(api_client)
+
+        r = instance.get_something()
+        assert isinstance(r, RestResponse)
+        assert r.status_code == 404
+
+    def test_sync_raise_on_error_does_not_prevent_retry_from_seeing_responses(
+        self, mocker: MockerFixture, api_class: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that raise_on_error=True with with_retry still retries on matching responses.
+
+        The raise must fire AFTER retry has consumed responses, not before. A 503-then-200
+        sequence must retry and succeed rather than raising on the first 503.
+        """
+        client = api_client_factory(raise_on_error=True)
+        mocker.patch.object(
+            Client,
+            "request",
+            side_effect=[_make_httpx_response(503, mocker), _make_httpx_response(200, mocker)],
+        )
+        instance = api_class(client)
+
+        r = instance.get_something.with_retry(condition=503, num_retries=1, retry_after=0)()
+
+        assert isinstance(r, RestResponse)
+        assert r.status_code == 200
+        assert Client.request.call_count == 2
+
+    def test_sync_raise_on_error_raises_after_all_retries_exhausted(
+        self, mocker: MockerFixture, api_class: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that raise_on_error=True raises only after retries are exhausted"""
+        client = api_client_factory(raise_on_error=True)
+        mocker.patch.object(
+            Client,
+            "request",
+            side_effect=[
+                _make_httpx_response(503, mocker),
+                _make_httpx_response(503, mocker),
+            ],
+        )
+        instance = api_class(client)
+
+        with pytest.raises(HTTPStatusError):
+            instance.get_something.with_retry(condition=503, num_retries=1, retry_after=0)()
+
+        assert Client.request.call_count == 2
+
+    async def test_async_non_2xx_raises_http_status_error_when_flag_enabled(
+        self, mocker: MockerFixture, api_class_async: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that async mode non-2xx raises HTTPStatusError when raise_on_error=True"""
+        client = api_client_factory(async_mode=True, raise_on_error=True)
+        mocker.patch.object(AsyncClient, "request", return_value=_make_httpx_response(500, mocker))
+        instance = api_class_async(client)
+
+        with pytest.raises(HTTPStatusError):
+            await instance.get_something()
+
+    async def test_async_raise_on_error_does_not_prevent_retry_from_seeing_responses(
+        self, mocker: MockerFixture, api_class_async: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that async raise_on_error=True with with_retry still retries on matching responses"""
+        client = api_client_factory(async_mode=True, raise_on_error=True)
+        mocker.patch.object(
+            AsyncClient,
+            "request",
+            side_effect=[_make_httpx_response(503, mocker), _make_httpx_response(200, mocker)],
+        )
+        instance = api_class_async(client)
+
+        r = await instance.get_something.with_retry(condition=503, num_retries=1, retry_after=0)()
+
+        assert isinstance(r, RestResponse)
+        assert r.status_code == 200
+        assert AsyncClient.request.call_count == 2
+
+
 def _make_stream_response() -> MagicMock:
     """Return a MagicMock that looks like a streaming RestResponse."""
     r = MagicMock(spec=RestResponse)
@@ -2161,6 +2270,7 @@ def _make_httpx_response(status_code: int, mocker: MockerFixture) -> Response:
     """Build a minimal mock httpx response with the given status code."""
     r = mocker.MagicMock(spec=Response)
     r.status_code = status_code
+    r.is_success = status_code < 300
     r.headers = {}
     r.content = b""
     r.is_stream = False
@@ -2168,6 +2278,8 @@ def _make_httpx_response(status_code: int, mocker: MockerFixture) -> Response:
     r.elapsed.total_seconds.return_value = 0.0
     r.json.return_value = {}
     r.text = ""
+    if status_code >= 300:
+        r.raise_for_status.side_effect = HTTPStatusError(str(status_code), request=mocker.MagicMock(), response=r)
     return r
 
 

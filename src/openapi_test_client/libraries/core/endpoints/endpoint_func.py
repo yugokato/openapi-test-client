@@ -161,8 +161,12 @@ class EndpointFunc(Generic[P]):
                     my_class.__call__ = decorator()(my_class.__call__)  # type: ignore[method-assign]
                 else:
                     my_class.__call__ = decorator(my_class.__call__)  # type: ignore[method-assign]
-            # Snapshot the fully-decorated __call__ as the base that with_xxx() wrappers compose around
+            # Snapshot the fully-decorated __call__ as the base that with_xxx() wrappers compose around.
+            # This must remain unwrapped so that with_xxx() chains compose on the clean base; the
+            # raise_on_error wrapper (if active) is applied separately as the outermost layer below.
             self._base_call = my_class.__call__
+            if instance.api_client.raise_on_error:
+                my_class.__call__ = self._make_raise_on_error_wrapper(self._base_call)  # type: ignore[method-assign]
 
     def __repr__(self) -> str:
         return f"{super().__repr__()}\n(mapped to: {self._original_func!r})"
@@ -612,9 +616,43 @@ class EndpointFunc(Generic[P]):
         call = _self._base_call
         for call_wrapper in reversed(_self._call_wrappers):
             call = call_wrapper(call)
+        # Apply raise_on_error as the absolute outermost layer so that stats and retry logic
+        # always see responses (not pre-raised exceptions) before the raise fires.
+        if _self.api_client is not None and _self.api_client.raise_on_error:
+            call = _self._make_raise_on_error_wrapper(call)
         _cls.__call__ = call  # type: ignore[method-assign]
         _self.__class__ = _cls
         return _self
+
+    def _make_raise_on_error_wrapper(self, f: Callable[..., Any]) -> Callable[..., Any]:
+        """Return a sync or async wrapper that calls `raise_for_status()` on non-2xx responses.
+
+        The wrapper branches on `async_mode` so it correctly handles both execution paths.
+        It is always applied as the outermost layer so that stats recording, retry logic, and post-request hooks all
+        run before any exception is raised.
+
+        :param f: The callable to wrap (either the base call or a fully composed chain)
+        """
+        if self.api_client.async_mode:
+
+            @wraps(f)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> RestResponse:
+                r = await f(*args, **kwargs)
+                if not r.ok:
+                    r.raise_for_status()
+                return r
+
+            return async_wrapper
+        else:
+
+            @wraps(f)
+            def sync_wrapper(*args: Any, **kwargs: Any) -> RestResponse:
+                r = f(*args, **kwargs)
+                if not r.ok:
+                    r.raise_for_status()
+                return r
+
+            return sync_wrapper
 
 
 class SyncEndpointFunc(EndpointFunc[P]):

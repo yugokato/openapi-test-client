@@ -21,6 +21,7 @@ class APIClient:
         base_url: str | None = None,
         rest_client: RestClient | AsyncRestClient | None = None,
         async_mode: bool = False,
+        raise_on_error: bool = False,
         **kwargs: Any,
     ):
         """Initialize the API client
@@ -30,6 +31,8 @@ class APIClient:
         :param base_url: Base URL for the API
         :param rest_client: Pre-configured REST client (mutually exclusive with base_url)
         :param async_mode: Enable async mode
+        :param raise_on_error: When `True`, automatically calls `raise_for_status()` on every non-2xx response,
+                               raising `httpx.HTTPStatusError`.
         :param kwargs: Additional keyword arguments passed to the REST client constructor
         """
         if not async_mode:
@@ -46,6 +49,7 @@ class APIClient:
         self.app_name = app_name
         self.env = env
         self.async_mode = async_mode
+        self.raise_on_error = raise_on_error
 
         if rest_client:
             if async_mode and isinstance(rest_client, RestClient):

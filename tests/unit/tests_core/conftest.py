@@ -12,7 +12,7 @@ from openapi_test_client.libraries.core.base.api_client import APIClient
 def api_client_factory(session_mocker: MockerFixture) -> Callable[..., APIClient]:
     """Core API client factory"""
 
-    def create(async_mode: bool = False) -> APIClient:
+    def create(async_mode: bool = False, raise_on_error: bool = False) -> APIClient:
         base_url = "https://example.com/api"
         rest_client: RestClient | AsyncRestClient
         if async_mode:
@@ -21,6 +21,6 @@ def api_client_factory(session_mocker: MockerFixture) -> Callable[..., APIClient
         else:
             session_mocker.patch.object(Client, "request")
             rest_client = RestClient(base_url)
-        return APIClient("test", rest_client=rest_client, async_mode=async_mode)
+        return APIClient("test", rest_client=rest_client, async_mode=async_mode, raise_on_error=raise_on_error)
 
     return create

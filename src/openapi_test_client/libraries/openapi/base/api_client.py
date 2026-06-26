@@ -28,6 +28,7 @@ class OpenAPIClient(APIClient):
         base_url: str | None = None,
         rest_client: RestClient | AsyncRestClient | None = None,
         async_mode: bool = False,
+        raise_on_error: bool = False,
         **kwargs: Any,
     ):
         """Initialize the OpenAPI client
@@ -38,6 +39,8 @@ class OpenAPIClient(APIClient):
         :param base_url: Base URL for the API
         :param rest_client: Pre-configured REST client (mutually exclusive with base_url)
         :param async_mode: Enable async mode
+        :param raise_on_error: When `True`, automatically calls `raise_for_status()` on every non-2xx response,
+                       raising `httpx.HTTPStatusError`.
         :param kwargs: Additional keyword arguments passed to the REST client constructor
         """
         if app_name.lower() in ["open", "base"]:
@@ -62,6 +65,7 @@ class OpenAPIClient(APIClient):
             base_url=base_url,
             rest_client=rest_client,
             async_mode=async_mode,
+            raise_on_error=raise_on_error,
             **kwargs,
         )
         self.api_spec = OpenAPISpec(self, doc)

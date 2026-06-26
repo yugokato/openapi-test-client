@@ -625,9 +625,9 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
         f"class {api_client_class_name}({OpenAPIClient.__name__}):\n"
         f'{TAB}"""API client for {app_name}"""\n\n'
         f"{TAB}def __init__("
-        f'{TAB}{TAB}self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, **kwargs: Any'
+        f'{TAB}{TAB}self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, raise_on_error: bool=False, **kwargs: Any'  # noqa: E501
         f"{TAB}) -> None:\n"
-        f'{TAB}{TAB}super().__init__("{app_name}", env=env, base_url=base_url, doc="{doc_path}", async_mode=async_mode, **kwargs)'  # noqa: E501
+        f'{TAB}{TAB}super().__init__("{app_name}", env=env, base_url=base_url, doc="{doc_path}", async_mode=async_mode, raise_on_error=raise_on_error, **kwargs)'  # noqa: E501
         f"\n\n"
     )
 
