@@ -444,18 +444,20 @@ class APIClient:
         base_url: str | None = None,
         rest_client: RestClient | AsyncRestClient | None = None,
         async_mode: bool = False,
+        raise_on_error: bool = False,
         **kwargs: Any,
     ) -> None: ...
 ```
 
-| Parameter     | Description                                                                                                                                                          |
-|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `app_name`    | Logical name for the application. Must match `app_name` on all associated API classes.                                                                               |
-| `env`         | Target environment label (e.g., `"dev"`, `"prod"`). Optional; accessible on API class instances via `self.env`.                                                      |
-| `base_url`    | Base URL prepended to every endpoint path. Mutually exclusive with `rest_client`.                                                                                    |
-| `rest_client` | Pre-configured `RestClient` or `AsyncRestClient` to inject. Use this when you need full control over transport-level settings (TLS, proxies, session cookies, etc.). |
-| `async_mode`  | Set to `True` to enable async mode. All endpoint calls must then be awaited.                                                                                         |
-| `**kwargs`    | Additional keyword arguments forwarded to the underlying REST client constructor (e.g., `headers`, `timeout`, `verify`).                                             |
+| Parameter        | Description                                                                                                                                                          |
+|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app_name`       | Logical name for the application. Must match `app_name` on all associated API classes.                                                                               |
+| `env`            | Target environment label (e.g., `"dev"`, `"prod"`). Optional; accessible on API class instances via `self.env`.                                                      |
+| `base_url`       | Base URL prepended to every endpoint path. Mutually exclusive with `rest_client`.                                                                                    |
+| `rest_client`    | Pre-configured `RestClient` or `AsyncRestClient` to inject. Use this when you need full control over transport-level settings (TLS, proxies, session cookies, etc.). |
+| `async_mode`     | Set to `True` to enable async mode. All endpoint calls must then be awaited.                                                                                         |
+| `raise_on_error` | Set to `True` to raise an exception on any non-2xx response.                                                                                                         |
+| `**kwargs`       | Additional keyword arguments forwarded to the underlying REST client constructor (e.g., `retry_policy`, `headers`, `timeout`, `verify`).                              |
 
 
 ## API Class (`APIBase`)
