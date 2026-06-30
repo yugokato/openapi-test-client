@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypedDict
 from common_libs.clients.rest_client import RestResponse
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncIterator, Generator
     from dataclasses import _MISSING_TYPE, _DataclassParams  # type: ignore
     from typing import Protocol
 
@@ -49,6 +49,17 @@ if TYPE_CHECKING:
         """
 
         def __await__(self) -> Generator[Any, None, list[RestResponse | Exception]]: ...
+
+    class _ResponsePages:
+        """TYPE_CHECKING-only iterator usable as both a sync and an async iterator over response pages.
+
+        Enables IDE support for both sync (`for`) and async (`async for`) usage patterns.
+        """
+
+        def __iter__(self) -> Iterator[RestResponse]: ...
+        def __next__(self) -> RestResponse: ...
+        def __aiter__(self) -> AsyncIterator[RestResponse]: ...
+        async def __anext__(self) -> RestResponse: ...
 
 else:
     Protocol = object

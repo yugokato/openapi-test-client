@@ -26,7 +26,7 @@ from .stats import Stats, collect_stats
 if TYPE_CHECKING:
     from ..base import APIBase
     from ..base.api_client import APIClient
-    from ..types import _ResponseList, _ResponseOrExceptionList, _ResponseStream
+    from ..types import _ResponseList, _ResponseOrExceptionList, _ResponsePages, _ResponseStream
     from .endpoint import Endpoint
     from .endpoint_handler import EndpointHandler
     from .stats import StatsCollector
@@ -514,6 +514,71 @@ class EndpointFunc(Generic[P]):
 
         return self._with_call_wrapper(call_with_stats)
 
+    @_terminal
+    @requires_instance
+    def with_pagination(
+        self, get_next: Callable[[RestResponse], dict[str, Any] | None], *, limit: int | None = None
+    ) -> Callable[P, _ResponsePages]:
+        """Return a callable that iterates over paginated responses, one page per API call.
+
+        Calls the endpoint, passes each response to `get_next`, and merges the returned params into the next call until
+        `get_next` returns `None` (or `limit` is reached). `get_next` typically reads the next-page cursor/token from
+        the response headers (`response._response.headers`) or body.
+        Returning an empty dict continues with no new params, while returning `None` stops pagination.
+
+        Pagination is always the outermost layer: any wrappers chained before it (e.g. `with_retry`) and the client's
+        `raise_on_error` apply per page, inside the pagination loop. Call the returned callable with the endpoint's
+        own parameters and iterate the result with `for` (sync) or `async for` (async).
+
+        NOTE: This is terminal and must always be the last wrapper in a chain.
+
+        :param get_next: A callable taking the latest response and returning a dict of endpoint parameter(s) to merge
+                         into the next call (e.g. `{"cursor": "abc"}`), or `None` to stop pagination. The callable is
+                         always invoked synchronously (no async `get_next`), so it should not perform blocking I/O.
+        :param limit: Optional maximum number of pages (API calls) to fetch before stopping
+        """
+        if limit is not None and limit < 1:
+            raise ValueError("limit must be a positive integer")
+
+        def call_with_pagination(f: Callable[..., Any]) -> Callable[..., Any]:
+            if self.api_client.async_mode:
+
+                @wraps(f)
+                async def wrapper(*args: Any, **kwargs: Any) -> Any:
+                    call_kwargs = dict(kwargs)
+                    page = 0
+                    while True:
+                        r = await f(*args, **call_kwargs)
+                        yield r
+                        page += 1
+                        if limit is not None and page >= limit:
+                            return
+                        nxt = get_next(r)
+                        if nxt is None:
+                            return
+                        call_kwargs = {**call_kwargs, **nxt}
+
+            else:
+
+                @wraps(f)
+                def wrapper(*args: Any, **kwargs: Any) -> Any:
+                    call_kwargs = dict(kwargs)
+                    page = 0
+                    while True:
+                        r = f(*args, **call_kwargs)
+                        yield r
+                        page += 1
+                        if limit is not None and page >= limit:
+                            return
+                        nxt = get_next(r)
+                        if nxt is None:
+                            return
+                        call_kwargs = {**call_kwargs, **nxt}
+
+            return wrapper
+
+        return cast("Callable[P, _ResponsePages]", self._with_call_wrapper(call_with_pagination, outermost=True))
+
     @staticmethod
     @cache
     def _create(
@@ -602,13 +667,26 @@ class EndpointFunc(Generic[P]):
             sync_self = cast(SyncEndpointFunc[Any], self)
             return sync_self.executor.execute(sync_self, path, params)
 
-    def _with_call_wrapper(self, wrapper: Callable[[Callable[..., Any]], Callable[..., Any]]) -> Self:
+    def _with_call_wrapper(
+        self, wrapper: Callable[[Callable[..., Any]], Callable[..., Any]], *, outermost: bool = False
+    ) -> Self:
+        """Return a copy of this endpoint func with a freshly composed `__call__`.
+
+        Rebuilds the call chain from `_base_call` and `_call_wrappers` (reversed, so the first chained `with_xxx()`
+        wrapper becomes the outermost layer), then applies `raise_on_error`. When `outermost=True`, `wrapper` is
+        applied after `raise_on_error` as the absolute outermost layer and is not added to `_call_wrappers`.
+
+        :param wrapper: The call wrapper to apply
+        :param outermost: When `True`, apply `wrapper` as the absolute outermost layer after `raise_on_error` instead
+                          of appending it to the chain
+        """
         if self._terminal_wrapper is not None:
             raise RuntimeError(
                 f"`{self._terminal_wrapper}()` is terminal and must always be the last wrapper in a chain."
             )
         _self = copy(self)
-        _self._call_wrappers = (*_self._call_wrappers, wrapper)
+        if not outermost:
+            _self._call_wrappers = (*_self._call_wrappers, wrapper)
         _cls = type(type(_self).__name__, (type(_self),), {})
         # Rebuild the composition from the base each time so the first with_xxx() in the chain
         # becomes the outermost layer (intuitive left-to-right reading).
@@ -616,10 +694,12 @@ class EndpointFunc(Generic[P]):
         call = _self._base_call
         for call_wrapper in reversed(_self._call_wrappers):
             call = call_wrapper(call)
-        # Apply raise_on_error as the absolute outermost layer so that stats and retry logic
-        # always see responses (not pre-raised exceptions) before the raise fires.
+        # Apply raise_on_error so that stats and retry logic always see responses (not pre-raised exceptions)
+        # before the raise fires; an outermost wrapper (e.g. pagination) sits outside it.
         if _self.api_client is not None and _self.api_client.raise_on_error:
             call = _self._make_raise_on_error_wrapper(call)
+        if outermost:
+            call = wrapper(call)
         _cls.__call__ = call  # type: ignore[method-assign]
         _self.__class__ = _cls
         return _self

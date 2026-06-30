@@ -2258,6 +2258,342 @@ class TestEndpointFuncCallRaiseOnError:
         assert AsyncClient.request.call_count == 2
 
 
+class TestEndpointFuncCallWithPagination:
+    """Tests for with_pagination() — lazily paginated API calls driven by a get_next callback"""
+
+    def test_sync_multi_page_yields_all_responses(self, mocker: MockerFixture, api_client: APIClient) -> None:
+        """Test that sync with_pagination yields one RestResponse per page until get_next returns None."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(
+            Client,
+            "request",
+            side_effect=[
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "page2"}),
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "page3"}),
+                _make_httpx_response(200, mocker),
+            ],
+        )
+
+        def get_next(r: RestResponse) -> dict[str, Any] | None:
+            cursor = r._response.headers.get("X-Next-Cursor")
+            return {"cursor": cursor} if cursor else None
+
+        instance = PaginatedListAPI(api_client)
+        pages = list(instance.list_items.with_pagination(get_next)())
+
+        assert len(pages) == 3
+        assert all(isinstance(p, RestResponse) for p in pages)
+        assert Client.request.call_count == 3
+
+    async def test_async_multi_page_yields_all_responses(
+        self, mocker: MockerFixture, api_client_async: APIClient
+    ) -> None:
+        """Test that async with_pagination yields one RestResponse per page until get_next returns None."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client_async.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(
+            AsyncClient,
+            "request",
+            side_effect=[
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "page2"}),
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "page3"}),
+                _make_httpx_response(200, mocker),
+            ],
+        )
+
+        def get_next(r: RestResponse) -> dict[str, Any] | None:
+            cursor = r._response.headers.get("X-Next-Cursor")
+            return {"cursor": cursor} if cursor else None
+
+        instance = PaginatedListAPI(api_client_async)
+        pages = [p async for p in instance.list_items.with_pagination(get_next)()]
+
+        assert len(pages) == 3
+        assert all(isinstance(p, RestResponse) for p in pages)
+        assert AsyncClient.request.call_count == 3
+
+    def test_sync_single_page_stops_when_get_next_returns_none(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that sync with_pagination stops after the first page when get_next returns None."""
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class(api_client)
+
+        pages = list(instance.get_something.with_pagination(lambda r: None)())
+
+        assert len(pages) == 1
+        assert isinstance(pages[0], RestResponse)
+        assert Client.request.call_count == 1
+
+    async def test_async_single_page_stops_when_get_next_returns_none(
+        self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
+    ) -> None:
+        """Test that async with_pagination stops after the first page when get_next returns None."""
+        mocker.patch.object(AsyncClient, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class_async(api_client_async)
+
+        pages = [p async for p in instance.get_something.with_pagination(lambda r: None)()]
+
+        assert len(pages) == 1
+        assert isinstance(pages[0], RestResponse)
+        assert AsyncClient.request.call_count == 1
+
+    def test_sync_empty_dict_continues_without_new_params(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that returning {} from get_next continues pagination without adding new params."""
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class(api_client)
+
+        pages = list(instance.get_something.with_pagination(lambda r: {}, limit=3)())
+
+        assert len(pages) == 3
+        assert Client.request.call_count == 3
+
+    def test_sync_limit_caps_the_number_of_pages(self, mocker: MockerFixture, api_client: APIClient) -> None:
+        """Test that limit stops pagination regardless of what get_next returns."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = PaginatedListAPI(api_client)
+
+        pages = list(instance.list_items.with_pagination(lambda r: {"cursor": "next"}, limit=2)())
+
+        assert len(pages) == 2
+        assert Client.request.call_count == 2
+
+    async def test_async_limit_caps_the_number_of_pages(
+        self, mocker: MockerFixture, api_client_async: APIClient
+    ) -> None:
+        """Test that async limit stops pagination regardless of what get_next returns."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client_async.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(AsyncClient, "request", return_value=_make_httpx_response(200, mocker))
+        instance = PaginatedListAPI(api_client_async)
+
+        pages = [p async for p in instance.list_items.with_pagination(lambda r: {"cursor": "next"}, limit=2)()]
+
+        assert len(pages) == 2
+        assert AsyncClient.request.call_count == 2
+
+    def test_sync_next_page_params_are_merged_into_subsequent_requests(
+        self, mocker: MockerFixture, api_client: APIClient
+    ) -> None:
+        """Test that the params returned by get_next are passed as query params to the next request."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(
+            Client,
+            "request",
+            side_effect=[
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "abc"}),
+                _make_httpx_response(200, mocker),
+            ],
+        )
+
+        def get_next(r: RestResponse) -> dict[str, Any] | None:
+            cursor = r._response.headers.get("X-Next-Cursor")
+            return {"cursor": cursor} if cursor else None
+
+        instance = PaginatedListAPI(api_client)
+        list(instance.list_items.with_pagination(get_next)())
+
+        assert Client.request.call_count == 2
+        first_params = Client.request.call_args_list[0].kwargs.get("params") or {}
+        second_params = Client.request.call_args_list[1].kwargs.get("params") or {}
+        assert "cursor" not in first_params
+        assert second_params.get("cursor") == "abc"
+
+    def test_sync_with_retry_applies_per_page_inside_pagination_loop(
+        self, mocker: MockerFixture, api_client: APIClient
+    ) -> None:
+        """Test that with_retry().with_pagination() retries each page independently inside the loop."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(
+            Client,
+            "request",
+            side_effect=[
+                _make_httpx_response(503, mocker),  # page 1 attempt 1 (retry)
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "p2"}),  # page 1 attempt 2 (success)
+                _make_httpx_response(200, mocker),  # page 2 (success, no cursor)
+            ],
+        )
+
+        def get_next(r: RestResponse) -> dict[str, Any] | None:
+            cursor = r._response.headers.get("X-Next-Cursor")
+            return {"cursor": cursor} if cursor else None
+
+        instance = PaginatedListAPI(api_client)
+        pages = list(
+            instance.list_items.with_retry(condition=503, num_retries=1, retry_after=0).with_pagination(get_next)()
+        )
+
+        assert len(pages) == 2
+        assert all(isinstance(p, RestResponse) for p in pages)
+        assert Client.request.call_count == 3  # 2 attempts for page 1 + 1 for page 2
+
+    def test_sync_raise_on_error_applies_per_page_inside_pagination_loop(
+        self, mocker: MockerFixture, api_class: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that raise_on_error=True raises on the failing page and not on prior successful pages."""
+        client = api_client_factory(raise_on_error=True)
+        mocker.patch.object(
+            Client,
+            "request",
+            side_effect=[
+                _make_httpx_response(200, mocker),
+                _make_httpx_response(404, mocker),
+            ],
+        )
+        instance = api_class(client)
+        paginator = instance.get_something.with_pagination(lambda r: {}, limit=3)()
+
+        first_page = next(paginator)
+        assert isinstance(first_page, RestResponse)
+        assert first_page.status_code == 200
+
+        with pytest.raises(HTTPStatusError):
+            next(paginator)
+
+    async def test_async_with_retry_applies_per_page_inside_pagination_loop(
+        self, mocker: MockerFixture, api_client_async: APIClient
+    ) -> None:
+        """Test that async with_retry().with_pagination() retries each page independently inside the loop."""
+
+        class PaginatedListAPI(APIBase):
+            app_name = api_client_async.app_name
+
+            @endpoint.get("/v1/items")
+            def list_items(self, *, cursor: str = Unset) -> RestResponse: ...
+
+        mocker.patch.object(
+            AsyncClient,
+            "request",
+            side_effect=[
+                _make_httpx_response(503, mocker),  # page 1 attempt 1 (retry)
+                _make_httpx_response(200, mocker, headers={"X-Next-Cursor": "p2"}),  # page 1 attempt 2 (success)
+                _make_httpx_response(200, mocker),  # page 2 (success, no cursor)
+            ],
+        )
+
+        def get_next(r: RestResponse) -> dict[str, Any] | None:
+            cursor = r._response.headers.get("X-Next-Cursor")
+            return {"cursor": cursor} if cursor else None
+
+        instance = PaginatedListAPI(api_client_async)
+        pages = [
+            p
+            async for p in instance.list_items.with_retry(condition=503, num_retries=1, retry_after=0).with_pagination(
+                get_next
+            )()
+        ]
+
+        assert len(pages) == 2
+        assert all(isinstance(p, RestResponse) for p in pages)
+        assert AsyncClient.request.call_count == 3  # 2 attempts for page 1 + 1 for page 2
+
+    async def test_async_raise_on_error_applies_per_page_inside_pagination_loop(
+        self, mocker: MockerFixture, api_class_async: type[APIBase], api_client_factory: Any
+    ) -> None:
+        """Test that async raise_on_error=True raises on the failing page and not on prior successful pages."""
+        client = api_client_factory(async_mode=True, raise_on_error=True)
+        mocker.patch.object(
+            AsyncClient,
+            "request",
+            side_effect=[
+                _make_httpx_response(200, mocker),
+                _make_httpx_response(404, mocker),
+            ],
+        )
+        instance = api_class_async(client)
+        paginator = instance.get_something.with_pagination(lambda r: {}, limit=3)()
+
+        first_page = await paginator.__anext__()
+        assert isinstance(first_page, RestResponse)
+        assert first_page.status_code == 200
+
+        with pytest.raises(HTTPStatusError):
+            await paginator.__anext__()
+
+    def test_sync_pagination_is_lazy(
+        self, mocker: MockerFixture, api_client: APIClient, api_class: type[APIBase]
+    ) -> None:
+        """Test that calling the paginator does not make any request until the first iteration step."""
+        mocker.patch.object(Client, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class(api_client)
+
+        paginator = instance.get_something.with_pagination(lambda r: None)()
+        assert Client.request.call_count == 0
+
+        next(paginator)
+        assert Client.request.call_count == 1
+
+    async def test_async_pagination_is_lazy(
+        self, mocker: MockerFixture, api_client_async: APIClient, api_class_async: type[APIBase]
+    ) -> None:
+        """Test that calling the async paginator does not make any request until the first iteration step."""
+        mocker.patch.object(AsyncClient, "request", return_value=_make_httpx_response(200, mocker))
+        instance = api_class_async(api_client_async)
+
+        paginator = instance.get_something.with_pagination(lambda r: None)()
+        assert AsyncClient.request.call_count == 0
+
+        await paginator.__anext__()
+        assert AsyncClient.request.call_count == 1
+
+    def test_limit_below_one_raises(self, api_client: APIClient, api_class: type[APIBase]) -> None:
+        """Test that limit values below 1 raise a ValueError."""
+        instance = api_class(api_client)
+        with pytest.raises(ValueError, match="limit"):
+            instance.get_something.with_pagination(lambda r: None, limit=0)
+        with pytest.raises(ValueError, match="limit"):
+            instance.get_something.with_pagination(lambda r: None, limit=-1)
+
+    def test_sync_terminal_before_pagination_raises(self, api_client: APIClient, api_class: type[APIBase]) -> None:
+        """Test that chaining with_pagination after a terminal wrapper raises RuntimeError."""
+        instance = api_class(api_client)
+        with pytest.raises(RuntimeError, match="terminal"):
+            instance.get_something.with_repeat().with_pagination(lambda r: None)
+
+    def test_sync_pagination_is_terminal(self, api_client: APIClient, api_class: type[APIBase]) -> None:
+        """Test that with_pagination itself is terminal — further chaining raises RuntimeError."""
+        instance = api_class(api_client)
+        with pytest.raises(RuntimeError, match="terminal"):
+            instance.get_something.with_pagination(lambda r: None).with_retry()
+
+
 def _make_stream_response() -> MagicMock:
     """Return a MagicMock that looks like a streaming RestResponse."""
     r = MagicMock(spec=RestResponse)
@@ -2266,12 +2602,12 @@ def _make_stream_response() -> MagicMock:
     return r
 
 
-def _make_httpx_response(status_code: int, mocker: MockerFixture) -> Response:
-    """Build a minimal mock httpx response with the given status code."""
+def _make_httpx_response(status_code: int, mocker: MockerFixture, headers: dict[str, str] | None = None) -> Response:
+    """Build a minimal mock httpx response with the given status code and optional headers."""
     r = mocker.MagicMock(spec=Response)
     r.status_code = status_code
     r.is_success = status_code < 300
-    r.headers = {}
+    r.headers = headers or {}
     r.content = b""
     r.is_stream = False
     r.elapsed = mocker.MagicMock()
