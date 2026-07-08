@@ -23,10 +23,10 @@ from pytest import FixtureRequest, TempPathFactory
 
 from openapi_test_client import logger
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.base.api_client import OpenAPIClient
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.core import EndpointFunc
+    from api_client_core import EndpointFunc
 
 
 class DemoAppPortManager:
@@ -255,7 +255,7 @@ def stream_output(proc: subprocess.Popen[str]) -> tuple[str, str]:
 
 def do_test_invalid_params(
     *,
-    endpoint_func: EndpointFunc,
+    endpoint_func: EndpointFunc[Any],
     validation_mode: bool,
     invalid_params: dict[str, Any],
     num_expected_errors: int,

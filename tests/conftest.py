@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import uuid
@@ -15,7 +16,7 @@ from pytest import Config, Item, Session, Subtests, TempPathFactory
 from pytest_mock import MockerFixture
 from xdist import is_xdist_worker
 
-from openapi_test_client.libraries.openapi.types import File
+from openapi_test_client.libraries.types import File
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -91,9 +92,6 @@ def _patch_pytest_logging_issue() -> None:
     and "ValueError: I/O operation on closed file" error occurs when logging message is emit after the replaced stdout
     has been closed.
     """
-
-    import logging
-
     loggers = [logging.getLogger(), *list(logging.Logger.manager.loggerDict.values())]
     for logger in loggers:
         if not hasattr(logger, "handlers"):

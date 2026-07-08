@@ -13,19 +13,20 @@ authors = [
 ]
 requires-python = ">=3.11"
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
-  "Topic :: Software Development :: Quality Assurance",
-  "Topic :: Software Development :: Testing",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed"
 ]
 dependencies = [
-    "common-libs[rest-client,http3]@git+https://github.com/yugokato/common-libs",
+    "api-client-core@git+https://github.com/yugokato/api-client-core",
     "inflect==7.0.0",   # Pinning to avoid https://github.com/jaraco/inflect/issues/212
     "phonenumbers~=9.0.1",
     "pydantic[email]~=2.12.0",
@@ -120,3 +121,7 @@ disable_error_code = [
     "return",
     "union-attr"
 ]
+
+[[tool.mypy.overrides]]
+module = "api_client_core.*"
+follow_imports = "normal"

@@ -9,9 +9,9 @@ import pytest
 from pytest_mock import MockerFixture
 
 from openapi_test_client import ENV_VAR_PACKAGE_DIR
-from openapi_test_client.libraries.openapi.api_spec import OpenAPISpec
-from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
-from openapi_test_client.libraries.openapi.code_gen.client_generator import setup_external_directory
+from openapi_test_client.libraries.api_spec import OpenAPISpec
+from openapi_test_client.libraries.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.code_gen.client_generator import setup_external_directory
 from tests.unit.tests_code_gen import helper
 
 

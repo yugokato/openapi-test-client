@@ -4,10 +4,9 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from api_client_core.endpoints import Stats
 from common_libs.logging import get_logger, setup_logging
 from common_libs.utils import list_items
-
-from openapi_test_client.libraries.core.endpoints import Stats
 
 try:
     __version__ = version("openapi-test-client")

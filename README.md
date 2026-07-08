@@ -20,14 +20,14 @@ thoroughly perform automated API testing against API-first applications in a fas
 
 # Built on API Client Core Framework
 
-OpenAPI Test Client is built on top of [**API Client Core**](src/openapi_test_client/libraries/core), a reusable framework for building Python API clients 
-with decorator-driven endpoint declaration, rich endpoint metadata and introspection, request hooks, automatic 
-endpoint call statistics, and sync/async dual-mode support.  
+OpenAPI Test Client is built on top of [**API Client Core**](https://github.com/yugokato/api-client-core), a framework 
+for building Python API clients that provides decorator-based endpoint definitions, rich endpoint metadata and 
+introspection, request hooks, automatic endpoint call statistics, and sync/async dual-mode support.  
 
 While OpenAPI Test Client focuses on OpenAPI-driven API client generation for testing purposes, API Client Core 
 provides the underlying framework and can be used independently to build general-purpose API clients.
 
-See [API Client Core README](src/openapi_test_client/libraries/core) for details of the framework.
+See [API Client Core README](https://github.com/yugokato/api-client-core) for details of the framework.
 
 
 # SDK client v.s. Test client
@@ -57,15 +57,19 @@ work on, and the test client will provide everything needed for testing APIs.
 > dependency conflicts may occur if the installation is done within your existing project. 
 
 ```
-pip install git+https://github.com/yugokato/openapi-test-client.git
+pip install git+https://github.com/yugokato/openapi-test-client
 ```
 
 Or, if you want to try the demo client with the Quart-based [demo backend app](src/demo_app) (A local API server):  
 ```
-pip install "openapi-test-client[app] @ git+https://github.com/yugokato/openapi-test-client.git"
+pip install "openapi-test-client[app] @ git+https://github.com/yugokato/openapi-test-client"
 ```
 Alternatively, you can clone the repo and run `pip install -e .` (or `pip install -e .[app]`) if you prefer to reuse 
 this project as your base project. 
+
+> [!NOTE]
+> This project and its upstream dependencides (`common-libs` and `api-client-core`) are not currently versioned. 
+> To pick up upstream changes into your existing installation, add `--force-reinstall` to install the latest version.
 
 
 ## 2. Generate/Update API client code
@@ -195,7 +199,7 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 <summary>Sync Client</summary>
 
 ```pycon
->>> from openapi_test_client.libraries.openapi.base import OpenAPIClient
+>>> from openapi_test_client.libraries.base import OpenAPIClient
 >>> client = OpenAPIClient.get_client("<client_name>")
 ```
 </details>
@@ -203,7 +207,7 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 <summary>Async Client</summary>
 
 ```pycon
->>> from openapi_test_client.libraries.openapi.base import OpenAPIClient
+>>> from openapi_test_client.libraries.base import OpenAPIClient
 >>> client = OpenAPIClient.get_client("<client_name>", async_mode=True)
 ```
 </details>
@@ -332,7 +336,7 @@ For example:
 ```python
 from functools import wraps
 
-from openapi_test_client.libraries.openapi import endpoint
+from openapi_test_client.libraries import endpoint
 
 
 @endpoint.decorator
@@ -404,7 +408,7 @@ managing APIs in multiple tags), where an API class instance will be returned.
 from functools import cached_property
 from typing import Any
 
-from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.base.api_client import OpenAPIClient
 
 from .api.auth import AuthAPI
 from .api.users import UsersAPI
@@ -495,8 +499,8 @@ Then the API class and functions will be generated like this:
 from typing import Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
-from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import RestResponse, Kwargs, Unset
+from openapi_test_client.libraries import endpoint
+from openapi_test_client.libraries.types import RestResponse, Kwargs, Unset
 
 
 class AuthAPI(DemoAppBaseAPI):
@@ -537,7 +541,7 @@ Some attributes available from the API class:
           method='post',
           path='/v1/auth/login',
           func_name='login',
-          model=<class 'openapi_test_client.libraries.core.utils.endpoint_model.AuthAPILoginEndpointModel'>,
+          model=<class 'AuthAPILoginEndpointModel'>,
           url=None,
           content_type=None,
           is_public=True,
@@ -548,7 +552,7 @@ Some attributes available from the API class:
           method='post',
           path='/v1/auth/logout',
           func_name='logout',
-          model=<class 'openapi_test_client.libraries.core.utils.endpoint_model.AuthAPILoginEndpointModel'>,
+          model=<class 'AuthAPILogoutEndpointModel'>,
           url=None,
           content_type=None,
           is_public=False,
@@ -585,16 +589,18 @@ eg. The Login API is accessible via `client.Auth.login()` API function, which is
 
 ```pycon
 >>> client.Auth.login
-<openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc object at 0x1074abf10>
-(mapped to: <function AuthAPI.login at 0x10751c360>)
+<AuthAPILoginEndpointFunc object at 0x1074abf10>
+  endpoint: POST /v1/auth/login
+  mapped to: <function AuthAPI.login at 0x10751c360>
 ```
 
 The endpoint function is also accessible directly from the API class:
 ```pycon
 >>> from openapi_test_client.clients.demo_app.api.auth import AuthAPI
 >>> AuthAPI.login
-<openapi_test_client.libraries.core.endpoints.endpoint_func.AuthAPILoginEndpointFunc object at 0x107650b50>
-(mapped to: <function AuthAPI.login at 0x10751c360>)
+<AuthAPILoginEndpointFunc object at 0x107650b50>
+  endpoint: POST /v1/auth/login
+  mapped to: <function AuthAPI.login at 0x10751c360>
 ```
 
 Various endpoint data is available from the endpoint function via `endpoint` property:
@@ -607,7 +613,7 @@ Endpoint(tags=('Auth',),
          method='post',
          path='/v1/auth/login',
          func_name='login',
-         model=<class 'openapi_test_client.libraries.core.utils.endpoint_model.AuthAPILoginEndpointModel'>,
+         model=<class 'AuthAPILoginEndpointModel'>,
          url='http://127.0.0.1:5000/v1/auth/login',
          content_type=None,
          is_public=True,
@@ -634,7 +640,7 @@ Endpoint(tags=('Auth',),
          method='post',
          path='/v1/auth/login',
          func_name='login',
-         model=<class 'openapi_test_client.libraries.core.utils.endpoint_model.AuthAPILoginEndpointModel'>,
+         model=<class 'AuthAPILoginEndpointModel'>,
          url=None,
          content_type=None,
          is_public=True,
@@ -686,10 +692,10 @@ parameter (eg. type annotation).
 ```pycon
 >>> model = client.Auth.login.endpoint.model
 >>> print(model)
-<class 'openapi_test_client.libraries.core.utils.endpoint_model.AuthAPILoginEndpointModel'>
+<class 'AuthAPILoginEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
-{'username': Field(name='username',type=<class 'str'>,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
- 'password': Field(name='password',type=<class 'str'>,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD)}
+{'username': Field(name='username',type=<class 'str'>,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'password': Field(name='password',type=<class 'str'>,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
 ```
 
 ## API parameter model
@@ -707,8 +713,8 @@ eg.
 from typing import Annotated, Literal, Unpack
 
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
-from openapi_test_client.libraries.openapi import endpoint
-from openapi_test_client.libraries.openapi.types import Constraint, Format, Kwargs, Optional, RestResponse, Unset
+from openapi_test_client.libraries import endpoint
+from openapi_test_client.libraries.types import Constraint, Format, Kwargs, Optional, RestResponse, Unset
 
 from ..models.users import Metadata
 
@@ -739,7 +745,7 @@ class UsersAPI(DemoAppBaseAPI):
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from openapi_test_client.libraries.openapi.types import Constraint, Format, Optional, ParamModel, Unset
+from openapi_test_client.libraries.types import Constraint, Format, Optional, ParamModel, Unset
 
 
 @dataclass
@@ -870,13 +876,13 @@ Here are some comparisons between regular models and pydantic models:
 >>> # Model definition
 >>> model = client.Users.create_user.endpoint.model
 >>> print(model)
-<class 'openapi_test_client.libraries.core.utils.endpoint_model.UsersAPICreateUserEndpointModel'>
+<class 'UsersAPICreateUserEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
-{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
- 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
- 'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
- 'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD),
- 'metadata': Field(name='metadata',type=openapi_test_client.clients.demo_app.models.users.Metadata | None,default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x100a4c440>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,doc=None,_field_type=_FIELD)}
+{'first_name': Field(name='first_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
+ 'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.Metadata],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
 >>>
 >>> # Make an API request with the invalid parameter values
 >>> r = client.Users.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123)
@@ -972,7 +978,7 @@ Here are some comparisons between regular models and pydantic models:
 >>> # Model definition
 >>> pydantic_model = client.Users.create_user.endpoint.model.to_pydantic()
 >>> print(pydantic_model)
-<class 'openapi_test_client.libraries.core.utils.endpoint_model.UsersAPICreateUserEndpointModelPydantic'>
+<class 'UsersAPICreateUserEndpointModelPydantic'>
 >>> pprint(pydantic_model.model_fields, sort_dicts=False)
 {'first_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255)]),
  'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255)]),

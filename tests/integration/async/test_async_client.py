@@ -8,7 +8,7 @@ from pytest import Subtests
 
 from openapi_test_client import logger
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
-from openapi_test_client.libraries.openapi.utils.pydantic_model import in_validation_mode
+from openapi_test_client.libraries.utils.pydantic_model import in_validation_mode
 
 pytestmark = [pytest.mark.integrationtest, pytest.mark.xdist_group("integration/api")]
 

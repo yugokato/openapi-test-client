@@ -70,6 +70,7 @@ jobs:
           cache-dependency-glob: "**/pyproject.toml"
       - name: Install dependencies
         run: |
+          # NOTE: -e is required here: project root detection in tests rely on package files staying in-repo
           uv pip install --system -e .[test]
       - name: Run pytest
         run: |

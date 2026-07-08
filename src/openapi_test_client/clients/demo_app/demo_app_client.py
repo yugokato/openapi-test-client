@@ -1,7 +1,7 @@
 from functools import cached_property
 from typing import Any
 
-from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.base.api_client import OpenAPIClient
 
 from .api._test import _TestAPI
 from .api.auth import AuthAPI

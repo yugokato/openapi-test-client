@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from httpx import HTTPError
 
-from openapi_test_client.libraries.openapi.base.api_class import OpenAPIBase
-from openapi_test_client.libraries.openapi.types import RestResponse
+from openapi_test_client.libraries.base.api_class import OpenAPIBase
+from openapi_test_client.libraries.types import RestResponse
 
 from ..request_hooks.post_request import manage_auth_session
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.openapi import Endpoint
+    from openapi_test_client.libraries import Endpoint
 
 
 class DemoAppBaseAPI(OpenAPIBase[Any]):

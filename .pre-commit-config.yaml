@@ -20,12 +20,12 @@ repos:
       language: system
       args:
         - --fix
-      types: [ python ]
+      types_or: [ python, pyi ]
     - id: ruff-format
       name: ruff-format
       entry: ruff format
       language: system
-      types: [ python ]
+      types_or: [ python, pyi ]
     - id: mypy
       name: mypy
       entry: mypy src

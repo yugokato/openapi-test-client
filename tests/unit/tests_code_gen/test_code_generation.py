@@ -3,26 +3,29 @@ from __future__ import annotations
 import inspect
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, make_dataclass
 from pathlib import Path
 from types import NoneType
 from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
 
 import pytest
+from api_client_core.base import APIBase
+from api_client_core.base.api_class import get_api_classes
 from pytest_mock import MockerFixture
 
-from openapi_test_client.libraries.core.base import APIBase
-from openapi_test_client.libraries.core.base.api_class import get_api_classes
-from openapi_test_client.libraries.openapi import Endpoint, EndpointFunc
-from openapi_test_client.libraries.openapi.base.api_client import OpenAPIClient
-from openapi_test_client.libraries.openapi.code_gen import utils
-from openapi_test_client.libraries.openapi.code_gen.client_generator import (
+import openapi_test_client.libraries.types as openapi_types_module
+from openapi_test_client.libraries import Endpoint, EndpointFunc
+from openapi_test_client.libraries.base.api_class import OpenAPIBase
+from openapi_test_client.libraries.base.api_client import OpenAPIClient
+from openapi_test_client.libraries.code_gen import utils
+from openapi_test_client.libraries.code_gen.client_generator import (
+    _is_live_class,
     generate_api_class,
     generate_api_client,
     generate_base_api_class,
     update_endpoint_functions,
 )
-from openapi_test_client.libraries.openapi.types import (
+from openapi_test_client.libraries.types import (
     Alias,
     Constraint,
     Format,
@@ -32,7 +35,7 @@ from openapi_test_client.libraries.openapi.types import (
     UncacheableLiteralArg,
     Unset,
 )
-from openapi_test_client.libraries.openapi.utils.modules import (
+from openapi_test_client.libraries.utils.modules import (
     get_module_name_by_file_path,
     import_module_with_new_code,
     reload_obj,
@@ -75,7 +78,7 @@ class TestGenerateApiClass:
             api_class_name,
             add_endpoint_functions=add_endpoint_functions,
         )
-        assert issubclass(NewAPIClass, APIBase)
+        assert issubclass(NewAPIClass, OpenAPIBase)
         assert NewAPIClass.__bases__[0].__name__ == "TestAppBaseAPI"
         assert NewAPIClass.__name__ == api_class_name
         assert NewAPIClass.__module__.endswith(".test_something")
@@ -304,11 +307,11 @@ class TestGenerateApiClient:
 
 
 class TestGetApiClasses:
-    """Tests for get_api_classes()"""
+    """Tests for get_api_classes() with the `_is_live_class` filter"""
 
-    def test_get_api_classes_deduplicates_stale_reload_artifacts(self, temp_api_client: OpenAPIClient) -> None:
-        """Test that get_api_classes() returns each API class exactly once even when stale class objects
-        from module reloads remain reachable via __subclasses__().
+    def test_is_live_class_filter_deduplicates_stale_reload_artifacts(self, temp_api_client: OpenAPIClient) -> None:
+        """Test that get_api_classes(class_filter=_is_live_class) returns each API class exactly once even when
+        stale class objects from module reloads remain reachable via __subclasses__().
         """
         NewAPIClass = do_generate_api_class(temp_api_client, "TestSomethingAPI")
 
@@ -327,8 +330,8 @@ class TestGetApiClasses:
         api_module_name = get_module_name_by_file_path(api_class_file_path.parent / "__init__.py").removesuffix(
             ".__init__"
         )
-        base_class = NewAPIClass.__bases__[0]
-        result = get_api_classes(api_module_name, base_class)
+        base_class: type[OpenAPIBase[Any]] = NewAPIClass.__bases__[0]
+        result = get_api_classes(api_module_name, base_class, class_filter=_is_live_class)
 
         class_names = [cls.__name__ for cls in result]
         assert class_names.count(NewAPIClass.__name__) == 1, (
@@ -418,15 +421,11 @@ class TestGenerateImportsCode:
     """Tests for generate_imports_code_from_model() — verifying split-package import paths"""
 
     def test_unset_import_uses_openapi_types_module(self, temp_api_client: OpenAPIClient) -> None:
-        """Test that a model with Unset defaults emits 'from openapi_test_client.libraries.openapi.types import Unset'
+        """Test that a model with Unset defaults emits 'from openapi_test_client.libraries.types import Unset'
 
         This asserts the split-package contract: generated code must import Unset from the openapi layer,
         not from core.types, so that a future removal of the core re-export does not silently break clients.
         """
-        from dataclasses import make_dataclass
-
-        import openapi_test_client.libraries.openapi.types as openapi_types_module
-
         # Use make_dataclass to avoid from __future__ import annotations stringifying the field type
         UnsetModel = make_dataclass("UnsetModel", [("field1", str, Unset)], bases=(ParamModel,))
 
@@ -439,18 +438,14 @@ class TestGenerateImportsCode:
             f"Expected line: {expected!r}\n"
             f"Actual imports_code:\n{imports_code}"
         )
-        assert "from openapi_test_client.libraries.core.types import Unset" not in imports_code
+        assert "from api_client_core.types import Unset" not in imports_code
 
     def test_optional_import_uses_openapi_types_module(self, temp_api_client: OpenAPIClient) -> None:
         """Test that a model with Optional fields emits
-        'from openapi_test_client.libraries.openapi.types import Optional'.
+        'from openapi_test_client.libraries.types import Optional'.
 
         Mirrors the Unset contract: Optional is an openapi-layer alias and must be imported from there.
         """
-        from dataclasses import make_dataclass
-
-        import openapi_test_client.libraries.openapi.types as openapi_types_module
-
         # Use make_dataclass to avoid from __future__ import annotations stringifying the field type
         OptionalModel = make_dataclass(
             "OptionalModel", [("field1", openapi_types_module.Optional[str], Unset)], bases=(ParamModel,)
@@ -472,7 +467,7 @@ def do_generate_api_class(
     temp_api_client: OpenAPIClient,
     api_class_name: str,
     add_endpoint_functions: bool = True,
-) -> type[APIBase]:
+) -> type[OpenAPIBase[Any]]:
     result = generate_api_class(temp_api_client, "Test", api_class_name, add_endpoint_functions=add_endpoint_functions)
     assert not isinstance(result, tuple), "API class generation failed"
     return result

@@ -18,3 +18,7 @@ loggers:
     level: DEBUG
     handlers:
       - console
+  api_client_core:
+    level: DEBUG
+    handlers:
+      - console
