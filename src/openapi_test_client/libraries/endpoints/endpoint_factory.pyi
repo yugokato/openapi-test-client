@@ -5,12 +5,12 @@ from api_client_core.endpoints.endpoint_factory import endpoint as _endpoint
 from api_client_core.endpoints.endpoint_handler import PendingOperations
 from api_client_core.types import RestResponse
 
-from openapi_test_client.libraries.base import OpenAPIBase
+from openapi_test_client.libraries.base import BaseOpenAPI
 from openapi_test_client.libraries.endpoints.endpoint_handler import EndpointHandler
 
 __all__ = ["endpoint"]
 
-T = TypeVar("T", bound=OpenAPIBase[Any])
+T = TypeVar("T", bound=BaseOpenAPI[Any])
 P = ParamSpec("P")
 R = TypeVar("R", bound=RestResponse)
 

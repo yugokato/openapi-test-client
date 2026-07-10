@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from openapi_test_client.libraries import Endpoint
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 
 pytestmark = [pytest.mark.unittest]
 
@@ -14,7 +14,7 @@ class TestOpenAPIEndpointObject:
     """Tests for OpenAPI-specific Endpoint fields and behavior"""
 
     @pytest.mark.parametrize("with_instance", [True, False])
-    def test_openapi_attrs(self, api_client: OpenAPIClient, api_class: type[OpenAPIBase], with_instance: bool) -> None:
+    def test_openapi_attrs(self, api_client: OpenAPIClient, api_class: type[BaseOpenAPI], with_instance: bool) -> None:
         """Test that OpenAPIEndpoint has a tags field populated from the class TAGs"""
 
         if with_instance:

@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from pytest_lazy_fixtures import lf as lazy_fixture
 
 import openapi_test_client.libraries.utils.pydantic_model as pydantic_model_util
-from openapi_test_client.libraries.base import OpenAPIBase
+from openapi_test_client.libraries.base import BaseOpenAPI
 from openapi_test_client.libraries.types import Constraint, EndpointModel, Optional, ParamModel, PydanticModel
 from openapi_test_client.libraries.utils import param_type as param_type_util
 
@@ -158,19 +158,19 @@ class TestPydanticModel:
 class TestEndpointModelPydanticConversion:
     """Tests for `EndpointModel.to_pydantic()`"""
 
-    def test_endpoint_model_to_pydantic(self, api_class: type[OpenAPIBase]) -> None:
+    def test_endpoint_model_to_pydantic(self, api_class: type[BaseOpenAPI]) -> None:
         """Test that an endpoint model can be converted to a Pydantic model via `to_pydantic()`"""
         model = api_class.get_something.endpoint.model
         assert issubclass(model, EndpointModel)
         pydantic_model = model.to_pydantic()
         assert issubclass(pydantic_model, PydanticModel)
 
-    def test_endpoint_model_to_pydantic_matches_standalone_helper(self, api_class: type[OpenAPIBase]) -> None:
+    def test_endpoint_model_to_pydantic_matches_standalone_helper(self, api_class: type[BaseOpenAPI]) -> None:
         """Test that `EndpointModel.to_pydantic()` delegates to the standalone `to_pydantic()` helper"""
         model = api_class.get_something.endpoint.model
         assert model.to_pydantic().model_fields == pydantic_model_util.to_pydantic(model).model_fields
 
-    def test_endpoint_model_to_pydantic_is_cached(self, api_class: type[OpenAPIBase]) -> None:
+    def test_endpoint_model_to_pydantic_is_cached(self, api_class: type[BaseOpenAPI]) -> None:
         """Test that repeated calls to `to_pydantic()` return the same cached class"""
         model = api_class.get_something.endpoint.model
         assert model.to_pydantic() is model.to_pydantic()

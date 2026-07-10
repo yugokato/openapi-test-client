@@ -9,13 +9,13 @@ from types import NoneType
 from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
 
 import pytest
-from api_client_core.base import APIBase
+from api_client_core.base import BaseAPI
 from api_client_core.base.api_class import get_api_classes
 from pytest_mock import MockerFixture
 
 import openapi_test_client.libraries.types as openapi_types_module
 from openapi_test_client.libraries import Endpoint, EndpointFunc
-from openapi_test_client.libraries.base.api_class import OpenAPIBase
+from openapi_test_client.libraries.base.api_class import BaseOpenAPI
 from openapi_test_client.libraries.base.api_client import OpenAPIClient
 from openapi_test_client.libraries.code_gen import utils
 from openapi_test_client.libraries.code_gen.client_generator import (
@@ -52,7 +52,7 @@ class TestGenerateBaseApiClass:
         """Test that code generation of new base API class works"""
         app_name = temp_api_client.app_name
         NewBaseAPIClass = generate_base_api_class(temp_api_client)
-        assert issubclass(NewBaseAPIClass, APIBase)
+        assert issubclass(NewBaseAPIClass, BaseAPI)
         assert NewBaseAPIClass.__name__ == "TestAppBaseAPI"
         assert NewBaseAPIClass.__module__.endswith(f".api.base.{app_name}_api")
         assert (Path(inspect.getfile(NewBaseAPIClass)).parent / "__init__.py").exists()
@@ -78,7 +78,7 @@ class TestGenerateApiClass:
             api_class_name,
             add_endpoint_functions=add_endpoint_functions,
         )
-        assert issubclass(NewAPIClass, OpenAPIBase)
+        assert issubclass(NewAPIClass, BaseOpenAPI)
         assert NewAPIClass.__bases__[0].__name__ == "TestAppBaseAPI"
         assert NewAPIClass.__name__ == api_class_name
         assert NewAPIClass.__module__.endswith(".test_something")
@@ -365,7 +365,7 @@ class TestGetApiClasses:
         api_module_name = get_module_name_by_file_path(api_class_file_path.parent / "__init__.py").removesuffix(
             ".__init__"
         )
-        base_class: type[OpenAPIBase[Any]] = NewAPIClass.__bases__[0]
+        base_class: type[BaseOpenAPI[Any]] = NewAPIClass.__bases__[0]
         result = get_api_classes(api_module_name, base_class, class_filter=_is_live_class)
 
         class_names = [cls.__name__ for cls in result]
@@ -502,7 +502,7 @@ def do_generate_api_class(
     temp_api_client: OpenAPIClient,
     api_class_name: str,
     add_endpoint_functions: bool = True,
-) -> type[OpenAPIBase[Any]]:
+) -> type[BaseOpenAPI[Any]]:
     result = generate_api_class(temp_api_client, "Test", api_class_name, add_endpoint_functions=add_endpoint_functions)
     assert not isinstance(result, tuple), "API class generation failed"
     return result

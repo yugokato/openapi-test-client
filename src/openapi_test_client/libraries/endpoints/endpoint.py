@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, ParamSpec
 from api_client_core.endpoints.endpoint import Endpoint as _Endpoint
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.base.api_class import OpenAPIBase
+    from openapi_test_client.libraries.base.api_class import BaseOpenAPI
     from openapi_test_client.libraries.types import EndpointModel
 
 P = ParamSpec("P")
@@ -21,7 +21,7 @@ class Endpoint(_Endpoint[P]):
     See the core's `Endpoint` class for details.
     """
 
-    api_class: type[OpenAPIBase[Any]]
+    api_class: type[BaseOpenAPI[Any]]
     model: type[EndpointModel]
     tags: tuple[str, ...] = ()
 

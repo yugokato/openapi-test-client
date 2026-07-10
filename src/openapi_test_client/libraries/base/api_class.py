@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
-from api_client_core.base.api_class import APIBase
+from api_client_core.base.api_class import BaseAPI
 
 import openapi_test_client.libraries.utils.pydantic_model as pydantic_model_util
 from openapi_test_client.libraries.endpoints import Endpoint
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound="OpenAPIClient")
 
 
-class OpenAPIBase(APIBase[T]):
+class BaseOpenAPI(BaseAPI[T]):
     """OpenAPI-aware API base class with built-in Pydantic validation support.
 
     When validation mode is active (VALIDATION_MODE env var is set, or validate=True is passed to

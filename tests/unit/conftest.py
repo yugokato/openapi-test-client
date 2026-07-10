@@ -5,19 +5,19 @@ from typing import Annotated, Any, TypeVar, cast
 import api_client_core.endpoints.utils.param_type as param_type_util
 import pytest
 from _pytest.fixtures import SubRequest
-from api_client_core.base import APIBase, APIClient
+from api_client_core.base import APIClient, BaseAPI
 from common_libs.clients.rest_client import AsyncRestClient, RestClient, RestResponse
 from httpx import AsyncClient, Client
 from pytest import FixtureRequest
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import endpoint
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 from openapi_test_client.libraries.types import File, Format, Optional, ParamModel, Unset
 from openapi_test_client.libraries.utils.pydantic_model import PARAM_FORMAT_AND_TYPE_MAP
 
 ClientT = TypeVar("ClientT", bound=APIClient | OpenAPIClient)
-ClassT = TypeVar("ClassT", bound=APIBase[Any] | OpenAPIBase[Any])
+ClassT = TypeVar("ClassT", bound=BaseAPI[Any] | BaseOpenAPI[Any])
 
 
 @pytest.fixture(scope="module")
@@ -40,11 +40,11 @@ def api_client_factory(session_mocker: MockerFixture) -> Callable[..., OpenAPICl
 
 
 @pytest.fixture(scope="module")
-def api_class_factory() -> Callable[..., type[OpenAPIBase]]:
+def api_class_factory() -> Callable[..., type[BaseOpenAPI]]:
     """API class factory that creates a testable API class with one endpoint function"""
 
-    def create_api_class(api_client: OpenAPIClient) -> type[OpenAPIBase]:
-        class TestAPI(OpenAPIBase):
+    def create_api_class(api_client: OpenAPIClient) -> type[BaseOpenAPI]:
+        class TestAPI(BaseOpenAPI):
             TAGs = ("Test",)
             app_name = api_client.app_name
 

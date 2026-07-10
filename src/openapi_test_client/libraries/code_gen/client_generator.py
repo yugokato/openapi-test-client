@@ -29,7 +29,7 @@ from openapi_test_client import (
     get_package_dir,
     is_external_project,
 )
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 from openapi_test_client.libraries.code_gen.code import diff_code, format_code, parse_code
 from openapi_test_client.libraries.code_gen.constants import BACKSLASH, TAB
 from openapi_test_client.libraries.code_gen.utils import (
@@ -51,7 +51,7 @@ from openapi_test_client.libraries.utils.modules import (
 if TYPE_CHECKING:
     from openapi_test_client.libraries import EndpointFunc
 
-T = TypeVar("T", bound=OpenAPIBase[Any])
+T = TypeVar("T", bound=BaseOpenAPI[Any])
 
 logger = get_logger(__name__)
 
@@ -73,7 +73,7 @@ Do NOT manually update the content.
 
 
 @lru_cache
-def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[OpenAPIBase[Any]]:
+def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[BaseOpenAPI[Any]]:
     """Generate new base API class file for the given temporary API client"""
     from openapi_test_client.libraries import Endpoint
 
@@ -85,13 +85,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from {OpenAPIBase.__module__} import {OpenAPIBase.__name__}
+from {BaseOpenAPI.__module__} import {BaseOpenAPI.__name__}
 
 if TYPE_CHECKING:
     from {_get_package(Endpoint)} import {Endpoint.__name__}
 
 
-class {base_api_class_name}({OpenAPIBase.__name__}):
+class {base_api_class_name}({BaseOpenAPI.__name__}):
     """Base class for {app_name} API classes"""
 
     TAGs: ClassVar[tuple[str, ...]] = ()
@@ -133,7 +133,7 @@ def generate_api_class(
     add_endpoint_functions: bool = True,
     dry_run: bool = False,
     show_generated_code: bool = True,
-) -> type[OpenAPIBase[Any]] | tuple[str, Exception] | None:
+) -> type[BaseOpenAPI[Any]] | tuple[str, Exception] | None:
     """Generate new API class file for the given API tag.
 
     If an exception is thrown during the process, API tag, API class name, and the exception will be returned.
@@ -224,7 +224,7 @@ def generate_api_class(
 
 
 def update_endpoint_functions(
-    api_class: type[OpenAPIBase[Any]],
+    api_class: type[BaseOpenAPI[Any]],
     api_spec: dict[str, Any],
     is_new_api_class: bool = False,
     target_endpoints: list[str] | None = None,
@@ -313,7 +313,7 @@ def update_endpoint_functions(
     defined_endpoints = []
     param_models = []
 
-    def update_existing_endpoints(target_api_class: type[OpenAPIBase[Any]] = api_class) -> None:
+    def update_existing_endpoints(target_api_class: type[BaseOpenAPI[Any]] = api_class) -> None:
         """Updated existing endpoint functions"""
         nonlocal modified_api_cls_code, method, path, func_name
         new_code = current_code = modified_api_cls_code
@@ -725,7 +725,7 @@ def _is_temp_client(api_client: OpenAPIClient) -> bool:
     return type(api_client) is OpenAPIClient
 
 
-def _get_base_api_class(api_client: OpenAPIClient) -> type[OpenAPIBase[Any]]:
+def _get_base_api_class(api_client: OpenAPIClient) -> type[BaseOpenAPI[Any]]:
     client_file_path = Path(inspect.getabsfile(type(api_client)))
     app_client_dir = client_file_path.parent
     base_api_class_name = to_class_name(api_client.app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)

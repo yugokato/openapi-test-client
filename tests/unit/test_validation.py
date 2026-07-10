@@ -8,7 +8,7 @@ from httpx import Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import endpoint
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 from openapi_test_client.libraries.types import Unset
 from openapi_test_client.libraries.validation import OpenAPIRequestValidator
 
@@ -55,7 +55,7 @@ class TestOpenAPIRequestValidatorValidate:
         """An Endpoint object for a typed API function (name: str required)"""
         mocker.patch.object(Client, "request")
 
-        class ItemsAPI(OpenAPIBase):
+        class ItemsAPI(BaseOpenAPI):
             TAGs = ("Items",)
             app_name = api_client.app_name
 

@@ -7,7 +7,7 @@ from types import NoneType, UnionType
 from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, get_args, get_origin
 
 import openapi_test_client.libraries.types as openapi_types_module
-from openapi_test_client.libraries.base.api_class import OpenAPIBase
+from openapi_test_client.libraries.base.api_class import BaseOpenAPI
 from openapi_test_client.libraries.code_gen.constants import BACKSLASH, TAB
 from openapi_test_client.libraries.types import (
     Alias,
@@ -65,7 +65,7 @@ def generate_func_signature_code(model: type[EndpointModel]) -> str:
 
 
 def generate_imports_code_from_model(
-    api_class: type[OpenAPIBase[Any]], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
+    api_class: type[BaseOpenAPI[Any]], model: type[EndpointModel | ParamModel], exclude_nested_models: bool = False
 ) -> str:
     """Generate imports code from the model
 
@@ -135,7 +135,7 @@ def generate_imports_code_from_model(
     return imports_code
 
 
-def generate_model_code_from_model(api_class: type[OpenAPIBase[Any]], model: type[ParamModel]) -> tuple[str, str]:
+def generate_model_code_from_model(api_class: type[BaseOpenAPI[Any]], model: type[ParamModel]) -> tuple[str, str]:
     """Generate dataclass code from the model
 
     :param api_class: The API class the model is for

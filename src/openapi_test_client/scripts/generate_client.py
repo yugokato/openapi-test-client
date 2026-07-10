@@ -94,7 +94,7 @@ from openapi_test_client.libraries.code_gen import client_generator as generator
 from openapi_test_client.libraries.utils.modules import get_module_name_by_file_path
 
 if TYPE_CHECKING:
-    from openapi_test_client.libraries.base.api_class import OpenAPIBase
+    from openapi_test_client.libraries.base.api_class import BaseOpenAPI
 
 logger = get_logger(__name__)
 
@@ -418,7 +418,7 @@ def update_client(args: argparse.Namespace) -> None:
             _log_errors(args.action, failed_results)
 
 
-def _get_api_classes(app: str) -> list[type[OpenAPIBase[Any]]]:
+def _get_api_classes(app: str) -> list[type[BaseOpenAPI[Any]]]:
     mod = importlib.import_module(
         f"{get_module_name_by_file_path(API_CLIENTS_DIR)}.{app}.{generator.API_CLASS_DIR_NAME}"
     )

@@ -1,4 +1,4 @@
-"""Unit tests for the validate kwarg on API function calls (OpenAPIBase)."""
+"""Unit tests for the validate kwarg on API function calls (BaseOpenAPI)."""
 
 import os
 from typing import Any
@@ -11,7 +11,7 @@ from httpx import AsyncClient, Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import endpoint
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 from openapi_test_client.libraries.types import File, Unset
 from openapi_test_client.libraries.utils.pydantic_model import in_validation_mode
 
@@ -28,10 +28,10 @@ def _mock_response(mocker: MockerFixture, *, is_async: bool = False) -> Any:
 
 
 @pytest.fixture
-def openapi_api_class(api_client: OpenAPIClient) -> type[OpenAPIBase]:
-    """An API class based on OpenAPIBase with one endpoint that has a typed parameter."""
+def openapi_api_class(api_client: OpenAPIClient) -> type[BaseOpenAPI]:
+    """An API class based on BaseOpenAPI with one endpoint that has a typed parameter."""
 
-    class TestOpenAPI(OpenAPIBase):
+    class TestOpenAPI(BaseOpenAPI):
         TAGs = ("Test",)
         app_name = api_client.app_name
 
@@ -42,10 +42,10 @@ def openapi_api_class(api_client: OpenAPIClient) -> type[OpenAPIBase]:
 
 
 @pytest.fixture
-def openapi_api_class_async(api_client_async: OpenAPIClient) -> type[OpenAPIBase]:
-    """An API class based on OpenAPIBase (async) with one endpoint that has a typed parameter."""
+def openapi_api_class_async(api_client_async: OpenAPIClient) -> type[BaseOpenAPI]:
+    """An API class based on BaseOpenAPI (async) with one endpoint that has a typed parameter."""
 
-    class TestOpenAPI(OpenAPIBase):
+    class TestOpenAPI(BaseOpenAPI):
         TAGs = ("Test",)
         app_name = api_client_async.app_name
 
@@ -59,7 +59,7 @@ class TestValidateKwargOnCall:
     """Tests for the validate kwarg on synchronous API function calls"""
 
     def test_validate_true_raises_on_invalid_params(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=True raises ValueError when an invalid param type is passed"""
         _mock_response(mocker)
@@ -69,7 +69,7 @@ class TestValidateKwargOnCall:
             instance.create_resource(name=123, validate=True)
 
     def test_validate_false_does_not_raise_on_invalid_params(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=False (default) does not raise even for invalid param types"""
         _mock_response(mocker)
@@ -79,7 +79,7 @@ class TestValidateKwargOnCall:
         assert r.ok
 
     def test_validate_not_sent_as_request_param(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate= kwarg does not appear in the outgoing HTTP request body"""
         captured: dict[str, Any] = {}
@@ -100,7 +100,7 @@ class TestValidateKwargOnCall:
         assert "validate" not in request_content
 
     def test_validate_true_with_valid_params_succeeds(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=True with valid params makes a successful request"""
         _mock_response(mocker)
@@ -114,7 +114,7 @@ class TestValidateKwargOnCall:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client: OpenAPIClient,
-        openapi_api_class: type[OpenAPIBase],
+        openapi_api_class: type[BaseOpenAPI],
     ) -> None:
         """Test that validate=False forces validation off even when VALIDATION_MODE env var is set.
 
@@ -135,7 +135,7 @@ class TestValidateKwargOnCall:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client: OpenAPIClient,
-        openapi_api_class: type[OpenAPIBase],
+        openapi_api_class: type[BaseOpenAPI],
     ) -> None:
         """Test that omitting validate (None) inherits the VALIDATION_MODE env var state"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -146,7 +146,7 @@ class TestValidateKwargOnCall:
             instance.create_resource(name=123)  # validate omitted → inherits env → validation active
 
     def test_validate_kwarg_nesting_safety(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=True inside an in_validation_mode() block does not corrupt outer state"""
         _mock_response(mocker)
@@ -169,7 +169,7 @@ class TestValidateKwargOnStream:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client: OpenAPIClient,
-        openapi_api_class: type[OpenAPIBase],
+        openapi_api_class: type[BaseOpenAPI],
     ) -> None:
         """Test that stream validate=False forces validation off even when VALIDATION_MODE env var is set"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -192,7 +192,7 @@ class TestValidateKwargOnStream:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client: OpenAPIClient,
-        openapi_api_class: type[OpenAPIBase],
+        openapi_api_class: type[BaseOpenAPI],
     ) -> None:
         """Test that omitting validate on stream() inherits the VALIDATION_MODE env var state"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -211,7 +211,7 @@ class TestValidateKwargOnStream:
                 pass
 
     def test_stream_validate_true_raises_on_invalid_params(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=True raises ValueError when an invalid param type is passed to stream()"""
         _mock_response(mocker)
@@ -222,7 +222,7 @@ class TestValidateKwargOnStream:
                 pass
 
     def test_stream_validate_false_does_not_raise_on_invalid_params(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that stream validate=False (default) does not raise for invalid param types"""
 
@@ -240,7 +240,7 @@ class TestValidateKwargOnStream:
             pass  # should not raise
 
     def test_stream_validate_not_sent_as_request_param(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, openapi_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that validate= kwarg does not appear in the outgoing streaming HTTP request"""
         captured: dict[str, Any] = {}
@@ -271,7 +271,7 @@ class TestValidateKwargOnAsyncCall:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client_async: OpenAPIClient,
-        openapi_api_class_async: type[OpenAPIBase],
+        openapi_api_class_async: type[BaseOpenAPI],
     ) -> None:
         """Test that async validate=False forces validation off even when VALIDATION_MODE env var is set"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -286,7 +286,7 @@ class TestValidateKwargOnAsyncCall:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client_async: OpenAPIClient,
-        openapi_api_class_async: type[OpenAPIBase],
+        openapi_api_class_async: type[BaseOpenAPI],
     ) -> None:
         """Test that omitting validate on async calls inherits the VALIDATION_MODE env var state"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -297,7 +297,7 @@ class TestValidateKwargOnAsyncCall:
             await instance.list_resources(role=42)  # validate omitted → inherits env → validation active
 
     async def test_async_validate_true_raises_on_invalid_params(
-        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=True raises ValueError on invalid params in async mode"""
         _mock_response(mocker, is_async=True)
@@ -307,7 +307,7 @@ class TestValidateKwargOnAsyncCall:
             await instance.list_resources(role=42, validate=True)
 
     async def test_async_validate_false_does_not_raise(
-        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[BaseOpenAPI]
     ) -> None:
         """Test that async validate=False does not raise even for invalid params"""
         _mock_response(mocker, is_async=True)
@@ -317,7 +317,7 @@ class TestValidateKwargOnAsyncCall:
         assert r.ok
 
     async def test_async_validate_not_sent_as_request_param(
-        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[BaseOpenAPI]
     ) -> None:
         """Test that validate= kwarg does not appear in the outgoing async HTTP request"""
         captured: dict[str, Any] = {}
@@ -346,7 +346,7 @@ class TestValidateKwargOnAsyncStream:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client_async: OpenAPIClient,
-        openapi_api_class_async: type[OpenAPIBase],
+        openapi_api_class_async: type[BaseOpenAPI],
     ) -> None:
         """Test that async stream validate=False forces validation off even when VALIDATION_MODE env var is set"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -379,7 +379,7 @@ class TestValidateKwargOnAsyncStream:
         monkeypatch: pytest.MonkeyPatch,
         mocker: MockerFixture,
         api_client_async: OpenAPIClient,
-        openapi_api_class_async: type[OpenAPIBase],
+        openapi_api_class_async: type[BaseOpenAPI],
     ) -> None:
         """Test that omitting validate on async stream() inherits the VALIDATION_MODE env var state"""
         monkeypatch.setenv("VALIDATION_MODE", "true")
@@ -391,7 +391,7 @@ class TestValidateKwargOnAsyncStream:
                 pass
 
     async def test_async_stream_validate_true_raises_on_invalid_params(
-        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[BaseOpenAPI]
     ) -> None:
         """Test that validate=True raises ValueError for invalid params on async stream()"""
         _mock_response(mocker, is_async=True)
@@ -402,7 +402,7 @@ class TestValidateKwargOnAsyncStream:
                 pass
 
     async def test_async_stream_validate_false_does_not_raise(
-        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client_async: OpenAPIClient, openapi_api_class_async: type[BaseOpenAPI]
     ) -> None:
         """Test that async stream validate=False does not raise for invalid params"""
 
@@ -434,10 +434,10 @@ class TestValidationNormalizerFileIntegrity:
     """Tests that the validation normalizer does not corrupt File/bytes parameters."""
 
     @pytest.fixture
-    def upload_api_class(self, api_client: OpenAPIClient) -> type[OpenAPIBase]:
+    def upload_api_class(self, api_client: OpenAPIClient) -> type[BaseOpenAPI]:
         """An API class with one file-upload endpoint."""
 
-        class UploadAPI(OpenAPIBase):
+        class UploadAPI(BaseOpenAPI):
             TAGs = ("Upload",)
             app_name = api_client.app_name
 
@@ -447,7 +447,7 @@ class TestValidationNormalizerFileIntegrity:
         return UploadAPI
 
     def test_file_param_survives_validation_normalizer(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, upload_api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, upload_api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that a File param is still a File instance when it reaches generate_rest_func_params
         in validation mode.
@@ -485,7 +485,7 @@ class TestValidationNormalizerFileIntegrity:
             "generate_rest_func_params",
         )
 
-        class BinaryAPI(OpenAPIBase):
+        class BinaryAPI(BaseOpenAPI):
             TAGs = ("Binary",)
             app_name = api_client.app_name
 

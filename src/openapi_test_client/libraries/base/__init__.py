@@ -1,2 +1,2 @@
-from .api_class import OpenAPIBase
+from .api_class import BaseOpenAPI
 from .api_client import OpenAPIClient

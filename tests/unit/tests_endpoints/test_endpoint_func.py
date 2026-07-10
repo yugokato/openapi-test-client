@@ -9,7 +9,7 @@ from httpx import Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import EndpointFunc, endpoint
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 from openapi_test_client.libraries.types import Unset
 
 pytestmark = [pytest.mark.unittest]
@@ -22,7 +22,7 @@ class TestOpenAPIEndpointFunc:
         self,
         mocker: MockerFixture,
         api_client: OpenAPIClient,
-        api_class: type[OpenAPIBase],
+        api_class: type[BaseOpenAPI],
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Test that docs() prints the api_spec usage string when the endpoint is documented"""
@@ -41,7 +41,7 @@ class TestOpenAPIEndpointFunc:
         self,
         mocker: MockerFixture,
         api_client: OpenAPIClient,
-        api_class: type[OpenAPIBase],
+        api_class: type[BaseOpenAPI],
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Test that docs() prints 'Docs not available' when api_spec returns None for the endpoint"""
@@ -58,7 +58,7 @@ class TestOpenAPIEndpointFunc:
     def test_get_usage_returns_none_when_undocumented(self, mocker: MockerFixture, api_client: OpenAPIClient) -> None:
         """Test that get_usage() returns None when the endpoint is marked undocumented"""
 
-        class UndocumentedAPI(OpenAPIBase):
+        class UndocumentedAPI(BaseOpenAPI):
             TAGs = ("Test",)
             app_name = api_client.app_name
 
@@ -72,7 +72,7 @@ class TestOpenAPIEndpointFunc:
         assert endpoint_func.get_usage() is None
 
     def test_get_usage_returns_none_without_api_spec(
-        self, mocker: MockerFixture, api_client: OpenAPIClient, api_class: type[OpenAPIBase]
+        self, mocker: MockerFixture, api_client: OpenAPIClient, api_class: type[BaseOpenAPI]
     ) -> None:
         """Test that get_usage() returns None when the client has no api_spec attribute"""
         mocker.patch.object(api_client, "api_spec", None)
@@ -84,7 +84,7 @@ class TestOpenAPIEndpointFunc:
 class TestOpenAPIUnsetFilter:
     """Tests for OpenAPI-specific Unset-exclusion behavior in endpoint payloads.
 
-    OpenAPI-side endpoints (OpenAPIBase) exclude any parameter whose signature default
+    OpenAPI-side endpoints (BaseOpenAPI) exclude any parameter whose signature default
     is the Unset sentinel, because filter_payload_params() drops Unset-valued entries
     before they reach generate_rest_func_params.
     """
@@ -99,7 +99,7 @@ class TestOpenAPIUnsetFilter:
             "generate_rest_func_params",
         )
 
-        class OpenAPIStyleAPI(OpenAPIBase):
+        class OpenAPIStyleAPI(BaseOpenAPI):
             TAGs = ("Items",)
             app_name = api_client.app_name
 
@@ -120,7 +120,7 @@ class TestOpenAPIUnsetFilter:
             "generate_rest_func_params",
         )
 
-        class OpenAPIStyleAPI(OpenAPIBase):
+        class OpenAPIStyleAPI(BaseOpenAPI):
             TAGs = ("Items",)
             app_name = api_client.app_name
 

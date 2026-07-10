@@ -11,7 +11,7 @@ from api_client_core.endpoints.utils.param_type import get_annotated_type
 from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.libraries import EndpointFunc, endpoint
-from openapi_test_client.libraries.base import OpenAPIBase, OpenAPIClient
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
 from openapi_test_client.libraries.types import (
     ENDPOINT_FUNC_CONTROL_KWARGS,
     Alias,
@@ -28,7 +28,7 @@ pytestmark = [pytest.mark.unittest]
 def _make_endpoint_func(api_client: OpenAPIClient, method: str, path: str) -> Any:
     """Create a minimal EndpointFunc instance for the given method and path."""
 
-    class _TempAPI(OpenAPIBase):
+    class _TempAPI(BaseOpenAPI):
         TAGs = ("Test",)
         app_name = api_client.app_name
 
@@ -368,7 +368,7 @@ class TestRuntimeEndpointModel:
     def _make_endpoint_func_with_params(self, api_client: OpenAPIClient, **param_annotations: Any) -> Any:
         """Create an OpenAPI EndpointFunc whose signature declares the given keyword parameters."""
 
-        class _TempAPI(OpenAPIBase):
+        class _TempAPI(BaseOpenAPI):
             TAGs = ("Test",)
             app_name = api_client.app_name
 
