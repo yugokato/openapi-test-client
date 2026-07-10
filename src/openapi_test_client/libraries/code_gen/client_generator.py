@@ -293,8 +293,8 @@ def update_endpoint_functions(
         rf"(\n{tab}{{2}})?\"(?P<path>.+?)\"(?P<ep_options>,.+?)?(\n{tab})?\)\n"
         # decorator(s) below the endpoint decorator
         rf"(?P<decorators_below>(?:{tab}@[^\n]+\n)*?)"
-        # function def
-        rf"(?P<func_def>{tab}def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> RestResponse:\n?)"
+        # function def (supports both `def` and `async def`)
+        rf"(?P<func_def>{tab}(?:async )?def (?P<func_name>.+?)\((?P<signature>.+?){tab}?\) -> RestResponse:\n?)"
         # docstring
         rf"({tab}{{2}}(?P<docstring>\"{{3}}.*?\"{{3}})\n)?"
         # function body

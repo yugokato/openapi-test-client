@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import Any, Concatenate, ParamSpec, TypeAlias, TypeVar, overload
 
 from api_client_core.endpoints.endpoint_factory import endpoint as _endpoint
@@ -14,7 +14,7 @@ T = TypeVar("T", bound=OpenAPIBase[Any])
 P = ParamSpec("P")
 R = TypeVar("R", bound=RestResponse)
 
-_OrigFunc: TypeAlias = Callable[Concatenate[T, P], R]
+_OrigFunc: TypeAlias = Callable[Concatenate[T, P], R | Coroutine[Any, Any, R]]
 _HandlerOrPending: TypeAlias = EndpointHandler[P] | PendingOperations[P]
 _OrigFuncOrPending: TypeAlias = _OrigFunc[T, P, R] | PendingOperations[P]
 

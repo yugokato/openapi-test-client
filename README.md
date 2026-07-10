@@ -325,7 +325,8 @@ However, if you need to implement custom logic for making an API request for spe
 > The client will raise a `RuntimeError` if anything other than a `RestResponse` object or `None` is returned.
 
 > [!TIP]
-> If you only need to add extra behavior before or after the request, consider using decorators or request hooks instead
+> - If you only need to add extra behavior before or after the request, consider using decorators or request hooks instead
+> - If your custom logic needs to `await` other coroutines (e.g. making additional async requests), define the function with `async def` instead of `def`
 
 ### Decorators
 To extend the default API call logic, you can apply decorators on an API function. Note that each decorator MUST be decorated with `@endpoint.decorator` for it to work properly.  
@@ -374,7 +375,8 @@ Hooks work similarly to decorators but are more useful for applying general cont
 For examples and usage, see [demo_app client hooks](src/openapi_test_client/clients/demo_app/api/request_hooks)
 
 > [!TIP]
-> If both decorator(s) and request hooks are configured, the request will be processed in the following order:  
+> - If a pre-request or post-request hook needs to `await` other coroutines, define it with `async def` instead of `def`
+> - If both decorator(s) and request hooks are configured, the request will be processed in the following order:  
 > 1. Decorators (before-call)
 > 2. Request wrapper hook (before-call)
 > 3. Pre-request hook

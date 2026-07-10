@@ -247,6 +247,41 @@ class TestUpdateEndpointFunction:
         updated_code = api_cls_file_path.read_text()
         assert updated_code.count("@endpoint.is_public") == 3
 
+    def test_update_endpoint_function_when_async_def(
+        self, temp_api_client: OpenAPIClient, openapi_specs: dict[str, Any]
+    ) -> None:
+        """Test that update_endpoint_functions() picks up and preserves an endpoint function a user manually
+        changed from `def` to `async def`"""
+        api_class_name = "TestSomethingAPI"
+        NewAPIClass = do_generate_api_class(temp_api_client, api_class_name, add_endpoint_functions=True)
+
+        # Simulate a user manually changing the first endpoint function to `async def`
+        api_cls_file_path = Path(inspect.getfile(NewAPIClass))
+        original_code = api_cls_file_path.read_text()
+        async_def_code = original_code.replace("    def _unnamed_endpoint_1(", "    async def _unnamed_endpoint_1(", 1)
+        assert async_def_code != original_code, "Replace failed: expected `def _unnamed_endpoint_1(` in the code"
+        api_cls_file_path.write_text(async_def_code)
+
+        # Update with new params added to all endpoints
+        endpoint_param_to_add = "new_param"
+        updated_openapi_specs = helper.generate_updated_specs(
+            openapi_specs, endpoint_param_to_add=endpoint_param_to_add, model_param_to_delete="additional_info"
+        )
+        result = update_endpoint_functions(NewAPIClass, updated_openapi_specs, add_missing_endpoints=True)
+        assert result is True
+
+        # The `async def` endpoint must have been matched and its signature updated, not silently skipped
+        UpdatedNewAPIClass = reload_obj(NewAPIClass)
+        sig = inspect.signature(UpdatedNewAPIClass._unnamed_endpoint_1)
+        assert endpoint_param_to_add in sig.parameters
+
+        # `async def` must be preserved, and no duplicate stub should have been added for the same endpoint
+        updated_code = api_cls_file_path.read_text()
+        num_available_endpoints = len(helper.get_defined_endpoints(openapi_specs))
+        async_kws = re.findall(r"(async )?def _unnamed_endpoint_\d+\(", updated_code)
+        assert len(async_kws) == num_available_endpoints
+        assert async_kws.count("async ") == 1
+
 
 class TestGenerateApiClient:
     """Tests for generate_api_client()"""
