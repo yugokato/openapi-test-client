@@ -1,4 +1,5 @@
 version: 1
+disable_existing_loggers: false
 handlers:
   console:
     class: common_libs.logging.ColoredStreamHandler
@@ -7,18 +8,14 @@ handlers:
 formatters:
   default:
     class: common_libs.logging.LogFormatter
-    format: "%(asctime)s - %(message)s"
-    datefmt: "%Y-%m-%dT%H:%M:%S.%f%z"
 loggers:
-  common_libs:
-    level: DEBUG
-    handlers:
-      - console
   openapi_test_client:
     level: DEBUG
     handlers:
       - console
+    propagate: false
   api_client_core:
     level: DEBUG
     handlers:
       - console
+    propagate: false

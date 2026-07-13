@@ -4,14 +4,16 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+import yaml
+from api_client_core import setup_logging
 from api_client_core.endpoints import Stats
-from common_libs.logging import get_logger, setup_logging
+from common_libs.logging import get_logger
 from common_libs.utils import list_items
 
 try:
     __version__ = version("openapi-test-client")
 except PackageNotFoundError:
-    pass
+    __version__ = "unknown"
 
 
 # For internal use only
@@ -108,5 +110,6 @@ def get_client_dir(client_name: str) -> Path:
     return get_package_dir() / "clients" / client_name
 
 
-setup_logging(get_config_dir() / "logging.yaml")
+with open(get_config_dir() / "logging.yaml", encoding="utf-8") as f:
+    setup_logging(yaml.safe_load(f))
 logger = get_logger(__name__)
