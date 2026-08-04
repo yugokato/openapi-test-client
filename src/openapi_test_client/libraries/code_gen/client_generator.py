@@ -75,7 +75,6 @@ Do NOT manually update the content.
 @lru_cache
 def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[BaseOpenAPI[Any]]:
     """Generate new base API class file for the given temporary API client"""
-    from openapi_test_client.libraries import Endpoint
 
     assert _is_temp_client(temp_api_client)
     app_name = temp_api_client.app_name
@@ -83,12 +82,9 @@ def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[BaseOpenAPI[
     code = f'''\
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from {BaseOpenAPI.__module__} import {BaseOpenAPI.__name__}
-
-if TYPE_CHECKING:
-    from {_get_package(Endpoint)} import {Endpoint.__name__}
 
 
 class {base_api_class_name}({BaseOpenAPI.__name__}):
