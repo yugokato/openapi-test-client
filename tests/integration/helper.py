@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Self
 import httpcore
 import httpx
 import pytest
+from common_libs.ansi_colors import should_color
 from common_libs.lock import Lock
 from common_libs.network import find_open_port, is_port_in_use
 from common_libs.utils import wait_until
@@ -225,7 +226,11 @@ def run_command(args: str) -> tuple[str, str]:
     """Run openapi-client command with given command args"""
     cmd = f"openapi-client {args}"
     logger.info(f"Running command: {cmd}")
-    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+    # The subprocess's own stdout is a pipe, so isatty() is always False there, disabling colors regardless of what the
+    # fixture patches on this process. Propagate the decision via FORCE_COLOR instead.
+    env = os.environ.copy()
+    env["FORCE_COLOR"] = "1" if should_color() else "0"
+    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", env=env)
     if os.environ["IS_CAPTURING_OUTPUT"] == "true":
         stdout, stderr = proc.communicate()
         print(stdout)  # noqa: T201
