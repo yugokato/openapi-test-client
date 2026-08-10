@@ -59,6 +59,13 @@ class TestGenerateBaseApiClass:
         assert NewBaseAPIClass.app_name == app_name
         assert NewBaseAPIClass.endpoints is None
 
+        # The generated base class must be parameterized with the (not-yet-generated) API client class so
+        # that mypy's disallow_any_generics does not flag it, and self.api_client is typed as that client
+        source = Path(inspect.getfile(NewBaseAPIClass)).read_text()
+        assert "if TYPE_CHECKING:" in source
+        assert "from ...test_app_client import TestAppAPIClient  # noqa: F401" in source
+        assert 'class TestAppBaseAPI(BaseOpenAPI["TestAppAPIClient"]):' in source
+
 
 class TestGenerateApiClass:
     """Tests for generate_api_class()"""

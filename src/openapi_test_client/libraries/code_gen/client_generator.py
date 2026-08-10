@@ -79,15 +79,20 @@ def generate_base_api_class(temp_api_client: OpenAPIClient) -> type[BaseOpenAPI[
     assert _is_temp_client(temp_api_client)
     app_name = temp_api_client.app_name
     base_api_class_name = to_class_name(app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)
+    api_client_class_name = _get_api_client_class_name(app_name)
+    api_client_module_name = _get_api_client_module_name(app_name)
     code = f'''\
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from {BaseOpenAPI.__module__} import {BaseOpenAPI.__name__}
 
+if TYPE_CHECKING:
+    from ...{api_client_module_name} import {api_client_class_name}  # noqa: F401
 
-class {base_api_class_name}({BaseOpenAPI.__name__}):
+
+class {base_api_class_name}({BaseOpenAPI.__name__}["{api_client_class_name}"]):
     """Base class for {app_name} API classes"""
 
     TAGs: ClassVar[tuple[str, ...]] = ()
@@ -610,8 +615,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     if not app_client_api_class_dir.exists():
         raise RuntimeError(f"'{API_CLASS_NAME_SUFFIX}' directory does not exist in {app_client_dir}")
 
-    api_client_class_name_part = to_class_name(app_name)
-    api_client_class_name = f"{api_client_class_name_part}{API_CLIENT_CLASS_NAME_SUFFIX}"
+    api_client_class_name = _get_api_client_class_name(app_name)
     doc_path = temp_api_client.api_spec.doc_path
 
     imports_code = (
@@ -644,7 +648,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     if show_generated_code:
         diff_code("", code)
 
-    client_module_name = f"{app_name}_client"
+    client_module_name = _get_api_client_module_name(app_name)
     api_client_file_path = app_client_dir / f"{client_module_name}.py"
     api_client_file_path.write_text(code)
 
@@ -727,6 +731,14 @@ def _get_base_api_class(api_client: OpenAPIClient) -> type[BaseOpenAPI[Any]]:
     base_api_class_name = to_class_name(api_client.app_name, suffix=BASE_API_CLASS_NAME_SUFFIX)
     mod = import_module_from_file_path(app_client_dir / API_CLASS_DIR_NAME)
     return getattr(mod, base_api_class_name)
+
+
+def _get_api_client_class_name(app_name: str) -> str:
+    return to_class_name(app_name, suffix=API_CLIENT_CLASS_NAME_SUFFIX)
+
+
+def _get_api_client_module_name(app_name: str) -> str:
+    return f"{app_name}_client"
 
 
 def _recursively_add_init_file(base_dir: Path, exclude_dirs: tuple[str, ...] = ()) -> None:

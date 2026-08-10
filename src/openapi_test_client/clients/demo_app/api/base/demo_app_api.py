@@ -12,8 +12,10 @@ from ..request_hooks.post_request import manage_auth_session
 if TYPE_CHECKING:
     from openapi_test_client.libraries import Endpoint
 
+    from ...demo_app_client import DemoAppAPIClient  # noqa: F401
 
-class DemoAppBaseAPI(BaseOpenAPI[Any]):
+
+class DemoAppBaseAPI(BaseOpenAPI["DemoAppAPIClient"]):
     """Base class for demo_app API classes"""
 
     TAGs: ClassVar[tuple[str, ...]] = ()
