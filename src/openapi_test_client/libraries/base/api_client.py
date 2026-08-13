@@ -40,7 +40,7 @@ class OpenAPIClient(APIClient):
         :param rest_client: Pre-configured REST client (mutually exclusive with base_url)
         :param async_mode: Enable async mode
         :param raise_on_error: When `True`, automatically calls `raise_for_status()` on every non-2xx response,
-                       raising `httpx.HTTPStatusError`.
+                               raising `httpx2.HTTPStatusError`.
         :param kwargs: Additional keyword arguments passed to the REST client constructor
         """
         if app_name.lower() in ["open", "base"]:

@@ -223,7 +223,7 @@ Alternatively, you can instantiate your client directly from the parent `OpenAPI
 > async with DemoAppAPIClient(async_mode=True) as client:
 >     ...
 > ```
-> - A client can take any raw httpx client (`httpx.Client`/`httpx.AsyncClient`) options as `kwargs`
+> - A client can take any raw httpx2 client (`httpx2.Client`/`httpx2.AsyncClient`) options as `kwargs`
 
 ### Make an API request
 
@@ -274,7 +274,7 @@ eg. To call the login API (`/v1/auth/login`) defined under the `Auth` tag:
 > - `DemoAppAPIClient` will automatically set the `token` value to the API session in the client's post-request logic mentioned earlier
 
 The function call will return a `RestResponse` object where the decoded response is accessible as `response`. If you 
-need to access the raw request and response objects from the underlying `httpx` library, you can do so through the 
+need to access the raw request and response objects from the underlying `httpx2` library, you can do so through the 
 `request` and `_response` attributes.
 
 ```pycon
@@ -292,7 +292,7 @@ RestResponse(_response=<Response [200 ],
              ok=True,
              is_stream=False)
 ```
-Note that we extend the `httpx` library's `Request` and `Client`/`AsyncClient` classes to add a few small capabilities. 
+Note that we extend the `httpx2` library's `Request` and `Client`/`AsyncClient` classes to add a few small capabilities. 
 As an example, you can get the request start/end time (UTC) through `request` as a `datatime` object.
  
 ```pycon
@@ -525,7 +525,7 @@ defined as positional-only arguments, and other parameters are always defined as
 value of `Unset`. Any parameters with this sentinel value will be excluded from the actual API call parameters.   
 Additionally, it will always have `**kwargs` for supporting making a call with any undocumented 
 endpoint parameters, as well as with some internal endpoint function call options such as `raw_options`, 
-which takes raw `httpx` library options (eg. `timeout`, `headers`, etc.) passed to `httpx.Client.request()` if you need to. 
+which takes raw `httpx2` library options (eg. `timeout`, `headers`, etc.) passed to `httpx2.Client.request()` if you need to. 
 
 > [!NOTE]
 > Parameters defined as optional in the OpenAPI spec will be annotated with `Optional[]` in the function signature, but 

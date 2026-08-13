@@ -7,7 +7,7 @@ import re
 from functools import lru_cache, reduce
 from typing import TYPE_CHECKING, Any
 
-import httpx
+import httpx2
 import yaml
 from api_client_core.constants import VALID_METHODS
 from common_libs.logging import get_logger
@@ -44,7 +44,7 @@ class OpenAPISpec:
                 raise ValueError(f"OpenAPI spec file must be JSON or YAML. Not '{doc_path}'")
 
             try:
-                r = httpx.get(url)
+                r = httpx2.get(url)
                 r.raise_for_status()
             except Exception:
                 logger.exception(f"Unable to get API specs from {url}")

@@ -6,7 +6,7 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from _pytest.fixtures import SubRequest
 from pytest import FixtureRequest, TempPathFactory
@@ -97,7 +97,7 @@ def petstore_openapi_spec_url() -> str:
     See https://petstore3.swagger.io/
     """
     url = "https://petstore3.swagger.io/api/v3/openapi.json"
-    r = httpx.get(url)
+    r = httpx2.get(url)
     if not r.is_success:
         pytest.xfail(reason=f"Petstore OpenAPI spec URL is not accessible (status code: {r.status_code})")
     return url

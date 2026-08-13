@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from common_libs.clients.rest_client import RestResponse
-from httpx import Client
+from httpx2 import Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import endpoint

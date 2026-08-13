@@ -7,7 +7,7 @@ import pytest
 from _pytest.fixtures import SubRequest
 from api_client_core.base import APIClient, BaseAPI
 from common_libs.clients.rest_client import AsyncRestClient, RestClient, RestResponse
-from httpx import AsyncClient, Client
+from httpx2 import AsyncClient, Client
 from pytest import FixtureRequest
 from pytest_mock import MockerFixture
 

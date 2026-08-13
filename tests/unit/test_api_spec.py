@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 from unittest.mock import MagicMock
 
-import httpx
+import httpx2
 import pytest
 from pytest_mock import MockerFixture
 
@@ -90,7 +90,7 @@ class TestGetApiSpec:
 
     @pytest.fixture
     def mock_httpx(self, mocker: MockerFixture) -> Callable[..., MagicMock]:
-        mock_httpx_get = mocker.patch("httpx.get")
+        mock_httpx_get = mocker.patch("httpx2.get")
 
         def _make_mock_response(
             doc_path: str,
@@ -99,7 +99,7 @@ class TestGetApiSpec:
             json_error: bool = False,
             http_error: Exception | None = None,
         ) -> MagicMock:
-            """Create a mock httpx response."""
+            """Create a mock httpx2 response."""
             mock_resp = mocker.MagicMock()
             mock_resp.url = f"https://example.com/{doc_path}"
             if http_error:
@@ -220,20 +220,20 @@ class TestGetApiSpec:
         mock_httpx: Callable[..., MagicMock],
         openapi_spec_factory: Callable[..., OpenAPISpec],
     ) -> None:
-        """An HTTP error raised by httpx propagates out of get_api_spec."""
+        """An HTTP error raised by httpx2 propagates out of get_api_spec."""
         spec = openapi_spec_factory()
         mock_get = mock_httpx(
             spec.doc_path,
-            http_error=httpx.HTTPStatusError("404", request=mocker.MagicMock(), response=mocker.MagicMock()),
+            http_error=httpx2.HTTPStatusError("404", request=mocker.MagicMock(), response=mocker.MagicMock()),
         )
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             spec.get_api_spec()
         mock_get.assert_called_once()
 
     def test_get_api_spec_with_explicit_url(
         self, mock_httpx: Callable[..., MagicMock], openapi_spec_factory: Callable[..., OpenAPISpec]
     ) -> None:
-        """When an explicit URL is given, httpx.get is called with that URL, not base_url+doc_path."""
+        """When an explicit URL is given, httpx2.get is called with that URL, not base_url+doc_path."""
         spec = openapi_spec_factory()
         mock_get = mock_httpx(spec.doc_path, spec_dict=copy.deepcopy(VALID_SPEC_JSON))
         explicit_url = "https://other-host.com/v2/openapi.json"

@@ -13,8 +13,8 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self
 
-import httpcore
-import httpx
+import httpcore2
+import httpx2
 import pytest
 from common_libs.ansi_colors import should_color
 from common_libs.lock import Lock
@@ -208,8 +208,8 @@ class DemoAppLifecycleManager:
     def _wait_for_app_ready(self) -> None:
         def is_app_ready() -> bool:
             try:
-                return httpx.get(self.base_url).is_success
-            except (httpx.ConnectError, httpcore.ConnectError):
+                return httpx2.get(self.base_url).is_success
+            except (httpx2.ConnectError, httpcore2.ConnectError):
                 return False
 
         logger.info(f"Waiting for app to become ready on {self.host}:{self.port}...")

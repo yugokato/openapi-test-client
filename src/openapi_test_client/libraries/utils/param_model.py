@@ -9,7 +9,7 @@ from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack,
 import api_client_core.endpoints.utils.endpoint_model as core_endpoint_model_util
 import inflect
 from api_client_core import types as core_types_module
-from api_client_core.endpoints.utils.endpoint_model import is_httpx_passthrough_field
+from api_client_core.endpoints.utils.endpoint_model import is_httpx2_passthrough_field
 from common_libs.logging import get_logger
 from common_libs.naming import to_class_name
 
@@ -182,7 +182,7 @@ def alias_illegal_model_field_names(location: str, model_fields: list[DataclassM
     """
 
     def make_alias(name: str, param_type: Any) -> str:
-        if is_httpx_passthrough_field(name, param_type):
+        if is_httpx2_passthrough_field(name, param_type):
             return name
         else:
             name = clean_model_field_name(name)

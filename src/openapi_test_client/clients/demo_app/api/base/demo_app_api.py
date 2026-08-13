@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from httpx import HTTPError
+from httpx2 import HTTPError
 
 from openapi_test_client.libraries.base.api_class import BaseOpenAPI
 from openapi_test_client.libraries.types import RestResponse

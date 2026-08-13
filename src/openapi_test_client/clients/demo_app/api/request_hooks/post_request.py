@@ -14,7 +14,7 @@ def do_something_after_request(
     """This is a template of the post-request hook that will be called right after making a request
 
     To enable this hook, call this function inside the base API class's post_request_hook():
-    >>> from httpx import HTTPError
+    >>> from httpx2 import HTTPError
     >>> from openapi_test_client.clients.demo_app.api.request_hooks.post_request import do_something_after_request
     >>>
     >>> def post_request_hook(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import api_client_core.endpoints.utils.endpoint_call as endpoint_call_util
 import pytest
 from common_libs.clients.rest_client import RestResponse
-from httpx import Client
+from httpx2 import Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import EndpointFunc, endpoint

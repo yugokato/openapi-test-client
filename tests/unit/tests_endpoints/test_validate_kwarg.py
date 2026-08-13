@@ -7,7 +7,7 @@ import api_client_core.endpoints.utils.endpoint_call as endpoint_call_util
 import pytest
 from common_libs.clients.rest_client import RestResponse
 from common_libs.clients.rest_client.types import Response
-from httpx import AsyncClient, Client
+from httpx2 import AsyncClient, Client
 from pytest_mock import MockerFixture
 
 from openapi_test_client.libraries import endpoint
@@ -19,7 +19,7 @@ pytestmark = [pytest.mark.unittest]
 
 
 def _mock_response(mocker: MockerFixture, *, is_async: bool = False) -> Any:
-    """Patch httpx Client.request (or AsyncClient.request) to return a 200 mock."""
+    """Patch httpx2 Client.request (or AsyncClient.request) to return a 200 mock."""
     cls = AsyncClient if is_async else Client
     mock_response = mocker.MagicMock(spec=Response)
     mock_response.status_code = 200

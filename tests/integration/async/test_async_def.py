@@ -2,7 +2,7 @@ import asyncio
 from typing import Any, Unpack
 
 import pytest
-from httpx import HTTPError
+from httpx2 import HTTPError
 
 from openapi_test_client.clients.demo_app import DemoAppAPIClient
 from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
