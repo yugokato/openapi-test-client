@@ -228,7 +228,7 @@ eg. To call the login API (`/v1/auth/login`) defined under the `Auth` tag:
 <summary>Sync Client</summary>
 
 ```pycon
->>> r = client.Auth.login(username='foo', password='bar')
+>>> r = client.auth.login(username='foo', password='bar')
 2024-01-01T00:00:00.863-0800 - request: POST http://127.0.0.1:8000/v1/auth/login
 2024-01-01T00:00:00.877-0800 - response: 200 (OK)
 - request_id: a2b20acf-22d5-4131-ac0d-6796bf19d2af
@@ -247,7 +247,7 @@ eg. To call the login API (`/v1/auth/login`) defined under the `Auth` tag:
 
 ```pycon
 # NOTE: This example uses asyncio REPL (python -m asyncio) 
->>> r = await client.Auth.login(username='foo', password='bar')
+>>> r = await client.auth.login(username='foo', password='bar')
 2024-01-01T00:00:00.863-0800 - request: POST http://127.0.0.1:5000/v1/auth/login
 2024-01-01T00:00:00.877-0800 - response: 200 (OK)
 - request_id: a2b20acf-22d5-4131-ac0d-6796bf19d2af
@@ -417,11 +417,11 @@ class DemoAppAPIClient(OpenAPIClient):
         super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode, **kwargs)
 
     @cached_property
-    def Auth(self) -> AuthAPI:
+    def auth(self) -> AuthAPI:
         return AuthAPI(self)
 
     @cached_property
-    def Users(self) -> UsersAPI:
+    def users(self) -> UsersAPI:
         return UsersAPI(self)
 ```
 
@@ -536,10 +536,10 @@ which takes raw `httpx2` library options (eg. `timeout`, `headers`, etc.) passed
 Some attributes available from the API class: 
 ```pycon
 >>> # Get tag data
->>> client.Auth.TAGs
+>>> client.auth.TAGs
 ('Auth',)
 >>> # Get available endpoints under this API class 
->>> pprint(client.Auth.endpoints)
+>>> pprint(client.auth.endpoints)
 [Endpoint(api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
           method='post',
           path='/v1/auth/login',
@@ -587,11 +587,11 @@ DELETE /v1/users/{user_id}
 
 Each API class function is decorated with a `@endpoint.<method>(<path>)` endpoint decorator. This decorator converts the original function into an instance of the `EndpointHandler` class at runtime. The `EndpointHandler` object acts as a proxy to a per-endpoint `EndpointFunc` object, which is also created at runtime and is responsible for handling the actual API calls via its base class's `__call__()` method. Additionally, the `EndpointFunc` object provides various capabilities and attributes related to the endpoint.
 
-eg. The Login API is accessible via `client.Auth.login()` API function, which is actually an instance of 
+eg. The Login API is accessible via `client.auth.login()` API function, which is actually an instance of 
 `AuthAPILoginEndpointFunc` class returned by its associated `EndpointHandler` obj's `__get__()` descriptor.
 
 ```pycon
->>> client.Auth.login
+>>> client.auth.login
 <AuthAPILoginEndpointFunc object at 0x1074abf10>
   endpoint: POST /v1/auth/login
   mapped to: <function AuthAPI.login at 0x10751c360>
@@ -608,9 +608,9 @@ The endpoint function is also accessible directly from the API class:
 
 Various endpoint data is available from the endpoint function via `endpoint` property:
 ```pycon
->>> print(client.Auth.login.endpoint)
+>>> print(client.auth.login.endpoint)
 POST /v1/auth/login
->>> pprint(client.Auth.login.endpoint)
+>>> pprint(client.auth.login.endpoint)
 Endpoint(tags=('Auth',),
          api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
          method='post',
@@ -622,18 +622,18 @@ Endpoint(tags=('Auth',),
          is_public=True,
          is_documented=True,
          is_deprecated=False)
->>> client.Auth.login.endpoint.method
+>>> client.auth.login.endpoint.method
 'post'
->>> client.Auth.login.endpoint.path
+>>> client.auth.login.endpoint.path
 '/v1/auth/login'
->>> client.Auth.login.endpoint.url
+>>> client.auth.login.endpoint.url
 'http://127.0.0.1:8000/v1/auth/login'
 ```
 
 Note that the same endpoint data is also available directly from the API class, except for `url` will always be `None`.
 ```pycon
 >>> from openapi_test_client.clients.demo_app.api.auth import AuthAPI
->>> client.Auth.login.endpoint == AuthAPI.login.endpoint
+>>> client.auth.login.endpoint == AuthAPI.login.endpoint
 True
 >>> print(AuthAPI.login.endpoint)
 POST /v1/auth/login
@@ -654,7 +654,7 @@ Endpoint(tags=('Auth',),
 An example of the additional capability the `EndpointFunc` obj provides - Automatic retry:
 ```pycon
 # Call the endpoint with the automatic retry on status code 429
->>> r = client.Auth.login.with_retry(429)(username='foo', password='bar')
+>>> r = client.auth.login.with_retry(429)(username='foo', password='bar')
 2024-01-01T00:00:00.153-0000 - request: POST http://127.0.0.1:8000/v1/auth/login
 2024-01-01T00:00:00.158-0000 - response: 429 (Too Many Requests)
 - request_id: 1b028ff7-0880-430c-b5a3-12aa057892cf
@@ -693,7 +693,7 @@ An example of the additional capability the `EndpointFunc` obj provides - Automa
 Each endpoint is represented as an `EndpointModel` dataclass model, which holds various context around each 
 parameter (eg. type annotation).
 ```pycon
->>> model = client.Auth.login.endpoint.model
+>>> model = client.auth.login.endpoint.model
 >>> print(model)
 <class 'AuthAPILoginEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
@@ -876,7 +876,7 @@ Here are some comparisons between regular models and pydantic models:
 - Regular dataclass model (Validation will be done on the server-side)
 ```pycon 
 >>> # Model definition
->>> model = client.Users.create_user.endpoint.model
+>>> model = client.users.create_user.endpoint.model
 >>> print(model)
 <class 'UsersAPICreateUserEndpointModel'>
 >>> pprint(model.__dataclass_fields__, sort_dicts=False)
@@ -887,7 +887,7 @@ Here are some comparisons between regular models and pydantic models:
  'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.MetadataInput],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
 >>>
 >>> # Make an API request with the invalid parameter values
->>> r = client.Users.create_user(first_name=123, email="foo", role="something", metadata=MetadataInput(social_links=SocialLinks(facebook="test")), extra=123)
+>>> r = client.users.create_user(first_name=123, email="foo", role="something", metadata=MetadataInput(social_links=SocialLinks(facebook="test")), extra=123)
 2024-01-01T00:00:00.741-0800 - The request contains one or more parameters UsersAPI.create_user() does not expect:
 - extra
 2024-01-01T00:00:00.742-0800 - request: POST http://127.0.0.1:8000/v1/users
@@ -978,7 +978,7 @@ Here are some comparisons between regular models and pydantic models:
 - Pydantic model (Validation will be done on the client-side)
 ```pycon
 >>> # Model definition
->>> pydantic_model = client.Users.create_user.endpoint.model.to_pydantic()
+>>> pydantic_model = client.users.create_user.endpoint.model.to_pydantic()
 >>> print(pydantic_model)
 <class 'UsersAPICreateUserEndpointModelPydantic'>
 >>> pprint(pydantic_model.model_fields, sort_dicts=False)
@@ -989,7 +989,7 @@ Here are some comparisons between regular models and pydantic models:
  'metadata': FieldInfo(annotation=Union[MetadataInputPydantic, NoneType], required=False, default=None)}
 >>>
 >>> # Make an API request with the same invalid parameter values, but with validate=True option
->>> r = client.Users.create_user(first_name=123, email="foo", role="something", metadata=MetadataInput(social_links=SocialLinks(facebook="test")), extra=123, validate=True)
+>>> r = client.users.create_user(first_name=123, email="foo", role="something", metadata=MetadataInput(social_links=SocialLinks(facebook="test")), extra=123, validate=True)
 2024-01-01T00:00:00.830-0800 - The request contains one or more parameters UsersAPI.create_user() does not expect:
 - extra
 Traceback (most recent call last):

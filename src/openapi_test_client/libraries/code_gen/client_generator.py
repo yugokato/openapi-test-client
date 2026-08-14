@@ -637,7 +637,7 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
         mod = inspect.getmodule(api_class)
         assert mod and mod.__file__
         imports_code += f"from .{API_CLASS_DIR_NAME}.{Path(mod.__file__).stem} import {api_class.__name__}\n"
-        property_name = api_class.__name__.removesuffix("API")
+        property_name = camel_to_snake(api_class.__name__.removesuffix("API"))
         api_client_code += (
             f"{TAB}@cached_property\n"
             f"{TAB}def {property_name}(self) -> {api_class.__name__}:\n"

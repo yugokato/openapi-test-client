@@ -32,10 +32,10 @@ def token(port: int) -> Generator[str]:
     """Valid auth token for user provider verification"""
     client = DemoAppAPIClient()
     update_client_base_url(client, port)
-    r = client.Auth.login(username="foo", password="bar")
+    r = client.auth.login(username="foo", password="bar")
     assert r.ok
     yield client.rest_client.get_bearer_token()
-    r = client.Auth.logout()
+    r = client.auth.logout()
     assert r.ok
 
 
@@ -49,6 +49,6 @@ def auth_provider_token(port: int) -> str:
     """
     client = DemoAppAPIClient()
     update_client_base_url(client, port)
-    r = client.Auth.login(username="foo", password="bar")
+    r = client.auth.login(username="foo", password="bar")
     assert r.ok
     return client.rest_client.get_bearer_token()

@@ -88,7 +88,7 @@ def test_update_client(temp_app_client: OpenAPIClient, dry_run: bool, option: st
     NOTE: temp_app_client is a temporary client generated for this test against the demo_app app.
           API class and model file code should be identical to DemoAppAPIClient's, except for API function names
     """
-    users_api = getattr(temp_app_client, "Users")
+    users_api = getattr(temp_app_client, "users")
     assert str(users_api._unnamed_endpoint_1.endpoint) == str(UsersAPI.create_user.endpoint)
     users_api_class_file = Path(inspect.getabsfile(type(users_api)))
     assert users_api_class_file.exists()

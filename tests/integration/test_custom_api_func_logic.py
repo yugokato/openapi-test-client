@@ -18,7 +18,7 @@ def test_custom_function_logic(unauthenticated_api_client: DemoAppAPIClient, num
         if number % 2
         else nullcontext()
     ):
-        r = unauthenticated_api_client._Test.echo(number)
+        r = unauthenticated_api_client._test.echo(number)
         assert r.ok
         assert isinstance(r, RestResponse)
         assert number % 2 == 0

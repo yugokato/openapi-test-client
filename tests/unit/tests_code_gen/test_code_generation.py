@@ -311,16 +311,16 @@ class TestGenerateApiClient:
         # Initialize the client and check both API classes are accessible
         api_client = NewAPIClient()
         assert api_client.app_name == temp_api_client.app_name
-        assert hasattr(api_client, "TestSomething1")
-        assert hasattr(api_client, "TestSomething2")
-        assert isinstance(api_client.TestSomething1, NewAPIClass1)
-        assert isinstance(api_client.TestSomething2, NewAPIClass2)
+        assert hasattr(api_client, "test_something1")
+        assert hasattr(api_client, "test_something2")
+        assert isinstance(api_client.test_something1, NewAPIClass1)
+        assert isinstance(api_client.test_something2, NewAPIClass2)
 
         # Make an API request using a mocked RestAPI client function call
         rest_client = api_client.rest_client
         assert hasattr(NewAPIClass1, "_unnamed_endpoint_1")
         mock = mocker.patch(f"{rest_client.__module__}.{type(rest_client).__name__}._request")
-        api_client.TestSomething1._unnamed_endpoint_1()
+        api_client.test_something1._unnamed_endpoint_1()
         mock.assert_called_once()
 
     def test_generate_api_client_code_has_no_duplicate_accessors(self, temp_api_client: OpenAPIClient) -> None:
@@ -340,7 +340,7 @@ class TestGenerateApiClient:
         )
 
         # Each accessor name must appear exactly once
-        for accessor_name in ["TestSomething1", "TestSomething2"]:
+        for accessor_name in ["test_something1", "test_something2"]:
             accessor_occurrences = client_code.count(f"def {accessor_name}(self)")
             assert accessor_occurrences == 1, (
                 f"Accessor '{accessor_name}' appears {accessor_occurrences} times (expected 1).\n"

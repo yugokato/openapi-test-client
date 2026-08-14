@@ -13,7 +13,7 @@ class DemoAppAPIClient(OpenAPIClient):
 
     Usage:
     >>> client = DemoAppAPIClient()
-    >>> r = client.Auth.login(username="foo", password="bar")
+    >>> r = client.auth.login(username="foo", password="bar")
     >>> assert r.status_code == 200
     >>> token = r.response["token"]
     """
@@ -38,13 +38,13 @@ class DemoAppAPIClient(OpenAPIClient):
         )
 
     @cached_property
-    def Auth(self) -> AuthAPI:
+    def auth(self) -> AuthAPI:
         return AuthAPI(self)
 
     @cached_property
-    def Users(self) -> UsersAPI:
+    def users(self) -> UsersAPI:
         return UsersAPI(self)
 
     @cached_property
-    def _Test(self) -> _TestAPI:
+    def _test(self) -> _TestAPI:
         return _TestAPI(self)

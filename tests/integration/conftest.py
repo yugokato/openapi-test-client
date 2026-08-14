@@ -62,7 +62,7 @@ def authenticated_api_client(port: int) -> Generator[DemoAppAPIClient]:
     with DemoAppAPIClient() as client:
         if IS_TOX:
             helper.update_client_base_url(client, port)
-        r = client.Auth.login(username="foo", password="bar")
+        r = client.auth.login(username="foo", password="bar")
         assert r.ok
         yield client
 
@@ -72,10 +72,10 @@ def api_client(port: int) -> Generator[DemoAppAPIClient]:
     with DemoAppAPIClient() as client:
         if IS_TOX:
             helper.update_client_base_url(client, port)
-        r = client.Auth.login(username="foo", password="bar")
+        r = client.auth.login(username="foo", password="bar")
         assert r.ok
         yield client
-        client.Auth.logout()
+        client.auth.logout()
 
 
 @pytest.fixture

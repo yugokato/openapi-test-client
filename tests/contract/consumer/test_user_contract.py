@@ -18,7 +18,7 @@ def test_create_user_contract(
     fake_token: str,
 ) -> None:
     """Consumer contract test for the POST /v1/users endpoint"""
-    endpoint_func = authenticated_client.Users.create_user
+    endpoint_func = authenticated_client.users.create_user
     expected_status_code = 201
     payload = {"first_name": "first_name", "last_name": "last_name", "email": "user@demo.app.net", "role": "admin"}
     response = {
@@ -54,7 +54,7 @@ def test_get_user_contract(
 ) -> None:
     """Consumer contract test for the  GET /v1/users/<user_id> endpoint"""
     user_id = 1
-    endpoint_func = authenticated_client.Users.get_user
+    endpoint_func = authenticated_client.users.get_user
     expected_status_code = 200
     response = {
         "id": match.int(user_id),
@@ -92,7 +92,7 @@ def test_get_users_contract(
 ) -> None:
     """Consumer contract test for the  GET /v1/users endpoint"""
     user_id = 1
-    endpoint_func = authenticated_client.Users.get_users
+    endpoint_func = authenticated_client.users.get_users
     expected_status_code = 200
     response = match.each_like(
         {
@@ -127,7 +127,7 @@ def test_delete_user_contract(
     """Consumer contract test for the  DELETE /v1/users/{user_id} endpoint"""
     user_id = 10
     expected_status_code = 200
-    endpoint_func = authenticated_client.Users.delete_user
+    endpoint_func = authenticated_client.users.delete_user
 
     with pact_factory("user") as pact:
         (

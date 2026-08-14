@@ -18,7 +18,7 @@ def test_auth_login_contract(
     fake_token: str,
 ) -> None:
     """Consumer contract test for the POST /v1/auth/login endpoint"""
-    endpoint_func = unauthenticated_client.Auth.login
+    endpoint_func = unauthenticated_client.auth.login
     expected_status_code = 200
     payload = {"username": "foo", "password": "bar"}
     response = {"token": match.str(fake_token)}
@@ -46,7 +46,7 @@ def test_auth_logout_contract(
     fake_token: str,
 ) -> None:
     """Consumer contract test for the GET /v1/auth/logout endpoint"""
-    endpoint_func = authenticated_client.Auth.logout
+    endpoint_func = authenticated_client.auth.logout
     expected_status_code = 200
     response = {"message": "logged out"}
 
