@@ -18,10 +18,10 @@ T = TypeVar("T", bound="APIClient")
 class OpenAPIClient(APIClient):
     """OpenAPI-backed API test client. All OpenAPI-generated clients must inherit from this class"""
 
+    app_name: str
+
     def __init__(
         self,
-        app_name: str,
-        /,
         *,
         doc: str,
         env: str | None = None,
@@ -33,7 +33,6 @@ class OpenAPIClient(APIClient):
     ):
         """Initialize the OpenAPI client
 
-        :param app_name: App name
         :param doc: Path or URL to the OpenAPI spec document
         :param env: Target environment
         :param base_url: Base URL for the API
@@ -43,24 +42,25 @@ class OpenAPIClient(APIClient):
                                raising `httpx2.HTTPStatusError`.
         :param kwargs: Additional keyword arguments passed to the REST client constructor
         """
-        if app_name.lower() in ["open", "base"]:
-            raise ValueError(f"app_name '{app_name}' is reserved for internal usage. Please use a different value")
-
+        app_name = type(self).app_name
         if env is None:
             env = DEFAULT_ENV
 
-        if base_url is None and rest_client is None:
-            url_cfg = get_config_dir() / "urls.json"
-            urls = json.loads(url_cfg.read_text())
-            try:
-                base_url = urls[env][app_name]
-            except KeyError:
-                raise NotImplementedError(
-                    f"Please specify base_url or add one for app '{app_name}' (env={env}) in {url_cfg}"
-                )
+        if isinstance(app_name, str) and app_name:
+            if app_name.lower() in ["open", "base"]:
+                raise ValueError(f"app_name '{app_name}' is reserved for internal usage. Please use a different value")
+
+            if base_url is None and rest_client is None:
+                url_cfg = get_config_dir() / "urls.json"
+                urls = json.loads(url_cfg.read_text())
+                try:
+                    base_url = urls[env][app_name]
+                except KeyError:
+                    raise NotImplementedError(
+                        f"Please specify base_url or add one for app '{app_name}' (env={env}) in {url_cfg}"
+                    )
 
         super().__init__(
-            app_name,
             env=env,
             base_url=base_url,
             rest_client=rest_client,
@@ -92,4 +92,4 @@ class OpenAPIClient(APIClient):
             raise RuntimeError(f"Unable to locate the API client for {app_name} from {mod}")
 
         APIClientClass = client_classes[0]
-        return APIClientClass(**init_options)  # type: ignore[call-arg]
+        return APIClientClass(**init_options)

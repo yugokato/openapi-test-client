@@ -20,6 +20,12 @@ ClientT = TypeVar("ClientT", bound=APIClient | OpenAPIClient)
 ClassT = TypeVar("ClassT", bound=BaseAPI[Any] | BaseOpenAPI[Any])
 
 
+class _OpenAPIClient(OpenAPIClient):
+    """A concrete `OpenAPIClient` subclass declaring `app_name`, for tests that need a constructible client"""
+
+    app_name = "test"
+
+
 @pytest.fixture(scope="module")
 def api_client_factory(session_mocker: MockerFixture) -> Callable[..., OpenAPIClient]:
     """OpenAPI API client factory"""
@@ -34,7 +40,7 @@ def api_client_factory(session_mocker: MockerFixture) -> Callable[..., OpenAPICl
             session_mocker.patch.object(Client, "request")
             rest_client = RestClient(base_url)
 
-        return OpenAPIClient("test", doc="/docs", rest_client=rest_client, async_mode=async_mode)
+        return _OpenAPIClient(doc="/docs", rest_client=rest_client, async_mode=async_mode)
 
     return create
 

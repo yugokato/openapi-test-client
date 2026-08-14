@@ -625,10 +625,11 @@ def generate_api_client(temp_api_client: OpenAPIClient, show_generated_code: boo
     api_client_code = (
         f"class {api_client_class_name}({OpenAPIClient.__name__}):\n"
         f'{TAB}"""API client for {app_name}"""\n\n'
+        f'{TAB}app_name = "{app_name}"\n\n'
         f"{TAB}def __init__("
         f'{TAB}{TAB}self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, raise_on_error: bool=False, **kwargs: Any'  # noqa: E501
         f"{TAB}) -> None:\n"
-        f'{TAB}{TAB}super().__init__("{app_name}", env=env, base_url=base_url, doc="{doc_path}", async_mode=async_mode, raise_on_error=raise_on_error, **kwargs)'  # noqa: E501
+        f'{TAB}{TAB}super().__init__(env=env, base_url=base_url, doc="{doc_path}", async_mode=async_mode, raise_on_error=raise_on_error, **kwargs)'  # noqa: E501
         f"\n\n"
     )
 
@@ -698,6 +699,27 @@ def setup_external_directory(client_name: str, base_url: str, env: str = DEFAULT
     _recursively_add_init_file(api_client_lib_dir, exclude_dirs=("cfg",))
 
 
+class _TempOpenAPIClient(OpenAPIClient):
+    """Marker base identifying a throwaway client built for spec introspection ahead of code generation."""
+
+    app_name = "_"
+
+    def __init__(self, **kwargs: Any) -> None:
+        if self.app_name == "_":
+            raise RuntimeError("app_name must be overridden")
+        super().__init__(**kwargs)
+
+
+def create_temp_client(app_name: str, **kwargs: Any) -> OpenAPIClient:
+    """Build a throwaway `OpenAPIClient` for spec introspection before any generated client class exists.
+
+    :param app_name: App name to associate with the temporary client
+    :param kwargs: Keyword arguments forwarded to `OpenAPIClient.__init__`
+    """
+    _TempOpenAPIClient.app_name = app_name
+    return _TempOpenAPIClient(**kwargs)
+
+
 def _get_api_classes(api_class_dir: Path, base_api_class: type[T]) -> list[type[T]]:
     """Load and return all API classes found in the given directory that are subclasses of base_api_class.
 
@@ -722,7 +744,7 @@ def _is_live_class(cls: type) -> bool:
 
 
 def _is_temp_client(api_client: OpenAPIClient) -> bool:
-    return type(api_client) is OpenAPIClient
+    return isinstance(api_client, _TempOpenAPIClient)
 
 
 def _get_base_api_class(api_client: OpenAPIClient) -> type[BaseOpenAPI[Any]]:

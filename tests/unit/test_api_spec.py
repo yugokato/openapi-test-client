@@ -85,6 +85,12 @@ USAGE_SPEC: dict[str, Any] = {
 }
 
 
+class _OpenAPIClient(OpenAPIClient):
+    """A concrete `OpenAPIClient` subclass declaring `app_name`, for tests that need a constructible client"""
+
+    app_name = "test"
+
+
 class TestGetApiSpec:
     """Tests for OpenAPISpec.get_api_spec()"""
 
@@ -122,7 +128,7 @@ class TestGetApiSpec:
 
         def create_spec(ext: str | None = ".json") -> OpenAPISpec:
             doc_path = f"openapi{ext}"
-            api_client = OpenAPIClient("test", doc=doc_path, base_url="https://example.com/api")
+            api_client = _OpenAPIClient(doc=doc_path, base_url="https://example.com/api")
             return OpenAPISpec(api_client, doc_path)
 
         return create_spec

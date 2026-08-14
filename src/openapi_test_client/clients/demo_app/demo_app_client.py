@@ -18,6 +18,8 @@ class DemoAppAPIClient(OpenAPIClient):
     >>> token = r.response["token"]
     """
 
+    app_name = "demo_app"
+
     def __init__(
         self,
         *,
@@ -28,7 +30,6 @@ class DemoAppAPIClient(OpenAPIClient):
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            "demo_app",
             env=env,
             base_url=base_url,
             doc="openapi.json",

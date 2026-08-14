@@ -22,7 +22,8 @@ thoroughly perform automated API testing against API-first applications in a fas
 
 OpenAPI Test Client is built on top of [**API Client Core**](https://github.com/yugokato/api-client-core), a framework 
 for building Python API clients that provides decorator-based endpoint definitions, rich endpoint metadata and 
-introspection, request hooks, automatic endpoint call statistics, and sync/async dual-mode support.  
+introspection, request hooks, automatic endpoint call statistics, sync/async dual-mode support, and built-in 
+command-line interface (CLI).  
 
 While OpenAPI Test Client focuses on OpenAPI-driven API client generation for testing purposes, API Client Core 
 provides the underlying framework and can be used independently to build general-purpose API clients.
@@ -294,6 +295,13 @@ datetime.datetime(2024, 1, 1, 0, 0, 0, 86309, tzinfo=datetime.timezone.utc)
 datetime.datetime(2024, 1, 1, 0, 0, 0, 87714, tzinfo=datetime.timezone.utc)
 ```
 
+> [!TIP]
+> The **API Client Core** framework also provides a CLI command for making API requests without writing any code. The 
+> above example request can be made with the following command:
+> ```bash
+> api-client demo_app auth login --username foo --password bar
+> ```
+
 ## 4. Customize API functions (optional)
 
 The test client provides a few ways to customize how an API call via an API function will be processed.
@@ -411,10 +419,12 @@ from .api.users import UsersAPI
 class DemoAppAPIClient(OpenAPIClient):
     """API client for demo_app"""
 
+    app_name = "demo_app"
+
     def __init__(
         self, *, env: str = "dev", base_url: str | None = None, async_mode: bool = False, **kwargs: Any
     ) -> None:
-        super().__init__("demo_app", env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode, **kwargs)
+        super().__init__(env=env, base_url=base_url, doc="openapi.json", async_mode=async_mode, **kwargs)
 
     @cached_property
     def auth(self) -> AuthAPI:

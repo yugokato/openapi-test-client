@@ -11,7 +11,7 @@ from pytest_mock import MockerFixture
 from openapi_test_client import ENV_VAR_PACKAGE_DIR
 from openapi_test_client.libraries.api_spec import OpenAPISpec
 from openapi_test_client.libraries.base.api_client import OpenAPIClient
-from openapi_test_client.libraries.code_gen.client_generator import setup_external_directory
+from openapi_test_client.libraries.code_gen.client_generator import create_temp_client, setup_external_directory
 from tests.unit.tests_code_gen import helper
 
 
@@ -26,7 +26,7 @@ def temp_api_client(
     mocker.patch.dict(os.environ, {ENV_VAR_PACKAGE_DIR: str(module_dir)})
     setup_external_directory(app_name, "http://localhost")
 
-    client = OpenAPIClient(app_name, doc="/docs")
+    client = create_temp_client(app_name, doc="/docs")
     mocker.patch.object(client.api_spec, "get_api_spec", return_value=openapi_specs)
 
     yield client

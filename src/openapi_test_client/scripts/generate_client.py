@@ -299,7 +299,7 @@ def generate_client(args: argparse.Namespace) -> None:
         logger.warning(f"Generating client in the external location: {client_dir}")
         generator.setup_external_directory(app_name, base_url, env=args.env)
 
-    tmp_api_client = OpenAPIClient(app_name, rest_client=RestClient(base_url=base_url), doc=doc_path)
+    tmp_api_client = generator.create_temp_client(app_name, rest_client=RestClient(base_url=base_url), doc=doc_path)
     api_spec = tmp_api_client.api_spec.get_api_spec()
     if not api_spec:
         raise RuntimeError(f"Failed to fetch API spec from {args.url}")
