@@ -1,17 +1,17 @@
 import uuid
+from collections.abc import Awaitable, Callable
 
-from quart import Blueprint, Response, request
-
-bp_request_handler = Blueprint("request_handler", __name__)
-
-
-@bp_request_handler.before_app_request
-async def before_request() -> None:
-    if not request.headers.get("X-Request-ID"):
-        request.headers["X-Request-ID"] = str(uuid.uuid4())
+from fastapi import FastAPI, Request, Response
 
 
-@bp_request_handler.after_app_request
-async def after_request(response: Response) -> Response:
-    # TODO: Add something
-    return response
+def add_request_handlers(app: FastAPI) -> None:
+    @app.middleware("http")
+    async def before_request(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        request_id_header = "X-Request-ID"
+        if not request.headers.get(request_id_header):
+            headers = request.headers.mutablecopy()
+            headers[request_id_header] = str(uuid.uuid4())
+            request.scope.update(headers=headers.raw)
+            request._headers = headers
+        response = await call_next(request)
+        return response
