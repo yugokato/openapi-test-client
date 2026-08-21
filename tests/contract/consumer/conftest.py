@@ -26,7 +26,7 @@ def unauthenticated_client() -> Generator[DemoAppAPIClient]:
 
 @pytest.fixture
 def authenticated_client(unauthenticated_client: DemoAppAPIClient, fake_token: str) -> Generator[DemoAppAPIClient]:
-    unauthenticated_client.rest_client.set_bearer_token(fake_token)
+    unauthenticated_client.rest_client.token = fake_token
     yield unauthenticated_client
 
 

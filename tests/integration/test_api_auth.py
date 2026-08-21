@@ -14,7 +14,7 @@ def test_auth_login(unauthenticated_api_client: DemoAppAPIClient, validation_mod
     assert set(r.response.keys()) == {"token"}
 
     # The client's post-request hook should automatically set the token
-    assert unauthenticated_api_client.rest_client.get_bearer_token() == r.response["token"]
+    assert unauthenticated_api_client.rest_client.token == r.response["token"]
 
 
 def test_auth_logout(authenticated_api_client: DemoAppAPIClient) -> None:
@@ -24,7 +24,7 @@ def test_auth_logout(authenticated_api_client: DemoAppAPIClient) -> None:
     assert r.response["message"] == "logged out"
 
     # The client's post-request hook should automatically unset the token
-    assert authenticated_api_client.rest_client.get_bearer_token() is None
+    assert authenticated_api_client.rest_client.token is None
 
 
 def test_auth_logout_invalidates_token(authenticated_api_client: DemoAppAPIClient) -> None:
@@ -33,7 +33,7 @@ def test_auth_logout_invalidates_token(authenticated_api_client: DemoAppAPIClien
     r = authenticated_api_client.auth.logout(with_hooks=False)
     assert r.ok
     assert r.response["message"] == "logged out"
-    assert authenticated_api_client.rest_client.get_bearer_token() is not None
+    assert authenticated_api_client.rest_client.token is not None
 
     # Call logout() again with the invalidated token
     r = authenticated_api_client.auth.logout()

@@ -20,7 +20,7 @@ async def test_async_client(async_api_client: DemoAppAPIClient, subtests: Subtes
         r = await async_api_client.auth.login(username="foo", password="bar", quiet=quiet)
         assert r.ok
         assert set(r.response.keys()) == {"token"}
-        assert async_api_client.rest_client.get_bearer_token() == r.response["token"]
+        assert async_api_client.rest_client.token == r.response["token"]
 
         r = await async_api_client.users.get_users(quiet=quiet)
         assert r.ok
@@ -34,7 +34,7 @@ async def test_async_client(async_api_client: DemoAppAPIClient, subtests: Subtes
         r = await async_api_client.auth.logout(quiet=quiet)
         assert r.ok
         assert r.response["message"] == "logged out"
-        assert async_api_client.rest_client.get_bearer_token() is None
+        assert async_api_client.rest_client.token is None
 
     with subtests.test("API func call (streaming)"):
         async with async_api_client._test.echo.stream("foo", quiet=quiet) as r:

@@ -34,7 +34,7 @@ def token(port: int) -> Generator[str]:
     update_client_base_url(client, port)
     r = client.auth.login(username="foo", password="bar")
     assert r.ok
-    yield client.rest_client.get_bearer_token()
+    yield client.rest_client.token
     r = client.auth.logout()
     assert r.ok
 
@@ -51,4 +51,4 @@ def auth_provider_token(port: int) -> str:
     update_client_base_url(client, port)
     r = client.auth.login(username="foo", password="bar")
     assert r.ok
-    return client.rest_client.get_bearer_token()
+    return client.rest_client.token

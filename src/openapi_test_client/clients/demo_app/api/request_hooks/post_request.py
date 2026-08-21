@@ -40,7 +40,6 @@ def manage_auth_session(api_client: DemoAppAPIClient, endpoint: Endpoint[Any], r
     :param r: RestResponse object returned from the request
     """
     if endpoint == api_client.auth.login.endpoint:
-        token = r.response["token"]
-        api_client.rest_client.set_bearer_token(token)
+        api_client.rest_client.token = r.response["token"]
     elif endpoint == api_client.auth.logout.endpoint:
-        api_client.rest_client.unset_bearer_token()
+        api_client.rest_client.auth = None
