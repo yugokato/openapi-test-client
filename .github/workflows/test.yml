@@ -26,28 +26,33 @@ jobs:
             has-changes:
               - 'src/**'
               - 'tests/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'tox.ini'
+              - '.github/workflows/test.yml'
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Check out
         uses: actions/checkout@v7
-      - name: Setup Python
-        uses: actions/setup-python@v7
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.11"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
           enable-cache: true
-          cache-dependency-glob: "**/pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
       - name: Install dependencies
         run: |
-          uv pip install --system .[dev]
+          uv sync --locked --no-default-groups --group lint
       - name: Run pre-commit
         shell: bash
         run: |
-          pre-commit run --all-files --show-diff-on-failure
+          uv run --no-sync pre-commit run --all-files --show-diff-on-failure
 
   test:
     needs: [changes]
@@ -60,22 +65,24 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v7
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v7
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
           enable-cache: true
-          cache-dependency-glob: "**/pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
       - name: Install dependencies
+        # NOTE: uv sync installs the project editable by default: project root detection in tests
+        # relies on package files staying in-repo
         run: |
-          # NOTE: -e is required here: project root detection in tests rely on package files staying in-repo
-          uv pip install --system -e .[test]
+          uv sync --locked --extra app --no-default-groups --group test
       - name: Run pytest
         run: |
-          pytest tests -n auto
+          uv run --no-sync pytest tests -n auto
 
   status-check:
     if: always()

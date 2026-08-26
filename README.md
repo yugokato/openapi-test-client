@@ -71,6 +71,7 @@ this project as your base project.
 > [!NOTE]
 > This project and its upstream dependencides (`common-libs` and `api-client-core`) are not currently versioned. 
 > To pick up upstream changes into your existing installation, add `--force-reinstall` to install the latest version.
+> If you're working from a `uv`-managed checkout instead, use `uv lock --upgrade-package api-client-core --upgrade-package common-libs && uv sync`.
 
 
 ## 2. Generate/Update API client code
