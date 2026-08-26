@@ -37,7 +37,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-app = ["fastapi[standard]~=0.123.5"]
+app = ["fastapi[standard]>=0.123.5,<0.142.0"]
 
 [project.scripts]
 openapi-client = "openapi_test_client.scripts.generate_client:main"
