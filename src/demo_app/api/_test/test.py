@@ -1,7 +1,9 @@
 import asyncio
 
-from fastapi import APIRouter, Request
+from fastapi import Request
 from starlette.responses import RedirectResponse
+
+from demo_app.patch import APIRouter
 
 router = APIRouter(prefix="/test", tags=["_Test"])
 

@@ -1,8 +1,9 @@
 import secrets
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import Depends, Request
 
 from demo_app import _active_tokens, login_required
+from demo_app.patch import APIRouter
 
 from .models import LoginRequest, LoginResponse, LogoutResponse
 

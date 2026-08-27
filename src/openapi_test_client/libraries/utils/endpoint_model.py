@@ -280,7 +280,7 @@ def _is_file_param(
 ) -> bool:
     if content_type == "multipart/form-data":
         if isinstance(param_def, ParamDef):
-            return param_def.format == "binary"
+            return param_def.format == "binary" or bool(param_def.content_media_type)
         elif isinstance(param_def, ParamDef.ParamGroup):
             return any(_is_file_param(content_type, p) for p in param_def)
         else:

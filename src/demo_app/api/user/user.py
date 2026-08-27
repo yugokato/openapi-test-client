@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
+from fastapi import Depends, Form, HTTPException, Query, UploadFile
 
 from demo_app import login_required
+from demo_app.patch import APIRouter
 
 from .models import User, UserQuery, UserRequest, UserRole
 

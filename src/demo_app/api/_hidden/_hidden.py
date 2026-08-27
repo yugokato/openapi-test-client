@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from demo_app.patch import APIRouter
 
 router = APIRouter(include_in_schema=False)
 

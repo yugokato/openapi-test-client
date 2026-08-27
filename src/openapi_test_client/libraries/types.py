@@ -157,6 +157,10 @@ class ParamDef(HashableDict):
         return self.get("format")
 
     @property
+    def content_media_type(self) -> str | None:
+        return self.get("contentMediaType")
+
+    @property
     def is_required(self) -> bool:
         return self.get("required") is True
 
