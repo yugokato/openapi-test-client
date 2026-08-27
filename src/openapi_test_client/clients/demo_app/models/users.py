@@ -27,6 +27,6 @@ class SocialLinks(ParamModel):
 
 
 @dataclass
-class MetadataInput(ParamModel):
+class Metadata(ParamModel):
     preferences: Optional[Preferences] = Unset
     social_links: Optional[SocialLinks] = Unset

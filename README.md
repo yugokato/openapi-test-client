@@ -719,7 +719,7 @@ be represented as a `ParamModel` dataclass model. These models will be automatic
 
 eg. 
 
-- API function definition (note that the `metadata` parameter is of type `MetadataInput`)
+- API function definition (note that the `metadata` parameter is of type `Metadata`)
 ```python
 # openapi_test_client/clients/demo_app/api/users.py
 
@@ -729,7 +729,7 @@ from openapi_test_client.clients.demo_app.api.base import DemoAppBaseAPI
 from openapi_test_client.libraries import endpoint
 from openapi_test_client.libraries.types import Constraint, Format, Kwargs, Optional, RestResponse, Unset
 
-from ..models.users import MetadataInput
+from ..models.users import Metadata
 
 
 class UsersAPI(DemoAppBaseAPI):
@@ -743,7 +743,7 @@ class UsersAPI(DemoAppBaseAPI):
         last_name: Annotated[str, Constraint(min_len=1, max_len=255)] = Unset,
         email: Annotated[str, Format("email")] = Unset,
         role: Literal["admin", "viewer", "support"] = Unset,
-        metadata: Optional[MetadataInput] = Unset,
+        metadata: Optional[Metadata] = Unset,
         **kwargs: Unpack[Kwargs],
     ) -> RestResponse:
         """Create a new user"""
@@ -777,7 +777,7 @@ class SocialLinks(ParamModel):
 
 
 @dataclass
-class MetadataInput(ParamModel):
+class Metadata(ParamModel):
     preferences: Optional[Preferences] = Unset
     social_links: Optional[SocialLinks] = Unset
 
@@ -796,9 +796,9 @@ This is very important when you want to differentiate test scenarios for "not in
 ```pycon
 >>> from dataclasses import asdict, is_dataclass
 >>> from openapi_test_client.clients.demo_app.models.users import *
->>> metadata = MetadataInput(preferences=Preferences(theme='dark'))
+>>> metadata = Metadata(preferences=Preferences(theme='dark'))
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='dark'))
+Metadata(preferences=Preferences(theme='dark'))
 >>> print(metadata.preferences)
 Preferences(theme='dark')
 >>> print(metadata["preferences"])
@@ -816,14 +816,14 @@ Parameter models function both as a dataclass and a dictionary, and a change mad
 >>> # Update a model field value
 >>> metadata.preferences.theme = "light"
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='light'))
+Metadata(preferences=Preferences(theme='light'))
 >>> asdict(metadata)
 {'preferences': {'theme': 'light'}}
 >>>
 >>> # Update as a dictionary
 >>> metadata.preferences["theme"] = "dark"
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='dark'))
+Metadata(preferences=Preferences(theme='dark'))
 >>> asdict(metadata)
 {'preferences': {'theme': 'dark'}}
 ```
@@ -833,28 +833,28 @@ You can also dynamically add or delete model fields similar to how you can add o
 >>> # Add a new field to the model
 >>> metadata.new_attr1 = 123
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='dark'), new_attr1=123)
+Metadata(preferences=Preferences(theme='dark'), new_attr1=123)
 >>> asdict(metadata)
 {'preferences': {'theme': 'dark'}, 'new_attr1': 123}
 >>> 
 >>> # Add a new field to the dictionary
 >>> metadata["new_attr2"] = 456
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='dark'), new_attr1=123, new_attr2=456)
+Metadata(preferences=Preferences(theme='dark'), new_attr1=123, new_attr2=456)
 >>> asdict(metadata)
 {'preferences': {'theme': 'dark'}, 'new_attr1': 123, 'new_attr2': 456}
 >>>
 >>> # Delete a field from the model
 >>> delattr(metadata, "new_attr2")
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='dark'), new_attr1=123)
+Metadata(preferences=Preferences(theme='dark'), new_attr1=123)
 >>> asdict(metadata)
 {'preferences': {'theme': 'dark'}, 'new_attr1': 123}
 >>>
 >>> # Delete a field from the dictionary
 >>> del metadata["new_attr1"]
 >>> print(metadata)
-MetadataInput(preferences=Preferences(theme='dark'))
+Metadata(preferences=Preferences(theme='dark'))
 >>> asdict(metadata)
 {'preferences': {'theme': 'dark'}}
 ```
@@ -895,10 +895,10 @@ Here are some comparisons between regular models and pydantic models:
  'last_name': Field(name='last_name',type=typing.Annotated[str, Constraint(min_len=1, max_len=255)],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
  'email': Field(name='email',type=typing.Annotated[str, Format(value='email')],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
  'role': Field(name='role',type=typing.Literal['admin', 'viewer', 'support'],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD),
- 'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.MetadataInput],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
+ 'metadata': Field(name='metadata',type=typing.Optional[openapi_test_client.clients.demo_app.models.users.Metadata],default=Unset,default_factory=<dataclasses._MISSING_TYPE object at 0x10323dd30>,init=True,repr=True,hash=None,compare=True,metadata=mappingproxy({}),kw_only=True,_field_type=_FIELD)}
 >>>
 >>> # Make an API request with the invalid parameter values
->>> r = client.users.create_user(first_name=123, email="foo", role="something", metadata=MetadataInput(social_links=SocialLinks(facebook="test")), extra=123)
+>>> r = client.users.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123)
 2024-01-01T00:00:00.741-0800 - The request contains one or more parameters UsersAPI.create_user() does not expect:
 - extra
 2024-01-01T00:00:00.742-0800 - request: POST http://127.0.0.1:8000/v1/users
@@ -997,10 +997,10 @@ Here are some comparisons between regular models and pydantic models:
  'last_name': FieldInfo(annotation=str, required=True, metadata=[MinLen(min_length=1), MaxLen(max_length=255)]),
  'email': FieldInfo(annotation=EmailStr, required=True, metadata=[Format(value='email')]),
  'role': FieldInfo(annotation=Literal['admin', 'viewer', 'support'], required=True),
- 'metadata': FieldInfo(annotation=Union[MetadataInputPydantic, NoneType], required=False, default=None)}
+ 'metadata': FieldInfo(annotation=Union[MetadataPydantic, NoneType], required=False, default=None)}
 >>>
 >>> # Make an API request with the same invalid parameter values, but with validate=True option
->>> r = client.users.create_user(first_name=123, email="foo", role="something", metadata=MetadataInput(social_links=SocialLinks(facebook="test")), extra=123, validate=True)
+>>> r = client.users.create_user(first_name=123, email="foo", role="something", metadata=Metadata(social_links=SocialLinks(facebook="test")), extra=123, validate=True)
 2024-01-01T00:00:00.830-0800 - The request contains one or more parameters UsersAPI.create_user() does not expect:
 - extra
 Traceback (most recent call last):
@@ -1009,23 +1009,23 @@ Traceback (most recent call last):
     raise ValueError(
 ValueError: Request parameter validation failed.
 6 validation errors for UsersAPICreateUserEndpointModelPydantic
+extra
+  Extra inputs are not permitted [type=extra_forbidden, input_value=123, input_type=int]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
 first_name
   Input should be a valid string [type=string_type, input_value=123, input_type=int]
-    For further information visit https://errors.pydantic.dev/2.12/v/string_type
+    For further information visit https://errors.pydantic.dev/2.13/v/string_type
 last_name
   Field required [type=missing, input_value={'first_name': 123, 'emai... 'test'}}, 'extra': 123}, input_type=dict]
-    For further information visit https://errors.pydantic.dev/2.12/v/missing
+    For further information visit https://errors.pydantic.dev/2.13/v/missing
 email
   value is not a valid email address: An email address must have an @-sign. [type=value_error, input_value='foo', input_type=str]
 role
   Input should be 'admin', 'viewer' or 'support' [type=literal_error, input_value='something', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.12/v/literal_error
+    For further information visit https://errors.pydantic.dev/2.13/v/literal_error
 metadata.social_links.facebook
   Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='test', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.12/v/url_parsing
-extra
-  Extra inputs are not permitted [type=extra_forbidden, input_value=123, input_type=int]
-    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden
+    For further information visit https://errors.pydantic.dev/2.13/v/url_parsing
 ```
 
 > [!TIP]
