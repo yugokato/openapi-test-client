@@ -3,7 +3,7 @@
 import os
 from typing import Any
 
-import api_client_core.endpoints.utils.endpoint_call as endpoint_call_util
+import api_client_core.core.endpoints.utils.endpoint_call as endpoint_call_util
 import pytest
 from common_libs.clients.rest_client import RestResponse
 from common_libs.clients.rest_client.types import Response

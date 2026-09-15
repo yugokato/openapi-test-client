@@ -58,12 +58,12 @@ work on, and the test client will provide everything needed for testing APIs.
 > dependency conflicts may occur if the installation is done within your existing project. 
 
 ```
-pip install git+https://github.com/yugokato/openapi-test-client
+pip install git+https://github.com/yugokato/openapi-test-client.git
 ```
 
 Or, if you want to try the demo client with the FastAPI-based [demo backend app](src/demo_app) (A local API server):
 ```
-pip install "openapi-test-client[app] @ git+https://github.com/yugokato/openapi-test-client"
+pip install "openapi-test-client[app] @ git+https://github.com/yugokato/openapi-test-client.git"
 ```
 Alternatively, you can clone the repo and run `pip install -e .` (or `pip install -e .[app]`) if you prefer to reuse 
 this project as your base project. 

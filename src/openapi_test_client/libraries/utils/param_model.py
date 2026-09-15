@@ -6,10 +6,10 @@ from functools import lru_cache
 from types import MappingProxyType
 from typing import Annotated, Any, ForwardRef, Literal, Optional, Union, Unpack, cast
 
-import api_client_core.endpoints.utils.endpoint_model as core_endpoint_model_util
+import api_client_core.core.endpoints.utils.endpoint_model as core_endpoint_model_util
 import inflect
 from api_client_core import types as core_types_module
-from api_client_core.endpoints.utils.endpoint_model import is_httpx2_passthrough_field
+from api_client_core.core.endpoints.utils.endpoint_model import is_httpx2_passthrough_field
 from common_libs.logging import get_logger
 from common_libs.naming import to_class_name
 

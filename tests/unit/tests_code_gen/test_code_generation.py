@@ -9,8 +9,8 @@ from types import NoneType
 from typing import Annotated, Any, ForwardRef, Literal, get_args, get_origin
 
 import pytest
-from api_client_core.base import BaseAPI
-from api_client_core.base.api_class import get_api_classes
+from api_client_core.core.base import BaseAPI
+from api_client_core.core.base.api_class import get_api_classes
 from pytest_mock import MockerFixture
 
 import openapi_test_client.libraries.types as openapi_types_module
@@ -466,7 +466,8 @@ class TestGenerateImportsCode:
         """Test that a model with Unset defaults emits 'from openapi_test_client.libraries.types import Unset'
 
         This asserts the split-package contract: generated code must import Unset from the openapi layer,
-        not from core.types, so that a future removal of the core re-export does not silently break clients.
+        never from the core package, so that a future reshuffle of the core re-export does not silently
+        break clients.
         """
         # Use make_dataclass to avoid from __future__ import annotations stringifying the field type
         UnsetModel = make_dataclass("UnsetModel", [("field1", str, Unset)], bases=(ParamModel,))
@@ -480,7 +481,7 @@ class TestGenerateImportsCode:
             f"Expected line: {expected!r}\n"
             f"Actual imports_code:\n{imports_code}"
         )
-        assert "from api_client_core.types import Unset" not in imports_code
+        assert "api_client_core" not in imports_code
 
     def test_optional_import_uses_openapi_types_module(self, temp_api_client: OpenAPIClient) -> None:
         """Test that a model with Optional fields emits

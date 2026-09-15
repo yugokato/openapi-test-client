@@ -10,7 +10,7 @@ from operator import or_ as _or_
 from types import NoneType, UnionType
 from typing import TYPE_CHECKING, Annotated, Any, ForwardRef, Literal, Union, get_args, get_origin
 
-from api_client_core.endpoints.utils.param_type import (
+from api_client_core.core.endpoints.utils.param_type import (
     annotate_type,
     get_annotated_type,
     is_deprecated_param,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ParamSpec
 
-from api_client_core.endpoints.endpoint import Endpoint as _Endpoint
+from api_client_core.core.endpoints.endpoint import Endpoint as _Endpoint
 
 if TYPE_CHECKING:
     from openapi_test_client.libraries.base.api_class import BaseOpenAPI

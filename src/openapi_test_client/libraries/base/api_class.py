@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
-from api_client_core.base.api_class import BaseAPI
+from api_client_core.core.base.api_class import BaseAPI
 
 import openapi_test_client.libraries.utils.pydantic_model as pydantic_model_util
 from openapi_test_client.libraries.endpoints import Endpoint

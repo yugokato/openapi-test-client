@@ -8,7 +8,7 @@ from copy import deepcopy
 from dataclasses import field
 from typing import TYPE_CHECKING, Any, cast
 
-from api_client_core.endpoints.utils.endpoint_model import add_body_or_query_param_field, build_endpoint_model
+from api_client_core.core.endpoints.utils.endpoint_model import add_body_or_query_param_field, build_endpoint_model
 from api_client_core.types import EndpointModel as _CoreEndpointModel
 from common_libs.logging import get_logger
 

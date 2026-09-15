@@ -2,10 +2,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, make_dataclass
 from typing import Annotated, Any, TypeVar, cast
 
-import api_client_core.endpoints.utils.param_type as param_type_util
+import api_client_core.core.endpoints.utils.param_type as param_type_util
 import pytest
 from _pytest.fixtures import SubRequest
-from api_client_core.base import APIClient, BaseAPI
+from api_client_core.core.base import APIClient, BaseAPI
 from common_libs.clients.rest_client import AsyncRestClient, RestClient, RestResponse
 from httpx2 import AsyncClient, Client
 from pytest import FixtureRequest

@@ -1,6 +1,6 @@
 from typing import Any, ParamSpec
 
-from api_client_core.endpoints.endpoint_handler import EndpointHandler as _EndpointHandler
+from api_client_core.core.endpoints.endpoint_handler import EndpointHandler as _EndpointHandler
 
 from openapi_test_client.libraries.base import BaseOpenAPI
 from openapi_test_client.libraries.endpoints.endpoint_func import AsyncEndpointFunc, SyncEndpointFunc

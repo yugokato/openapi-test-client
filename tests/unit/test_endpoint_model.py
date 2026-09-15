@@ -7,7 +7,7 @@ import inspect
 from typing import Any
 
 import pytest
-from api_client_core.endpoints.utils.param_type import get_annotated_type
+from api_client_core.core.endpoints.utils.param_type import get_annotated_type
 from common_libs.clients.rest_client import RestResponse
 
 from openapi_test_client.libraries import EndpointFunc, endpoint

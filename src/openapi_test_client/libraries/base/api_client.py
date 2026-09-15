@@ -5,7 +5,7 @@ import inspect
 import json
 from typing import Any, TypeVar
 
-from api_client_core.base.api_client import APIClient
+from api_client_core.core.base.api_client import APIClient
 from common_libs.clients.rest_client import AsyncRestClient, RestClient
 
 from openapi_test_client import DEFAULT_ENV, get_client_dir, get_config_dir

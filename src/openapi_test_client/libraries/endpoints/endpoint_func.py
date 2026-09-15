@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import ParamSpec, cast
 
-import api_client_core.endpoints.utils.endpoint_model as core_endpoint_model_util
-from api_client_core.endpoints.endpoint_func import AsyncEndpointFunc as _AsyncEndpointFunc
-from api_client_core.endpoints.endpoint_func import EndpointFunc as _EndpointFunc
-from api_client_core.endpoints.endpoint_func import SyncEndpointFunc as _SyncEndpointFunc
+import api_client_core.core.endpoints.utils.endpoint_model as core_endpoint_model_util
+from api_client_core.core.endpoints.endpoint_func import AsyncEndpointFunc as _AsyncEndpointFunc
+from api_client_core.core.endpoints.endpoint_func import EndpointFunc as _EndpointFunc
+from api_client_core.core.endpoints.endpoint_func import SyncEndpointFunc as _SyncEndpointFunc
 from api_client_core.types import EndpointModel as _CoreEndpointModel
 from common_libs.ansi_colors import ColorCodes, color
 

@@ -1,8 +1,8 @@
 from collections.abc import Callable, Coroutine
 from typing import Any, Concatenate, ParamSpec, TypeAlias, TypeVar, overload
 
-from api_client_core.endpoints.endpoint_factory import endpoint as _endpoint
-from api_client_core.endpoints.endpoint_handler import PendingOperations
+from api_client_core.core.endpoints.endpoint_factory import endpoint as _endpoint
+from api_client_core.core.endpoints.endpoint_handler import PendingOperations
 from api_client_core.types import RestResponse
 
 from openapi_test_client.libraries.base import BaseOpenAPI

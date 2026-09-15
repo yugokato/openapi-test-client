@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 from api_client_core import setup_logging
-from api_client_core.endpoints import Stats
+from api_client_core.core.endpoints import Stats
 from common_libs.logging import get_logger
 from common_libs.utils import list_items
 
@@ -27,7 +27,7 @@ DEFAULT_ENV = os.environ.get("DEFAULT_ENV", "dev")
 
 
 def is_external_project() -> bool:
-    """Check if this library is current used from an external location"""
+    """Check if this library is currently used from an external location"""
     return bool(os.environ.get(ENV_VAR_PACKAGE_DIR, "") or not Path.cwd().is_relative_to(_PROJECT_ROOT_DIR))
 
 

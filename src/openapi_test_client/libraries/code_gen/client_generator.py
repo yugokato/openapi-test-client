@@ -10,8 +10,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from api_client_core.base.api_class import get_api_classes
-from api_client_core.constants import VALID_METHODS
+from api_client_core.core.base.api_class import get_api_classes
+from api_client_core.core.constants import VALID_METHODS
 from common_libs.ansi_colors import ColorCodes, color
 from common_libs.logging import get_logger
 from common_libs.naming import camel_to_snake, to_class_name

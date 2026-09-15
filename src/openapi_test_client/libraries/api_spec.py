@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx2
 import yaml
-from api_client_core.constants import VALID_METHODS
+from api_client_core.core.constants import VALID_METHODS
 from common_libs.logging import get_logger
 
 if TYPE_CHECKING:

@@ -1,6 +1,6 @@
 from typing import ParamSpec
 
-from api_client_core.endpoints.endpoint_handler import EndpointHandler as _EndpointHandler
+from api_client_core.core.endpoints.endpoint_handler import EndpointHandler as _EndpointHandler
 
 __all__ = ["EndpointHandler"]
 

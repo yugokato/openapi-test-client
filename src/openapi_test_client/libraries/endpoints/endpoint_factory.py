@@ -1,4 +1,4 @@
-from api_client_core.endpoints.endpoint_factory import endpoint as _endpoint
+from api_client_core.core.endpoints.endpoint_factory import endpoint as _endpoint
 
 __all__ = ["endpoint"]
 
