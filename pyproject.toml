@@ -27,7 +27,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "api-client-core@git+https://github.com/yugokato/api-client-core",
+    "api-client-core[cli-completion,mcp]@git+https://github.com/yugokato/api-client-core",
     "inflect==7.0.0",   # Pinning to avoid https://github.com/jaraco/inflect/issues/212
     "phonenumbers~=9.0.1",
     "pydantic[email]~=2.13.0",
