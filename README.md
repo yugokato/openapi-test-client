@@ -22,8 +22,8 @@ thoroughly perform automated API testing against API-first applications in a fas
 
 OpenAPI Test Client is built on top of [**API Client Core**](https://github.com/yugokato/api-client-core), a framework 
 for building Python API clients that provides decorator-based endpoint definitions, rich endpoint metadata and 
-introspection, request hooks, automatic endpoint call statistics, sync/async dual-mode support, and built-in 
-command-line interface (CLI).  
+introspection, request hooks, automatic endpoint call statistics, sync/async dual-mode support, and an automatically 
+generated command-line interface (CLI) and MCP server.  
 
 While OpenAPI Test Client focuses on OpenAPI-driven API client generation for testing purposes, API Client Core 
 provides the underlying framework and can be used independently to build general-purpose API clients.
@@ -297,11 +297,25 @@ datetime.datetime(2024, 1, 1, 0, 0, 0, 87714, tzinfo=datetime.timezone.utc)
 ```
 
 > [!TIP]
-> The **API Client Core** framework also provides a CLI command for making API requests without writing any code. The 
-> above example request can be made with the following command:
+> The **API Client Core** framework also automatically generates a CLI and an MCP server from the same endpoint 
+> definitions, letting you make API requests without writing any code.
+>
+> **CLI**
+>
+> The above example request can be made with the following command:
 > ```bash
 > api-client demo_app auth login --username foo --password bar
 > ```
+>
+> **MCP**
+>
+> An MCP client such as Claude Code can call your API using natural language:
+> ```
+> ❯ Log in to demo_app with username foo and password bar
+> ```
+>
+> See API Client Core's [CLI guide](https://github.com/yugokato/api-client-core/blob/main/src/api_client_core/cli/README.md) 
+> and [MCP guide](https://github.com/yugokato/api-client-core/blob/main/src/api_client_core/mcp/README.md) for details.
 
 ## 4. Customize API functions (optional)
 
