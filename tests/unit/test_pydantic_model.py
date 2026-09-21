@@ -5,12 +5,14 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import pytest
+from common_libs.clients.rest_client import RestResponse
 from pydantic import ValidationError
 from pytest_lazy_fixtures import lf as lazy_fixture
 
 import openapi_test_client.libraries.utils.pydantic_model as pydantic_model_util
-from openapi_test_client.libraries.base import BaseOpenAPI
-from openapi_test_client.libraries.types import Constraint, EndpointModel, Optional, ParamModel, PydanticModel
+from openapi_test_client.libraries import endpoint
+from openapi_test_client.libraries.base import BaseOpenAPI, OpenAPIClient
+from openapi_test_client.libraries.types import Constraint, EndpointModel, Optional, ParamModel, PydanticModel, Unset
 from openapi_test_client.libraries.utils import param_type as param_type_util
 
 
@@ -174,3 +176,40 @@ class TestEndpointModelPydanticConversion:
         """Test that repeated calls to `to_pydantic()` return the same cached class"""
         model = api_class.get_something.endpoint.model
         assert model.to_pydantic() is model.to_pydantic()
+
+
+class TestEndpointModelQueryParamWidening:
+    """Tests for the query-vs-path/body classification that `to_pydantic()` uses to decide whether a
+    parameter accepts a repeated (list) value, consolidated via `get_param_location()`.
+    """
+
+    def test_use_query_string_widens_an_annotated_param_to_accept_a_list(self, api_client: OpenAPIClient) -> None:
+        """Test that a POST endpoint's `use_query_string=True` widens an Annotated param to accept a list"""
+
+        class ItemsAPI(BaseOpenAPI):
+            TAGs = ("Items",)
+            app_name = api_client.app_name
+
+            @endpoint.post("/v1/items", use_query_string=True)
+            def create_item(self, *, name: Annotated[str, "meta"] = Unset) -> RestResponse: ...
+
+        instance = ItemsAPI(api_client)
+        pydantic_model = instance.create_item.model.to_pydantic()
+        pydantic_model.validate_as_json({"name": "foo"})
+        pydantic_model.validate_as_json({"name": ["foo", "bar"]})
+
+    def test_get_path_param_is_not_widened_despite_the_get_method(self, api_client: OpenAPIClient) -> None:
+        """Test that a GET endpoint's path parameter is excluded from list-widening despite method == GET"""
+
+        class ItemsAPI(BaseOpenAPI):
+            TAGs = ("Items",)
+            app_name = api_client.app_name
+
+            @endpoint.get("/v1/items/{item_id}")
+            def get_item(self, item_id: Annotated[str, "meta"], /) -> RestResponse: ...
+
+        instance = ItemsAPI(api_client)
+        pydantic_model = instance.get_item.model.to_pydantic()
+        pydantic_model.validate_as_json({"item_id": "foo"})
+        with pytest.raises(ValidationError):
+            pydantic_model.validate_as_json({"item_id": ["foo", "bar"]})

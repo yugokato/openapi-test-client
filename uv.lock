@@ -70,8 +70,8 @@ wheels = [
 
 [[package]]
 name = "api-client-core"
-version = "0.1.dev43"
-source = { git = "https://github.com/yugokato/api-client-core#152803843a258f03f5eebb2019487bb26ee43980" }
+version = "0.1.dev47"
+source = { git = "https://github.com/yugokato/api-client-core#fb09dd4ca548467beb85fea702d6505791779fa1" }
 dependencies = [
     { name = "common-libs", extra = ["http3", "rest-client"] },
 ]

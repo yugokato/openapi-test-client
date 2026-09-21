@@ -11,6 +11,7 @@ from pathlib import Path
 from types import EllipsisType
 from typing import Any, TypeVar, cast, get_args
 
+import api_client_core.core.endpoints.utils.endpoint_call as core_endpoint_call_util
 from pydantic import (
     AnyHttpUrl,
     Base64Str,
@@ -145,12 +146,13 @@ def generate_pydantic_model_field(
         )
 
         if annotated_type := param_type_util.get_annotated_type(dataclass_field_type):
-            is_query_param = param_type_util.is_query_param(annotated_type)
             # For query parameters, each parameter may be allowed to use multiple times with different values.
             # Our client will support this scenario by taking values as a list. To prevent a validation error to
             # occur when giving a list, adjust the model type to also allow list.
-            if is_query_param or (
-                issubclass(original_model, EndpointModel) and original_model.endpoint_func.method.upper() == "GET"
+            if param_type_util.is_query_param(annotated_type) or (
+                issubclass(original_model, EndpointModel)
+                and core_endpoint_call_util.get_param_location(original_model.endpoint_func.endpoint, model_field)
+                == "query"
             ):
                 base_type = param_type_util.get_base_type(dataclass_field_type, return_if_container_type=True)
                 if not param_type_util.is_type_of(base_type, list):

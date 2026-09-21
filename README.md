@@ -572,6 +572,7 @@ Some attributes available from the API class:
           model=<class 'AuthAPILoginEndpointModel'>,
           url=None,
           content_type=None,
+          use_query_string=False,
           is_public=True,
           is_documented=True,
           is_deprecated=False,
@@ -583,10 +584,11 @@ Some attributes available from the API class:
           model=<class 'AuthAPILogoutEndpointModel'>,
           url=None,
           content_type=None,
+          use_query_string=False,
           is_public=False,
           is_documented=True,
-          is_deprecated=False),
-          tags=('Auth',)]
+          is_deprecated=False,
+          tags=('Auth',))]
 ```
 
 A list of defined API classes are available as `API_CLASSES`.
@@ -636,17 +638,18 @@ Various endpoint data is available from the endpoint function via `endpoint` pro
 >>> print(client.auth.login.endpoint)
 POST /v1/auth/login
 >>> pprint(client.auth.login.endpoint)
-Endpoint(tags=('Auth',),
-         api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
+Endpoint(api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
          method='post',
          path='/v1/auth/login',
          func_name='login',
          model=<class 'AuthAPILoginEndpointModel'>,
          url='http://127.0.0.1:8000/v1/auth/login',
          content_type=None,
+         use_query_string=False,
          is_public=True,
          is_documented=True,
-         is_deprecated=False)
+         is_deprecated=False,
+         tags=('Auth',))
 >>> client.auth.login.endpoint.method
 'post'
 >>> client.auth.login.endpoint.path
@@ -663,17 +666,18 @@ True
 >>> print(AuthAPI.login.endpoint)
 POST /v1/auth/login
 >>> pprint(AuthAPI.login.endpoint)
-Endpoint(tags=('Auth',),
-         api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
+Endpoint(api_class=<class 'openapi_test_client.clients.demo_app.api.auth.AuthAPI'>,
          method='post',
          path='/v1/auth/login',
          func_name='login',
          model=<class 'AuthAPILoginEndpointModel'>,
          url=None,
          content_type=None,
+         use_query_string=False,
          is_public=True,
          is_documented=True,
-         is_deprecated=False)
+         is_deprecated=False,
+         tags=('Auth',))
 ```
 
 An example of the additional capability the `EndpointFunc` obj provides - Automatic retry:
