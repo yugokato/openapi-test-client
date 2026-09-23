@@ -1439,16 +1439,16 @@ wheels = [
 
 [[package]]
 name = "pact-python"
-version = "3.4.0"
+version = "3.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pact-python-ffi" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/d0/0f7b44586c232e86383a6224eb9f6bfb511d2c9630b692312506a879ac40/pact_python-3.4.0.tar.gz", hash = "sha256:e4a500fa00e1fd586cecf473a74db1e604af5e1be97a312d88eced46c25395c0", size = 82088, upload-time = "2026-05-04T09:40:06.947Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/60/dc7f8339fb1bbe5a1bad8024582c6400b92c288db1c6c4b8be0dd9888d32/pact_python-3.4.1.tar.gz", hash = "sha256:4dff5c3966509e08081e5eb7e2aeeb68b93c3174c4436c23ac8e0a524f9a961b", size = 83446, upload-time = "2026-09-17T10:52:02.661Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3a/63/fb5c76d6c23504d5838f4da4219c81399b68211735939d1657ad568a016b/pact_python-3.4.0-py3-none-any.whl", hash = "sha256:76e8fb55c403c2c87d45052b270535cd88af2cd4b60d7d17ae5714eb9d8a872a", size = 97691, upload-time = "2026-05-04T09:40:05.502Z" },
+    { url = "https://files.pythonhosted.org/packages/18/6c/a4a625bca3c1d5674d08667c2ec9001ed5896230cbce2871926e3625dea2/pact_python-3.4.1-py3-none-any.whl", hash = "sha256:5db3f69e827ca8788c92655821f7de8f8dbedfe4c245ac6bbf5ff2164395ecfe", size = 99202, upload-time = "2026-09-17T10:52:01.347Z" },
 ]
 
 [[package]]
