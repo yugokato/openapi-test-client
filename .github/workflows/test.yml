@@ -82,7 +82,7 @@ jobs:
           uv sync --locked --extra app --no-default-groups --group test
       - name: Run pytest
         run: |
-          uv run --no-sync pytest tests -n auto
+          uv run --no-sync pytest tests
 
   status-check:
     if: always()
