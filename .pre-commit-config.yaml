@@ -2,6 +2,7 @@ repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v6.0.0
   hooks:
+    - id: check-json
     - id: check-toml
     - id: check-yaml
       args:
@@ -12,6 +13,7 @@ repos:
         - --no-sort-keys
         - --no-ensure-ascii
         - --autofix
+    - id: check-merge-conflict
 - repo: https://github.com/astral-sh/uv-pre-commit
   rev: 0.12.19
   hooks:
