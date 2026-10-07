@@ -15,7 +15,7 @@ repos:
         - --autofix
     - id: check-merge-conflict
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.12.19
+  rev: 0.12.23
   hooks:
     - id: uv-lock
 - repo: local
