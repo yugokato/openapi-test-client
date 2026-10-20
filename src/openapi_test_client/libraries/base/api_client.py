@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
-from typing import Any, TypeVar
+from typing import Any, Self
 
 from api_client_core.core.base.api_client import APIClient
 from common_libs.clients.rest_client import AsyncRestClient, RestClient
@@ -11,8 +11,6 @@ from common_libs.clients.rest_client import AsyncRestClient, RestClient
 from openapi_test_client import DEFAULT_ENV, get_client_dir, get_config_dir
 from openapi_test_client.libraries.api_spec import OpenAPISpec
 from openapi_test_client.libraries.utils.modules import get_module_name_by_file_path
-
-T = TypeVar("T", bound="APIClient")
 
 
 class OpenAPIClient(APIClient):
@@ -71,7 +69,7 @@ class OpenAPIClient(APIClient):
         self.api_spec = OpenAPISpec(self, doc)
 
     @classmethod
-    def get_client(cls: type[T], app_name: str, **init_options: Any) -> T:
+    def get_client(cls, app_name: str, **init_options: Any) -> Self:
         """Get API client for the app
 
         :param app_name: App name
@@ -83,7 +81,7 @@ class OpenAPIClient(APIClient):
 
         client_module_name = get_module_name_by_file_path(client_file)
         mod = importlib.import_module(client_module_name)
-        client_classes: list[type[T]] = [
+        client_classes: list[type[Self]] = [
             x
             for x in mod.__dict__.values()
             if inspect.isclass(x) and issubclass(x, cls) and x.__module__ == mod.__name__

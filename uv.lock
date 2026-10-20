@@ -70,8 +70,8 @@ wheels = [
 
 [[package]]
 name = "api-client-core"
-version = "0.1.dev55"
-source = { git = "https://github.com/yugokato/api-client-core#b7d684fd9116c787ecaf564276df68064c49ad51" }
+version = "0.1.dev76"
+source = { git = "https://github.com/yugokato/api-client-core#1921129de8b29c79ee3c5cd185e46807d4c58d27" }
 dependencies = [
     { name = "common-libs", extra = ["http3", "rest-client"] },
 ]
@@ -315,7 +315,7 @@ wheels = [
 [[package]]
 name = "common-libs"
 version = "0.0.0"
-source = { git = "https://github.com/yugokato/common-libs#3795e4942e56909d5f26eb8bb3e85957f1f60ba9" }
+source = { git = "https://github.com/yugokato/common-libs#e9532640b2052049074023bdfe007a8f665553ac" }
 dependencies = [
     { name = "filelock" },
     { name = "python-dotenv" },

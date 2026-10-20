@@ -13,7 +13,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import Field, asdict, dataclass, field, is_dataclass, make_dataclass
 from functools import lru_cache
-from typing import Any, ClassVar, TypeAlias, TypeVar, cast, get_type_hints
+from typing import Any, ClassVar, Self, TypeAlias, TypeVar, cast, get_type_hints
 
 from api_client_core.types import (
     Alias,
@@ -108,7 +108,7 @@ class PydanticModel(BaseModel, metaclass=_QualNameReprMeta):
     model_config: ClassVar = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
     @classmethod
-    def validate_as_json(cls: type[PydanticModel], data: dict[str, Any]) -> PydanticModel:
+    def validate_as_json(cls, data: dict[str, Any]) -> Self:
         """Validate parameters as JSON data
 
         :param data: Dictionary data to validate with this model
@@ -414,7 +414,7 @@ class ParamModel(dict[str, Any], DataclassModel, metaclass=_ParamModelMeta):
         delattr(self, key)
         return key, value
 
-    def __ior__(self, other: dict[str, Any]) -> ParamModel:
+    def __ior__(self, other: dict[str, Any]) -> Self:
         self.update(other)
         return self
 
